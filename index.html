@@ -39,11 +39,7 @@
 
   <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, forwardRef, memo } = React;
-const { 
-  FileText, Mic, Loader2, CheckCircle2, Clock, ChevronRight,
-  MicOff, Stethoscope, X, ChevronLeft, Sparkles, Printer,
-  Download, UserPlus, Table: TableIcon, Menu, Wand2, Lightbulb, Copy
-} = lucide;
+const { FileText, Mic, Loader2, CheckCircle2, Clock, ChevronRight, MicOff, Stethoscope, X, ChevronLeft, Sparkles, Printer, Download, UserPlus, Table: TableIcon, Menu, Wand2, Lightbulb, Copy } = lucide;
 
 // =============================================================================
 // CONFIGURATION — fill these in before deploying
@@ -332,7 +328,7 @@ const FinalReportLayout = forwardRef(({ reportData }, ref) => {
 // =============================================================================
 // MAIN APP
 // =============================================================================
-export default function App() {
+function App() {
   const [view,           setView]           = useState("dashboard");
   const [currentChapter, setCurrentChapter] = useState(0);
   const [activeRegion,   setActiveRegion]   = useState(null);
