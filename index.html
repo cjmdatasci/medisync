@@ -1,124 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MediSync MedLegal</title>
-
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- React 18 -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <!-- Babel (transpiles JSX in-browser) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-
-  <!-- Supabase (optional — only used if SUPABASE_URL is set) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     @media print {
-      header, aside, .fixed, .sticky { display: none !important; }
+      header, aside, .fixed, .no-print { display: none !important; }
       main { overflow: visible !important; }
       .print\:shadow-none { box-shadow: none !important; }
       .print\:p-0 { padding: 0 !important; }
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-spin { animation: spin 1s linear infinite; }
+    @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+    .animate-ping { animation: ping 1s cubic-bezier(0,0,0.2,1) infinite; }
+    @keyframes pulse { 50% { opacity: .5; } }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .animate-in { animation: fadeIn 0.2s ease-out; }
   </style>
 </head>
-<body>
+<body class="bg-slate-100 m-0 p-0">
   <div id="root"></div>
-
   <script type="text/babel" data-presets="react">
-const { useState, useEffect, useRef, forwardRef, memo } = React;
-const { FileText, Mic, Loader2, CheckCircle2, Clock, ChevronRight, MicOff, Stethoscope, X, ChevronLeft, Sparkles, Printer, Download, UserPlus, Table: TableIcon, Menu, Wand2, Lightbulb, Copy } = lucide;
+    const { useState, useEffect, useRef, memo, forwardRef } = React;
 
-// =============================================================================
-// CONFIGURATION — fill these in before deploying
-// =============================================================================
-const ANTHROPIC_API_KEY = "YOUR_ANTHROPIC_API_KEY_HERE"; // sk-ant-...
+    // Lucide icons via UMD
+    const {
+      FileText, Mic, Loader2, CheckCircle2, Clock, ChevronRight,
+      MicOff, Stethoscope, X, ChevronLeft, Sparkles, Printer,
+      Download, UserPlus, Menu, Wand2, Lightbulb, Copy
+    } = LucideReact;
 
-// Supabase — leave both blank to use localStorage only (works offline, no setup)
+    // Table icon (named differently in UMD)
+    const TableIcon = LucideReact.Table || LucideReact.LayoutGrid || (() => React.createElement('span', null, '▦'));
+
+    // Patch React.memo and React.forwardRef for compatibility
+    React.memo = memo;
+    React.forwardRef = forwardRef;
+
+
+// ─── CONFIGURATION ──────────────────────────────────────────────────────────
+// Replace with your actual Anthropic API key
+const ANTHROPIC_API_KEY = "YOUR_ANTHROPIC_API_KEY_HERE";
+
+// Supabase config — leave blank to use localStorage-only mode
 const SUPABASE_URL  = "";
 const SUPABASE_ANON = "";
-// =============================================================================
 
-// Storage layer — auto-selects Supabase or localStorage
-let _supabase = null;
-if (SUPABASE_URL && SUPABASE_ANON && typeof window !== "undefined" && window.supabase) {
-  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+// ─── STORAGE LAYER ───────────────────────────────────────────────────────────
+// Automatically uses Supabase if configured, otherwise localStorage
+let supabase = null;
+if (SUPABASE_URL && SUPABASE_ANON && window.supabase) {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 }
 
 const DB = {
-  async load() {
-    if (_supabase) {
-      const { data, error } = await _supabase
-        .from("reports").select("*").order("created_at", { ascending: false });
-      if (error) { console.error("Supabase load:", error); return []; }
+  async loadReports() {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('reports')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) { console.error(error); return []; }
       return data || [];
     }
-    try { return JSON.parse(localStorage.getItem("medisync_reports") || "[]"); }
-    catch { return []; }
+    try {
+      return JSON.parse(localStorage.getItem('medisync_reports') || '[]');
+    } catch { return []; }
   },
-  async save(report) {
-    if (_supabase) {
-      const { error } = await _supabase.from("reports").upsert(report, { onConflict: "id" });
-      if (error) console.error("Supabase save:", error);
+
+  async saveReport(report) {
+    if (supabase) {
+      const { error } = await supabase
+        .from('reports')
+        .upsert(report, { onConflict: 'id' });
+      if (error) console.error(error);
       return;
     }
     try {
-      const all = JSON.parse(localStorage.getItem("medisync_reports") || "[]");
+      const all = JSON.parse(localStorage.getItem('medisync_reports') || '[]');
       const idx = all.findIndex(r => r.id === report.id);
       if (idx >= 0) all[idx] = report; else all.unshift(report);
-      localStorage.setItem("medisync_reports", JSON.stringify(all));
-    } catch (e) { console.error("localStorage save:", e); }
+      localStorage.setItem('medisync_reports', JSON.stringify(all));
+    } catch (e) { console.error('Save failed:', e); }
   },
-  async create(data) {
-    const id = "rpt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+
+  async createReport(data) {
+    const id = 'rpt_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     const report = { ...data, id };
-    await DB.save(report);
+    await DB.saveReport(report);
     return report;
-  },
-  async remove(id) {
-    if (_supabase) {
-      await _supabase.from("reports").delete().eq("id", id);
-      return;
-    }
-    try {
-      const all = JSON.parse(localStorage.getItem("medisync_reports") || "[]");
-      localStorage.setItem("medisync_reports", JSON.stringify(all.filter(r => r.id !== id)));
-    } catch (e) { console.error("localStorage delete:", e); }
   }
 };
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const ORTHO_CHAPTERS = [
-  { id: 0,  title: "Cover Page / Demographics",             type: "form"      },
-  { id: 1,  title: "Chapter 1: Documents Perused",          type: "dictation" },
-  { id: 2,  title: "Chapter 2: Occupational & Medical Hx",  type: "dictation" },
+  { id: 0,  title: "Cover Page / Demographics",            type: "form"      },
+  { id: 1,  title: "Chapter 1: Documents Perused",         type: "dictation" },
+  { id: 2,  title: "Chapter 2: Occupational & Medical Hx", type: "dictation" },
   { id: 3,  title: "Chapter 3: Summary of Hospital Records", type: "guided",
     steps: ["Mechanism and date of accident","EMS assessment on scene",
       "Transfer to hospital","Presentation to hospital","Initial assessment",
       "Investigations/Treatment","Diagnosis","Admission/Transfer",
       "Definitive Management","Post-op Treatment/Rehab",
       "Discharge/Assistive devices","Follow-up and review"] },
-  { id: 4,  title: "Chapter 4: Injuries Sustained",         type: "auto"      },
-  { id: 5,  title: "Chapter 5: Current Complaints",         type: "dictation" },
-  { id: 6,  title: "Chapter 6: Clinical Evaluation",        type: "msk_exam"  },
-  { id: 7,  title: "Chapter 7: Diagnosis",                  type: "dictation" },
-  { id: 8,  title: "Chapter 8: Further Treatment",          type: "dictation" },
-  { id: 9,  title: "Chapter 9: Disability & Impairment",    type: "disability"},
-  { id: 10, title: "Chapter 10: Discussion",                type: "dictation" }
+  { id: 4,  title: "Chapter 4: Injuries Sustained",        type: "auto"      },
+  { id: 5,  title: "Chapter 5: Current Complaints",        type: "dictation" },
+  { id: 6,  title: "Chapter 6: Clinical Evaluation",       type: "msk_exam"  },
+  { id: 7,  title: "Chapter 7: Diagnosis",                 type: "dictation" },
+  { id: 8,  title: "Chapter 8: Further Treatment",         type: "dictation" },
+  { id: 9,  title: "Chapter 9: Disability & Impairment",   type: "disability"},
+  { id: 10, title: "Chapter 10: Discussion",               type: "dictation" }
 ];
 
 const MSK_REGIONS = [
@@ -132,29 +134,17 @@ const MSK_REGIONS = [
   { name: "Ankle/Foot",     prompts: ["Inspection","Palpation","ROM","Sensation","Thompson Test"] }
 ];
 
-const ADL_BASIC = [
-  "Bowel control","Bladder control","Grooming","Toileting","Feeding",
-  "Move from chair to bed","Indoor mobility","Dressing","Stairs","Bathing"
-];
-const ADL_ADVANCED = [
-  "Driving a car","Sexual function","Medical care","Money management",
+const ADL_BASIC    = ["Bowel control","Bladder control","Grooming","Toileting","Feeding",
+  "Move from chair to bed","Indoor mobility","Dressing","Stairs","Bathing"];
+const ADL_ADVANCED = ["Driving a car","Sexual function","Medical care","Money management",
   "Writing and communication","Travelling","Shopping","Cooking","Housework",
-  "Moderate activities: moving, pushing","Vigorous activities: sport, heavy lifting"
-];
-const ADL_LABELS = ["N/A","None","Mild","Moderate","Severe"];
+  "Moderate activities: moving, pushing","Vigorous activities: sport, heavy lifting"];
+const ADL_LABELS   = ["N/A","None","Mild","Moderate","Severe"];
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-function esc(s) {
-  return String(s || "")
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
-
+// ─── AI CALL ─────────────────────────────────────────────────────────────────
 async function callAI(systemPrompt, userContent) {
   if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "YOUR_ANTHROPIC_API_KEY_HERE") {
-    console.warn("No Anthropic API key configured — AI features disabled.");
+    console.warn("No Anthropic API key set — AI features disabled.");
     return null;
   }
   try {
@@ -163,26 +153,28 @@ async function callAI(systemPrompt, userContent) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
+        max_tokens: 1500,
         system: systemPrompt,
         messages: [{ role: "user", content: userContent }]
       })
     });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `HTTP ${resp.status}`);
-    }
     const data = await resp.json();
-    return data.content?.find(b => b.type === "text")?.text?.trim() || null;
+    const text = data.content?.find(b => b.type === "text")?.text?.trim();
+    return text || null;
   } catch (e) {
     console.error("AI call failed:", e);
-    throw e;
+    return null;
   }
 }
 
-// =============================================================================
-// SUB-COMPONENTS
-// =============================================================================
+// ─── HTML ESCAPE ──────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 const Sidebar = ({ currentChapter, setCurrentChapter, setShowMobileMenu, setFocusedPrompt }) => (
   <div className="w-80 bg-slate-900 border-r border-white/5 flex flex-col h-full">
     <div className="p-6 border-b border-white/5">
@@ -191,17 +183,18 @@ const Sidebar = ({ currentChapter, setCurrentChapter, setShowMobileMenu, setFocu
     </div>
     <div className="flex-1 overflow-y-auto p-4 space-y-1">
       {ORTHO_CHAPTERS.map((c, i) => (
-        <button key={i}
+        <button
+          key={i}
           onClick={() => { setCurrentChapter(i); setShowMobileMenu(false); setFocusedPrompt(null); }}
           className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 ${
-            currentChapter === i ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 hover:bg-white/5"
+            currentChapter === i ? 'bg-blue-600 text-white shadow-xl' : 'text-slate-500 hover:bg-white/5'
           }`}
         >
           <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
-            currentChapter === i ? "bg-white/20" : "bg-slate-800"
+            currentChapter === i ? 'bg-white/20' : 'bg-slate-800'
           }`}>{i + 1}</div>
           <span className="text-[11px] font-black uppercase truncate">
-            {c.title.split(": ")[1] || c.title}
+            {c.title.split(': ')[1] || c.title}
           </span>
         </button>
       ))}
@@ -209,7 +202,7 @@ const Sidebar = ({ currentChapter, setCurrentChapter, setShowMobileMenu, setFocu
   </div>
 );
 
-const ADLRow = memo(({ act, type, adlData, setReportData }) => (
+const ADLRow = React.memo(({ act, type, adlData, setReportData }) => (
   <div className="grid grid-cols-6 p-4 border-b border-slate-100 items-center hover:bg-slate-50/50 transition-colors">
     <div className="col-span-2 text-xs font-bold text-slate-700">{act}</div>
     {ADL_LABELS.map((label, val) => (
@@ -218,10 +211,18 @@ const ADLRow = memo(({ act, type, adlData, setReportData }) => (
           type="radio"
           name={`${type}-${act}`}
           checked={(adlData?.[act] ?? -1) === val}
-          onChange={() => setReportData(prev => {
-            if (!prev) return prev;
-            return { ...prev, adl: { ...prev.adl, [type]: { ...(prev.adl?.[type] || {}), [act]: val } } };
-          })}
+          onChange={() => {
+            setReportData(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                adl: {
+                  ...prev.adl,
+                  [type]: { ...(prev.adl?.[type] || {}), [act]: val }
+                }
+              };
+            });
+          }}
           className="w-4 h-4 text-blue-600 cursor-pointer"
         />
       </div>
@@ -229,48 +230,44 @@ const ADLRow = memo(({ act, type, adlData, setReportData }) => (
   </div>
 ));
 
-const FinalReportLayout = forwardRef(({ reportData }, ref) => {
-  const chContent = (id) => {
-    const raw = reportData?.chapters?.find(c => c.id === id)?.content;
-    return typeof raw === "string" ? raw : (raw ? JSON.stringify(raw, null, 2) : "No information entered.");
+const FinalReportLayout = React.forwardRef(({ reportData }, ref) => {
+  const chapterContent = (id) => {
+    const c = reportData?.chapters?.find(ch => ch.id === id);
+    const raw = c?.content;
+    return typeof raw === 'string' ? raw : (raw ? JSON.stringify(raw, null, 2) : "No information entered.");
   };
   return (
     <div ref={ref} className="bg-white p-16 max-w-4xl mx-auto shadow-2xl min-h-screen text-[11pt] leading-relaxed font-serif text-slate-900 print:shadow-none print:p-0">
-      {/* Header */}
       <div className="flex justify-between border-b-2 border-slate-900 pb-4 mb-8">
         <div className="text-4xl font-black italic text-slate-300 tracking-tighter uppercase leading-none">[PRACTICE LOGO]</div>
         <div className="text-right">
-          <div className="text-xl font-bold uppercase text-slate-900 leading-tight">{reportData?.drName || "[PRACTITIONER NAME]"}</div>
-          <div className="text-xs italic underline">{reportData?.quals || "[QUALIFICATIONS]"}</div>
+          <div className="text-xl font-bold uppercase text-slate-900 leading-tight">[PRACTITIONER NAME]</div>
+          <div className="text-xs italic underline">[QUALIFICATIONS]</div>
           <div className="text-[9pt] text-slate-500 mt-1 uppercase tracking-tighter">[ADDRESS] &bull; [CONTACT DETAILS]</div>
         </div>
       </div>
       <h1 className="text-center text-lg font-bold underline mb-8 uppercase">Medico-Legal Report</h1>
-      {/* Demographics table */}
       <table className="w-full mb-8 border-b border-slate-100 pb-4 text-[10.5pt]">
         <tbody>
           {[
-            ["Our Reference",            reportData?.ref],
+            ["Our Reference",          reportData?.ref],
             ["Patient's Full Name",     reportData?.patientName],
-            ["Gender",                   reportData?.gender],
-            ["Date of Birth",            reportData?.dob],
-            ["Date of Injury",           reportData?.doi],
-            ["Mechanism of Injury",      reportData?.moi],
-            ["Date of Examination",      reportData?.doe],
-            ["Place of Examination",     reportData?.poe],
-            ["Pre-Accident Occupation",  reportData?.preOcc],
-            ["Post-Accident Occupation", reportData?.postOcc],
-            ["Instructing Attorney",     reportData?.atty],
-            ["Attorney Contact",         reportData?.attyCon],
+            ["Gender",                  reportData?.gender],
+            ["Date of Birth",           reportData?.dob],
+            ["Date of Injury",          reportData?.doi],
+            ["Date of Examination",     reportData?.doe],
+            ["Place of Examination",    reportData?.poe],
+            ["Pre-Accident Occupation", reportData?.preOcc],
+            ["Instructing Attorney",    reportData?.atty],
+            ["Attorney Contact",        reportData?.attyCon],
           ].map(([k, v]) => (
             <tr key={k}>
-              <td className="font-bold pr-4 py-0.5 w-52 align-top">{k}:</td>
+              <td className="font-bold pr-4 py-0.5 w-48 align-top">{k}:</td>
               <td className={k === "Patient's Full Name" ? "font-bold uppercase underline" : ""}>{v || "---"}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      {/* Chapters */}
       {ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => (
         <div key={c.id} className="mb-6 break-inside-avoid">
           <h2 className="font-bold uppercase mb-2 border-b border-slate-200 pb-1 text-[11pt]">{c.title}</h2>
@@ -279,11 +276,11 @@ const FinalReportLayout = forwardRef(({ reportData }, ref) => {
               {[["Basic ADL", ADL_BASIC, "basic"], ["Advanced ADL", ADL_ADVANCED, "advanced"]].map(([title, items, type]) => (
                 <div key={type} className="mb-4">
                   <div className="font-bold text-[10pt] mb-1">{title}</div>
-                  <table className="w-full text-[9.5pt] border-collapse border border-slate-200">
+                  <table className="w-full text-[9.5pt] border-collapse">
                     <thead>
                       <tr className="bg-slate-50">
                         <th className="text-left p-1 border border-slate-200 font-bold w-48">Activity</th>
-                        {ADL_LABELS.map(l => <th key={l} className="p-1 border border-slate-200 font-bold text-center w-16">{l}</th>)}
+                        {ADL_LABELS.map(l => <th key={l} className="p-1 border border-slate-200 font-bold text-center">{l}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -293,7 +290,7 @@ const FinalReportLayout = forwardRef(({ reportData }, ref) => {
                           <tr key={act}>
                             <td className="p-1 border border-slate-200">{act}</td>
                             {ADL_LABELS.map((l, i) => (
-                              <td key={l} className="p-1 border border-slate-200 text-center font-bold text-blue-700">{val === i ? "x" : ""}</td>
+                              <td key={l} className="p-1 border border-slate-200 text-center">{val === i ? "✓" : ""}</td>
                             ))}
                           </tr>
                         );
@@ -302,213 +299,187 @@ const FinalReportLayout = forwardRef(({ reportData }, ref) => {
                   </table>
                 </div>
               ))}
-              {chContent(9) && chContent(9) !== "No information entered." && (
-                <div className="whitespace-pre-wrap mt-3 text-[10.5pt]">{chContent(9)}</div>
-              )}
+              <div className="whitespace-pre-wrap mt-2">{chapterContent(9)}</div>
             </div>
           ) : (
-            <div className="whitespace-pre-wrap pl-4 leading-6">{chContent(c.id)}</div>
+            <div className="whitespace-pre-wrap pl-4 leading-6 text-[10.5pt]">{chapterContent(c.id)}</div>
           )}
         </div>
       ))}
-      {/* Signature */}
       <div className="mt-20 pt-10 border-t border-slate-200 text-center break-inside-avoid">
-        <div className="font-bold mb-2">_________________________</div>
-        <div className="font-bold text-[13pt] mt-1">{reportData?.drName || "[PRACTITIONER NAME]"}</div>
-        <div className="text-xs italic uppercase tracking-widest">{reportData?.quals || "[QUALIFICATIONS]"}</div>
-        <p className="text-[9pt] text-slate-500 mt-6 max-w-xl mx-auto">
+        <div className="font-bold">_________________________</div>
+        <div className="font-bold text-[13pt] mt-1">[PRACTITIONER NAME]</div>
+        <div className="text-xs italic uppercase tracking-widest">[DESIGNATION / SPECIALTY]</div>
+        <div className="text-[9pt] text-slate-500 mt-4">
           VALIDITY: This report remains valid for use in a court of law for 2 (two) years from the date of first consultation.
-          If this matter has not been finalised within 2 (two) years, an updated Medico-Legal Report will be required.
-        </p>
+        </div>
       </div>
     </div>
   );
 });
 
-// =============================================================================
-// MAIN APP
-// =============================================================================
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
-  const [view,           setView]           = useState("dashboard");
-  const [currentChapter, setCurrentChapter] = useState(0);
-  const [activeRegion,   setActiveRegion]   = useState(null);
-  const [focusedPrompt,  setFocusedPrompt]  = useState(null);
-  const [reports,        setReports]        = useState([]);
-  const [reportData,     setReportData]     = useState(null);
-  const [isProcessing,   setIsProcessing]   = useState(false);
-  const [isRecording,    setIsRecording]    = useState(false);
-  const [liveTranscript, setLiveTranscript] = useState("");
-  const [isSyncing,      setIsSyncing]      = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [notif,          setNotif]          = useState(null);
-  const [confirmDelete,  setConfirmDelete]  = useState(null); // report id pending delete
+  const [view,            setView]           = useState('dashboard');
+  const [currentChapter,  setCurrentChapter] = useState(0);
+  const [activeRegion,    setActiveRegion]   = useState(null);
+  const [focusedPrompt,   setFocusedPrompt]  = useState(null);
+  const [reports,         setReports]        = useState([]);
+  const [reportData,      setReportData]     = useState(null);
+  const [isProcessing,    setIsProcessing]   = useState(false);
+  const [isRecording,     setIsRecording]    = useState(false);
+  const [liveTranscript,  setLiveTranscript] = useState("");
+  const [isSyncing,       setIsSyncing]      = useState(false);
+  const [showMobileMenu,  setShowMobileMenu] = useState(false);
+  const [notif,           setNotif]          = useState(null);
 
-  const isRecordingRef = useRef(false);
-  const accTranscript  = useRef("");
-  const recognitionRef = useRef(null);
-  const reportRef      = useRef(null);
-  const chapterRef     = useRef(0);
-  const focusedRef     = useRef(null);
+  const isRecordingRef  = useRef(false);
+  const accTranscript   = useRef("");
+  const recognitionRef  = useRef(null);
+  const reportRef       = useRef(null);
+  const chapterRef      = useRef(0);
+  const focusedRef      = useRef(null);
 
-  useEffect(() => { chapterRef.current = currentChapter; }, [currentChapter]);
-  useEffect(() => { focusedRef.current = focusedPrompt;  }, [focusedPrompt]);
+  useEffect(() => { chapterRef.current  = currentChapter; }, [currentChapter]);
+  useEffect(() => { focusedRef.current  = focusedPrompt;  }, [focusedPrompt]);
 
-  // Load reports on mount
+  // ── Load reports on mount ──
   useEffect(() => {
-    DB.load().then(data => setReports(data.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))));
+    DB.loadReports().then(data => {
+      setReports(data.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+    });
   }, []);
 
-  // Debounced auto-save
+  // ── Auto-save debounced ──
   useEffect(() => {
     if (!reportData?.id || isProcessing) return;
     const t = setTimeout(async () => {
       setIsSyncing(true);
-      await DB.save(reportData);
-      const all = await DB.load();
+      await DB.saveReport(reportData);
+      // Refresh dashboard list
+      const all = await DB.loadReports();
       setReports(all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
       setIsSyncing(false);
     }, 1500);
     return () => clearTimeout(t);
   }, [reportData, isProcessing]);
 
-  // Page title
+  // ── Page title ──
   useEffect(() => {
     document.title = reportData?.patientName
-      ? `${reportData.patientName.toUpperCase()} — MediSync`
+      ? `${reportData.patientName.toUpperCase()} - MediSync`
       : "MediSync MedLegal";
   }, [reportData?.patientName]);
 
-  function notify(msg, type = "success") {
+  function notify(msg, type = 'success') {
     setNotif({ msg, type });
-    setTimeout(() => setNotif(null), 3500);
+    setTimeout(() => setNotif(null), 3000);
   }
 
-  // Chapter content helpers
-  function getContent(id) {
-    const raw = reportData?.chapters?.find(c => c.id === id)?.content;
-    return typeof raw === "string" ? raw : (raw ? JSON.stringify(raw, null, 2) : "");
+  // ── Content helpers ──
+  function getChapterContent(id) {
+    const c = reportData?.chapters?.find(ch => ch.id === id);
+    const raw = c?.content;
+    return typeof raw === 'string' ? raw : (raw ? JSON.stringify(raw, null, 2) : "");
   }
-  function setContent(id, valOrFn) {
+
+  function setChapterContent(id, valOrFn) {
     setReportData(prev => {
       if (!prev) return prev;
       return {
         ...prev,
         chapters: prev.chapters.map(ch => {
           if (ch.id !== id) return ch;
-          const next = typeof valOrFn === "function" ? valOrFn(ch.content || "") : valOrFn;
+          const next = typeof valOrFn === 'function' ? valOrFn(ch.content || "") : valOrFn;
           return { ...ch, content: next };
         })
       };
     });
   }
 
-  // ── AI handlers ──────────────────────────────────────────────────────────────
-  async function processDictation(transcript, chapterId, prompt) {
+  // ── AI: grammar correction after dictation ──
+  async function processDictation(transcript, targetChapterId, targetPrompt) {
     setIsProcessing(true);
-    const title = ORTHO_CHAPTERS[chapterId]?.title || "";
-    try {
-      const corrected = await callAI(
-        "You are a South African medical scribe. Correct ONLY spelling, grammar, and punctuation. " +
-        "Do NOT alter clinical facts, measurements, observations, or medical terminology. " +
-        "Return ONLY the corrected text — no preamble, no markdown, no explanations.",
-        `Chapter: "${title}"${prompt ? ` | Section: ${prompt}` : ""}
+    const chTitle = ORTHO_CHAPTERS[targetChapterId]?.title || "";
+    const sectionNote = targetPrompt ? ` (Section: ${targetPrompt})` : "";
 
-Transcript:
-${transcript}`
-      );
-      const text = (corrected || transcript).trim();
-      const heading = prompt ? `[${prompt.toUpperCase()}]: ` : "";
-      setContent(chapterId, prev => {
-        const ex = (prev || "").trim();
-        const sep = ex ? (prompt ? "
+    const corrected = await callAI(
+      "You are a medical scribe. Correct ONLY spelling, grammar, and punctuation. " +
+      "Do NOT change clinical facts, measurements, or observations. " +
+      "Return ONLY the corrected text — no preamble, no JSON, no quotes.",
+      `Chapter: "${chTitle}"${sectionNote}\n\nTranscript:\n${transcript}`
+    );
 
-" : "
-") : "";
-        return ex ? `${ex}${sep}${heading}${text}` : `${heading}${text}`;
-      });
-      notify("Dictation synced ✓");
-    } catch (e) {
-      notify("AI unavailable — raw transcript saved.", "error");
-      const heading = prompt ? `[${prompt.toUpperCase()}]: ` : "";
-      setContent(chapterId, prev => {
-        const ex = (prev || "").trim();
-        const sep = ex ? "
-" : "";
-        return ex ? `${ex}${sep}${heading}${transcript.trim()}` : `${heading}${transcript.trim()}`;
-      });
-    }
+    const text = (corrected || transcript).trim();
+    const prefix = targetPrompt ? `[${targetPrompt.toUpperCase()}]: ` : "";
+
+    setChapterContent(targetChapterId, prev => {
+      const existing = (prev || "").trim();
+      const separator = existing ? (targetPrompt ? `\n\n` : `\n`) : "";
+      return existing ? `${existing}${separator}${prefix}${text}` : `${prefix}${text}`;
+    });
+
+    notify("Dictation synced ✓");
     setIsProcessing(false);
   }
 
+  // ── AI: auto-extract injuries from Ch3 ──
   async function handleAutoExtract() {
-    const ch3 = getContent(3);
+    const ch3 = getChapterContent(3);
     if (!ch3.trim()) { notify("Complete Chapter 3 first", "error"); return; }
     setIsProcessing(true);
-    try {
-      const result = await callAI(
-        "You are an orthopaedic medico-legal specialist. Extract ALL injuries from the provided hospital records. " +
-        "Format as a numbered list. Each distinct injury on its own line. Be precise and clinical. " +
-        "Return ONLY the list — no preamble.",
-        ch3
-      );
-      if (result) { setContent(4, result); notify("Injuries extracted ✓"); }
-    } catch (e) { notify("AI request failed", "error"); }
+    const result = await callAI(
+      "You are an orthopaedic medico-legal specialist. Extract all injuries from the provided hospital records. " +
+      "Format as a clean bullet list using • characters. Each injury on its own line. Be precise and clinical.",
+      ch3
+    );
+    if (result) setChapterContent(4, result);
     setIsProcessing(false);
+    notify("Injuries extracted ✓");
   }
 
+  // ── AI: suggest diagnoses from Ch6 ──
   async function handleDiagnosisAssistant() {
-    const ch6 = getContent(6);
+    const ch6 = getChapterContent(6);
     if (!ch6.trim()) { notify("Complete Chapter 6 first", "error"); return; }
     setIsProcessing(true);
-    try {
-      const result = await callAI(
-        "You are an orthopaedic medico-legal specialist writing a South African RAF4 report. " +
-        "Based on the clinical examination findings, write a formal numbered diagnosis list. " +
-        "Include sub-points describing functional outcomes and impairments. " +
-        "Use precise clinical terminology appropriate for court use. Return ONLY the list.",
-        ch6
-      );
-      if (result) { setContent(7, result); notify("Diagnoses suggested ✓"); }
-    } catch (e) { notify("AI request failed", "error"); }
+    const result = await callAI(
+      "You are an orthopaedic medico-legal specialist writing a South African RAF report. " +
+      "Based on the clinical examination findings, write a formal numbered diagnosis list. " +
+      "Include sub-points for functional outcomes. Use precise clinical terminology.",
+      ch6
+    );
+    if (result) setChapterContent(7, result);
     setIsProcessing(false);
+    notify("Diagnoses suggested ✓");
   }
 
+  // ── AI: draft discussion ──
   async function handleSmartDiscussion() {
     setIsProcessing(true);
-    try {
-      const context = [
-        `Patient: ${reportData?.patientName || "Unknown"}, DOI: ${reportData?.doi || "Unknown"}`,
-        `Occupation: ${reportData?.preOcc || "Unknown"}`,
-        `Hospital Records:
-${getContent(3)}`,
-        `Injuries:
-${getContent(4)}`,
-        `Current Complaints:
-${getContent(5)}`,
-        `Clinical Examination:
-${getContent(6)}`,
-        `Diagnosis:
-${getContent(7)}`,
-        `Further Treatment:
-${getContent(8)}`
-      ].join("
-
-");
-      const result = await callAI(
-        "You are a senior orthopaedic surgeon writing a South African Road Accident Fund (RAF) medico-legal report. " +
-        "Write a formal Discussion section (6-8 paragraphs) covering: mechanism of injury, acute management, " +
-        "clinical findings and their significance, long-term functional impairment, " +
-        "qualification under Narrative Test criterion 5.1 (serious long-term impairment or loss of body function), " +
-        "effect on occupation and ADLs, prognosis, and life expectancy. " +
-        "Use authoritative clinical and medicolegal language appropriate for court. Return ONLY the discussion text.",
-        context
-      );
-      if (result) { setContent(10, result); notify("Discussion drafted ✓"); }
-    } catch (e) { notify("AI request failed", "error"); }
+    const context = [
+      `Patient: ${reportData?.patientName || "Unknown"}`,
+      `Date of Injury: ${reportData?.doi || "Unknown"}`,
+      `Hospital Records:\n${getChapterContent(3)}`,
+      `Injuries:\n${getChapterContent(4)}`,
+      `Clinical Examination:\n${getChapterContent(6)}`,
+      `Diagnosis:\n${getChapterContent(7)}`,
+      `Further Treatment:\n${getChapterContent(8)}`
+    ].join("\n\n");
+    const result = await callAI(
+      "You are a senior orthopaedic medico-legal expert. Write a Discussion section for a South African " +
+      "Road Accident Fund (RAF) medico-legal report. Write 6-8 formal paragraphs covering: " +
+      "mechanism of injury, hospital management, clinical findings, long-term impairment and functional loss, " +
+      "qualification under Narrative Test criterion 5.1 (serious long-term impairment or loss of body function), " +
+      "prognosis and life expectancy. Use authoritative clinical language appropriate for court use.",
+      context
+    );
+    if (result) setChapterContent(10, result);
     setIsProcessing(false);
+    notify("Discussion drafted ✓");
   }
 
-  // ── Voice dictation ──────────────────────────────────────────────────────────
+  // ── Voice dictation ──
   function toggleVoice() {
     if (isRecordingRef.current) {
       isRecordingRef.current = false;
@@ -517,8 +488,10 @@ ${getContent(8)}`
       return;
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { notify("Speech recognition requires Chrome or Edge", "error"); return; }
-
+    if (!SR) {
+      notify("Speech recognition requires Chrome or Edge", "error");
+      return;
+    }
     const rec = new SR();
     rec.continuous = true;
     rec.interimResults = true;
@@ -537,21 +510,26 @@ ${getContent(8)}`
       isRecordingRef.current = false;
       setIsRecording(false);
       const msgs = {
-        "not-allowed":    "Mic blocked — allow microphone access in browser settings",
-        "no-speech":      "No speech detected — speak closer to the mic",
-        "network":        "Network error with speech service",
-        "audio-capture":  "No microphone found"
+        "not-allowed": "Mic blocked — allow microphone access in browser settings",
+        "no-speech":   "No speech detected — speak louder or closer",
+        "network":     "Network error with speech service",
+        "audio-capture": "No microphone found"
       };
       notify(msgs[e.error] || `Mic error: ${e.error}`, "error");
     };
 
     rec.onend = () => {
-      if (isRecordingRef.current) { try { rec.start(); } catch(e) {} return; }
+      if (isRecordingRef.current) {
+        try { rec.start(); } catch(e) {}
+        return;
+      }
       const text = accTranscript.current.trim();
       accTranscript.current = "";
       setLiveTranscript("");
       setIsRecording(false);
-      if (text) processDictation(text, chapterRef.current, focusedRef.current);
+      if (text) {
+        processDictation(text, chapterRef.current, focusedRef.current);
+      }
     };
 
     accTranscript.current = "";
@@ -559,45 +537,39 @@ ${getContent(8)}`
     isRecordingRef.current = true;
     setIsRecording(true);
     recognitionRef.current = rec;
-    try { rec.start(); }
-    catch (e) {
+    try {
+      rec.start();
+    } catch (e) {
       isRecordingRef.current = false;
       setIsRecording(false);
       notify("Could not start mic: " + e.message, "error");
     }
   }
 
-  // ── Start new report ─────────────────────────────────────────────────────────
+  // ── Start new report ──
   async function startNewReport() {
     setIsProcessing(true);
-    const report = await DB.create({
-      patientName: "", ref: `RGML/REF/${new Date().getFullYear()}/`,
-      doi: "", dob: "", doe: "", moi: "Motor Vehicle Accident", gender: "Male",
-      poe: "RG Medlegal Rooms, Kings Court Centre, Walmer Heights, Gqeberha",
-      preOcc: "", postOcc: "", atty: "", attyCon: "", drName: "", quals: "",
+    const initialData = {
+      patientName: "",
+      ref: `RGML/REF/${new Date().getFullYear()}/`,
+      doi: "", dob: "", doe: "", gender: "Male",
+      poe: "RG Medlegal Rooms", preOcc: "", postOcc: "",
+      atty: "", attyCon: "", drName: "", quals: "",
       createdAt: Date.now(),
       chapters: ORTHO_CHAPTERS.map(c => ({ id: c.id, content: "" })),
       adl: { basic: {}, advanced: {} }
-    });
+    };
+    const report = await DB.createReport(initialData);
     setReportData(report);
     setCurrentChapter(0);
-    setView("ortho-workflow");
+    setView('ortho-workflow');
     setIsProcessing(false);
   }
 
-  // ── Delete report ────────────────────────────────────────────────────────────
-  async function deleteReport(id) {
-    await DB.remove(id);
-    const all = await DB.load();
-    setReports(all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
-    setConfirmDelete(null);
-    notify("Report deleted.");
-  }
-
-  // ── Export: copy HTML to clipboard ──────────────────────────────────────────
+  // ── Export: copy to clipboard ──
   function copyToClipboard() {
     if (!reportRef.current) return;
-    const el = document.createElement("div");
+    const el = document.createElement('div');
     el.innerHTML = reportRef.current.innerHTML;
     el.style.cssText = "position:fixed;left:-9999px;top:0";
     document.body.appendChild(el);
@@ -606,46 +578,46 @@ ${getContent(8)}`
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    try { document.execCommand("copy"); notify("Copied! Paste into Word."); }
+    try { document.execCommand('copy'); notify("Copied! Paste into Word."); }
     catch (e) { notify("Copy failed. Use Print to PDF.", "error"); }
     document.body.removeChild(el);
   }
 
-  // ── Export: download .doc ────────────────────────────────────────────────────
+  // ── Export: download .doc ──
   function downloadAsWord() {
-    const patName = esc(reportData?.patientName || "PATIENT").replace(/\s+/g, "_").toUpperCase();
+    const name = esc(reportData?.patientName || "PATIENT").replace(/\s+/g, '_').toUpperCase();
 
-    function adlHtml(title, items, type) {
+    function adlTable(title, items, type) {
       const rows = items.map(act => {
         const val = reportData?.adl?.[type]?.[act] ?? -1;
-        return `<tr><td style="width:220px;padding:3pt 6pt">${esc(act)}</td>` +
-          ADL_LABELS.map((l, i) => `<td style="text-align:center;padding:3pt 6pt">${val === i ? "x" : ""}</td>`).join("") +
+        return `<tr><td style="width:200px">${esc(act)}</td>` +
+          ADL_LABELS.map((l, i) => `<td style="text-align:center">${val === i ? "✓" : ""}</td>`).join("") +
           `</tr>`;
       }).join("");
-      return `<p style="font-weight:bold;margin:10pt 0 3pt">${title}</p>
-<table border="1" cellpadding="3" style="border-collapse:collapse;width:100%;font-size:10pt">
-<thead><tr style="background:#f5f5f5"><th style="text-align:left;padding:3pt 6pt">Activity</th>${ADL_LABELS.map(l => `<th style="padding:3pt 6pt">${l}</th>`).join("")}</tr></thead>
-<tbody>${rows}</tbody></table>`;
+      return `<h4 style="margin:10pt 0 4pt">${title}</h4>
+        <table border="1" cellpadding="4" style="border-collapse:collapse;width:100%;font-size:10pt">
+        <thead><tr><th>Activity</th>${ADL_LABELS.map(l => `<th>${l}</th>`).join("")}</tr></thead>
+        <tbody>${rows}</tbody></table>`;
     }
 
     const chaptersHtml = ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => {
-      const body = getContent(c.id) || "Pending entry.";
+      let body = getChapterContent(c.id) || "Pending entry.";
       if (c.id === 9) {
-        return `<p class="chap-t">${esc(c.title)}</p>
-<div class="chap-c">
-${adlHtml("Basic Activities of Daily Living", ADL_BASIC, "basic")}
-${adlHtml("Advanced Activities of Daily Living", ADL_ADVANCED, "advanced")}
-${body !== "Pending entry." ? `<p style="white-space:pre-wrap;margin-top:10pt">${esc(body)}</p>` : ""}
-</div>`;
+        return `<div class="chap-t">${esc(c.title)}</div>
+          <div class="chap-c">
+            ${adlTable("Basic Activities of Daily Living", ADL_BASIC, "basic")}
+            ${adlTable("Advanced Activities of Daily Living", ADL_ADVANCED, "advanced")}
+            <div style="white-space:pre-wrap;margin-top:10pt">${esc(body)}</div>
+          </div>`;
       }
-      return `<p class="chap-t">${esc(c.title)}</p><div class="chap-c">${esc(body)}</div>`;
-    }).join("
-");
+      return `<div class="chap-t">${esc(c.title)}</div>
+        <div class="chap-c">${esc(body)}</div>`;
+    }).join("\n");
 
-    const mhtml = `MIME-Version: 1.0
-Content-Type: multipart/related; boundary="MEDISYNC_BOUNDARY"
+    const html = `MIME-Version: 1.0
+Content-Type: multipart/related; boundary="NEXT.ITEM-BOUNDARY"
 
---MEDISYNC_BOUNDARY
+--NEXT.ITEM-BOUNDARY
 Content-Type: text/html; charset="utf-8"
 Content-Location: report.html
 
@@ -654,41 +626,30 @@ Content-Location: report.html
       xmlns:w="urn:schemas-microsoft-com:office:word"
       xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Medico-Legal Report</title>
-<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
 <style>
-body{font-family:"Times New Roman",serif;font-size:11pt;color:#000;line-height:1.5;margin:2.5cm}
-h1{text-align:center;text-decoration:underline;font-size:14pt;text-transform:uppercase;margin:0 0 22pt}
-.hdr-table{width:100%;border-bottom:2pt solid #000;margin-bottom:28pt}
-.meta-t{width:100%;border-bottom:1pt solid #ccc;margin-bottom:22pt}
-.meta-t td{padding:2pt 6pt;vertical-align:top;font-size:11pt}
-.lbl{font-weight:bold;width:38%}
-.chap-t{font-weight:bold;text-decoration:underline;text-transform:uppercase;margin:18pt 0 6pt;font-size:11pt;display:block}
-.chap-c{margin-left:14pt;white-space:pre-wrap;margin-bottom:18pt;font-size:11pt}
-.sig{margin-top:80pt;text-align:center}
+  body{font-family:'Times New Roman',serif;font-size:11pt;color:black;line-height:1.5;margin:1in}
+  h1{text-align:center;text-decoration:underline;font-size:14pt;text-transform:uppercase;margin-bottom:20pt}
+  .meta-t{width:100%;border-bottom:1px solid #ccc;margin-bottom:20pt;font-size:11pt}
+  .meta-t td{padding:2pt 6pt;vertical-align:top}
+  .lbl{font-weight:bold;width:35%}
+  .chap-t{font-weight:bold;text-decoration:underline;text-transform:uppercase;margin-top:18pt;margin-bottom:6pt;display:block;font-size:11pt}
+  .chap-c{margin-left:12pt;white-space:pre-wrap;margin-bottom:16pt;font-size:11pt}
+  .sig{margin-top:80pt;text-align:center}
 </style></head>
 <body>
-<table class="hdr-table"><tr>
-  <td style="font-size:22pt;font-weight:bold;font-style:italic;color:#bbb">[PRACTICE LOGO]</td>
-  <td style="text-align:right;font-size:10pt">
-    <b>${esc(reportData?.drName || "[PRACTITIONER NAME]")}</b><br>
-    <i>${esc(reportData?.quals || "[QUALIFICATIONS]")}</i><br>
-    <small>[ADDRESS] &bull; [CONTACT]</small>
-  </td>
-</tr></table>
 <h1>MEDICO-LEGAL REPORT</h1>
 <table class="meta-t"><tbody>
-<tr><td class="lbl">Our Reference:</td><td>${esc(reportData?.ref)}</td></tr>
-<tr><td class="lbl">Patient's Full Name:</td><td><b><u>${esc(reportData?.patientName)}</u></b></td></tr>
-<tr><td class="lbl">Gender:</td><td>${esc(reportData?.gender)}</td></tr>
-<tr><td class="lbl">Date of Birth:</td><td>${esc(reportData?.dob)}</td></tr>
-<tr><td class="lbl">Date of Injury:</td><td>${esc(reportData?.doi)}</td></tr>
-<tr><td class="lbl">Mechanism of Injury:</td><td>${esc(reportData?.moi)}</td></tr>
-<tr><td class="lbl">Date of Examination:</td><td>${esc(reportData?.doe)}</td></tr>
-<tr><td class="lbl">Place of Examination:</td><td>${esc(reportData?.poe)}</td></tr>
-<tr><td class="lbl">Pre-Accident Occupation:</td><td>${esc(reportData?.preOcc)}</td></tr>
-<tr><td class="lbl">Post-Accident Occupation:</td><td>${esc(reportData?.postOcc)}</td></tr>
-<tr><td class="lbl">Instructing Attorney:</td><td>${esc(reportData?.atty)}</td></tr>
-<tr><td class="lbl">Attorney Contact:</td><td>${esc(reportData?.attyCon)}</td></tr>
+  <tr><td class="lbl">Our Reference:</td><td>${esc(reportData?.ref)}</td></tr>
+  <tr><td class="lbl">Patient's Full Name:</td><td><b><u>${esc(reportData?.patientName)}</u></b></td></tr>
+  <tr><td class="lbl">Gender:</td><td>${esc(reportData?.gender)}</td></tr>
+  <tr><td class="lbl">Date of Birth:</td><td>${esc(reportData?.dob)}</td></tr>
+  <tr><td class="lbl">Date of Injury:</td><td>${esc(reportData?.doi)}</td></tr>
+  <tr><td class="lbl">Date of Examination:</td><td>${esc(reportData?.doe)}</td></tr>
+  <tr><td class="lbl">Place of Examination:</td><td>${esc(reportData?.poe)}</td></tr>
+  <tr><td class="lbl">Pre-Accident Occupation:</td><td>${esc(reportData?.preOcc)}</td></tr>
+  <tr><td class="lbl">Instructing Attorney:</td><td>${esc(reportData?.atty)}</td></tr>
+  <tr><td class="lbl">Attorney Contact:</td><td>${esc(reportData?.attyCon)}</td></tr>
 </tbody></table>
 ${chaptersHtml}
 <div class="sig">
@@ -696,70 +657,70 @@ ${chaptersHtml}
   <div>_________________________</div>
   <div><b>${esc(reportData?.drName || "[PRACTITIONER NAME]")}</b></div>
   <div><i>${esc(reportData?.quals || "[QUALIFICATIONS]")}</i></div>
-  <p style="font-size:9pt;color:#666;margin-top:14pt;max-width:400px;margin-left:auto;margin-right:auto">
-    VALIDITY: This report remains valid for use in a court of law for 2 (two) years from the date of first consultation.
-    If this matter has not been finalised within 2 (two) years, an updated report will be required.
+  <p style="font-size:9pt;color:#555;margin-top:12pt">
+    VALIDITY: This report remains valid for use in a court of law for 2 (two) years from date of first consultation.
   </p>
 </div>
 </body></html>
---MEDISYNC_BOUNDARY--`;
+--NEXT.ITEM-BOUNDARY--`;
 
-    const blob = new Blob([mhtml], { type: "application/msword;charset=utf-8" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = `${patName}_MEDLEGAL.doc`;
+    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}_MEDLEGAL.doc`;
     a.click();
     URL.revokeObjectURL(url);
-    notify(`Exported: ${patName}_MEDLEGAL.doc`);
+    notify(`Exported: ${name}_MEDLEGAL.doc`);
   }
 
-  // ── Chapter content renderer ─────────────────────────────────────────────────
-  function renderContent() {
+  // ── Chapter renderer ──
+  function renderChapterContent() {
     const ch = ORTHO_CHAPTERS[currentChapter];
 
-    // 0: Cover / Demographics
+    // Cover page form
     if (currentChapter === 0) {
-      const fields = [
-        { key: "ref",     label: "Our Reference" },
-        { key: "doi",     label: "Date of Injury",          type: "date" },
-        { key: "dob",     label: "Date of Birth",           type: "date" },
-        { key: "moi",     label: "Mechanism of Injury" },
-        { key: "doe",     label: "Date of Examination",     type: "date" },
-        { key: "poe",     label: "Place of Examination" },
-        { key: "preOcc",  label: "Pre-Accident Occupation" },
-        { key: "postOcc", label: "Post-Accident Occupation" },
-        { key: "atty",    label: "Instructing Attorney" },
-        { key: "attyCon", label: "Attorney Contact" },
-        { key: "drName",  label: "Practitioner Name" },
-        { key: "quals",   label: "Qualifications / Title" },
-      ];
+      const field = (key, label, type = "text") => (
+        <div key={key} className="flex flex-col gap-1">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
+          <input
+            type={type}
+            className="bg-slate-50 border-0 rounded-xl p-3 font-bold focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+            value={reportData?.[key] || ""}
+            onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, [key]: v })); }}
+          />
+        </div>
+      );
       return (
-        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm grid grid-cols-2 gap-4">
+        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm grid grid-cols-2 gap-5">
           <div className="col-span-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Patient Full Name</label>
-            <input type="text"
+            <input
+              type="text"
               className="w-full bg-slate-50 border-0 rounded-xl p-4 font-black uppercase text-xl text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="SURNAME FIRSTNAME"
+              placeholder="NAME HERE"
               value={reportData?.patientName || ""}
               onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, patientName: v })); }}
             />
           </div>
-          {fields.map(f => (
-            <div key={f.key} className="flex flex-col gap-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{f.label}</label>
-              <input type={f.type || "text"}
-                className="bg-slate-50 border-0 rounded-xl p-3 font-medium focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                value={reportData?.[f.key] || ""}
-                onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, [f.key]: v })); }}
-              />
-            </div>
-          ))}
+          {field("ref",      "Our Reference")}
+          {field("doi",      "Date of Injury",       "date")}
+          {field("dob",      "Date of Birth",         "date")}
+          {field("doe",      "Date of Examination",   "date")}
+          {field("poe",      "Place of Examination")}
+          {field("preOcc",   "Pre-Accident Occupation")}
+          {field("postOcc",  "Post-Accident Occupation")}
+          {field("atty",     "Instructing Attorney")}
+          {field("attyCon",  "Attorney Contact")}
+          {field("drName",   "Practitioner Name")}
+          {field("quals",    "Qualifications")}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gender</label>
-            <select className="bg-slate-50 border-0 rounded-xl p-3 font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+            <select
+              className="bg-slate-50 border-0 rounded-xl p-3 font-bold focus:ring-2 focus:ring-blue-500 outline-none"
               value={reportData?.gender || "Male"}
-              onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, gender: v })); }}>
+              onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, gender: v })); }}
+            >
               <option>Male</option><option>Female</option><option>Other</option>
             </select>
           </div>
@@ -767,7 +728,7 @@ ${chaptersHtml}
       );
     }
 
-    // 9: Disability / ADL
+    // ADL chapter
     if (currentChapter === 9) {
       return (
         <div className="space-y-8">
@@ -782,8 +743,9 @@ ${chaptersHtml}
                 <div className="col-span-2">Activity</div>
                 {ADL_LABELS.map(l => <div key={l} className="text-center">{l}</div>)}
               </div>
-              {items.map(a => (
-                <ADLRow key={a} act={a} type={type}
+              {items.map(act => (
+                <ADLRow
+                  key={act} act={act} type={type}
                   adlData={reportData?.adl?.[type]}
                   setReportData={setReportData}
                 />
@@ -795,34 +757,33 @@ ${chaptersHtml}
               9.2 Occupational Effects &amp; Limitations
             </div>
             <textarea
-              className="w-full min-h-[220px] text-base leading-relaxed font-medium text-slate-800 outline-none resize-none bg-transparent"
-              placeholder="Dictate or type occupational effects and limitations..."
-              value={getContent(9)}
-              onChange={e => setContent(9, e.target.value)}
+              className="w-full min-h-[200px] text-base leading-relaxed font-medium text-slate-800 outline-none resize-none bg-transparent"
+              placeholder="Dictate or type occupational effects..."
+              value={getChapterContent(9)}
+              onChange={e => setChapterContent(9, e.target.value)}
             />
           </div>
         </div>
       );
     }
 
-    // All dictation chapters
+    // All other chapters
     return (
       <div className="space-y-4">
-        {/* Ch3: sub-section selector */}
+        {/* Ch3: section step selector */}
         {ch.id === 3 && (
           <div className="bg-slate-900 p-7 rounded-[2rem] border border-white/5">
             <div className="flex items-center gap-3 mb-5 text-slate-400">
               <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Select sub-section then dictate</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Select sub-section for dictation</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {ch.steps.map(step => (
-                <button key={step}
-                  onClick={() => { setFocusedPrompt(step); notify(`Focus: ${step}`, "info"); }}
+                <button key={step} onClick={() => { setFocusedPrompt(step); notify(`Focus: ${step}`, 'info'); }}
                   className={`text-left p-3 rounded-xl border text-[10px] font-black uppercase transition-all flex items-center justify-between ${
                     focusedPrompt === step
-                      ? "bg-blue-600 border-blue-500 text-white shadow-lg"
-                      : "bg-white/5 border-white/10 text-slate-500 hover:bg-white/10"
+                      ? 'bg-blue-600 border-blue-500 text-white shadow-lg'
+                      : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'
                   }`}>
                   {step}
                   {focusedPrompt === step && <CheckCircle2 className="w-3 h-3 text-white flex-shrink-0" />}
@@ -838,12 +799,11 @@ ${chaptersHtml}
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Select Region to Examine</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
               {MSK_REGIONS.map(reg => (
-                <button key={reg.name}
-                  onClick={() => { setActiveRegion(reg); setFocusedPrompt(null); }}
+                <button key={reg.name} onClick={() => { setActiveRegion(reg); setFocusedPrompt(null); }}
                   className={`p-3 rounded-xl border text-[10px] font-black uppercase transition-all ${
                     activeRegion?.name === reg.name
-                      ? "bg-blue-600 border-blue-500 text-white shadow-lg"
-                      : "bg-white/5 border-white/10 text-slate-500 hover:bg-white/10"
+                      ? 'bg-blue-600 border-blue-500 text-white shadow-lg'
+                      : 'bg-white/5 border-white/10 text-slate-500 hover:bg-white/10'
                   }`}>{reg.name}</button>
               ))}
             </div>
@@ -854,12 +814,11 @@ ${chaptersHtml}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {activeRegion.prompts.map(p => (
-                    <button key={p}
-                      onClick={() => { setFocusedPrompt(p); notify(`${activeRegion.name} — ${p}`, "info"); }}
+                    <button key={p} onClick={() => { setFocusedPrompt(p); notify(`${activeRegion.name} — ${p}`, 'info'); }}
                       className={`p-2.5 rounded-xl border text-[9px] font-black uppercase transition-all ${
                         focusedPrompt === p
-                          ? "bg-purple-600 border-purple-500 text-white shadow-lg"
-                          : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                          ? 'bg-purple-600 border-purple-500 text-white shadow-lg'
+                          : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
                       }`}>{p}</button>
                   ))}
                 </div>
@@ -868,51 +827,45 @@ ${chaptersHtml}
           </div>
         )}
 
-        {/* AI assist panel */}
+        {/* AI assist buttons */}
         {(ch.id === 4 || ch.id === 7 || ch.id === 10) && (
           <div className="bg-amber-50 border border-amber-200 p-5 rounded-[1.5rem] flex items-center gap-3 flex-wrap">
-            <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">AI Assist</span>
+            <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">AI Assist</span>
             {ch.id === 4  && <button onClick={handleAutoExtract}       disabled={isProcessing} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 disabled:opacity-40 hover:bg-blue-700 transition-colors"><Sparkles className="w-4 h-4"/> Auto-Extract from Ch.3</button>}
             {ch.id === 7  && <button onClick={handleDiagnosisAssistant} disabled={isProcessing} className="bg-purple-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 disabled:opacity-40 hover:bg-purple-700 transition-colors"><Lightbulb className="w-4 h-4"/> Suggest Diagnoses</button>}
             {ch.id === 10 && <button onClick={handleSmartDiscussion}    disabled={isProcessing} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 disabled:opacity-40 hover:bg-indigo-700 transition-colors"><Wand2 className="w-4 h-4"/> Draft Discussion</button>}
           </div>
         )}
 
-        {/* Text area */}
+        {/* Main text area */}
         <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200 min-h-[400px] flex flex-col">
           <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100 flex-shrink-0 flex-wrap">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Content</span>
             {focusedPrompt && (
-              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
-                {focusedPrompt}
-                <button onClick={() => setFocusedPrompt(null)} className="ml-1 opacity-50 hover:opacity-100">
-                  <X className="w-3 h-3" />
-                </button>
+              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
+                Focus: {focusedPrompt}
               </span>
             )}
           </div>
           <textarea
             className="flex-1 w-full text-base leading-relaxed font-medium text-slate-800 outline-none resize-none bg-transparent min-h-[320px]"
-            placeholder={`Dictate or type content for ${ch.title}...`}
-            value={getContent(ch.id)}
-            onChange={e => setContent(ch.id, e.target.value)}
+            placeholder={`Dictate or type ${ch.title}...`}
+            value={getChapterContent(ch.id)}
+            onChange={e => setChapterContent(ch.id, e.target.value)}
           />
         </div>
       </div>
     );
   }
 
-  // =============================================================================
-  // RENDER
-  // =============================================================================
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 overflow-hidden">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-xl sticky top-0 z-[60]">
         <div className="flex items-center gap-3">
-          {view === "ortho-workflow" && (
+          {view === 'ortho-workflow' && (
             <button onClick={() => setShowMobileMenu(true)} className="lg:hidden p-2 bg-slate-800 rounded-lg">
               <Menu className="w-5 h-5" />
             </button>
@@ -923,22 +876,22 @@ ${chaptersHtml}
               MediSync <span className="text-blue-400">Ortho</span>
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? "bg-amber-400 animate-pulse" : "bg-green-500"}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
               <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-                {isSyncing ? "Saving..." : _supabase ? "Supabase" : "Local Storage"}
+                {isSyncing ? 'Saving...' : supabase ? 'Supabase' : 'Local Storage'}
               </span>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-          {view === "ortho-workflow" && (
-            <button onClick={() => setView("final-preview")}
+          {view === 'ortho-workflow' && (
+            <button onClick={() => setView('final-preview')}
               className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 shadow-lg active:scale-95 transition-all">
               <FileText className="w-4 h-4" /> Preview
             </button>
           )}
-          {view !== "dashboard" && (
-            <button onClick={() => { setView("dashboard"); setReportData(null); }}
+          {view !== 'dashboard' && (
+            <button onClick={() => { setView('dashboard'); setReportData(null); }}
               className="bg-slate-800 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black hover:bg-slate-700 transition-colors uppercase">
               Exit
             </button>
@@ -946,13 +899,15 @@ ${chaptersHtml}
         </div>
       </header>
 
-      {/* ── Toast notification ── */}
+      {/* Notification toast */}
       {notif && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
-          <div className={`px-5 py-3 rounded-full shadow-2xl flex items-center gap-3 text-sm font-bold ${
-            notif.type === "error" ? "bg-red-900 text-red-200" :
-            notif.type === "info"  ? "bg-slate-700 text-blue-200" :
-                                     "bg-slate-900 text-green-300"
+          <div className={`px-5 py-3 rounded-full shadow-2xl flex items-center gap-3 border text-sm font-bold tracking-tight ${
+            notif.type === 'error'
+              ? 'bg-red-900 text-red-200 border-red-700'
+              : notif.type === 'info'
+              ? 'bg-slate-900 text-blue-300 border-blue-700'
+              : 'bg-slate-900 text-green-300 border-green-700'
           }`}>
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
             {notif.msg}
@@ -960,30 +915,10 @@ ${chaptersHtml}
         </div>
       )}
 
-      {/* ── Delete confirmation modal ── */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6">
-          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-slate-100 max-w-sm w-full">
-            <h3 className="text-lg font-black uppercase tracking-tight text-slate-900 mb-2">Delete Report?</h3>
-            <p className="text-slate-500 text-sm mb-8">This cannot be undone.</p>
-            <div className="flex gap-3 justify-center">
-              <button onClick={() => setConfirmDelete(null)}
-                className="px-6 py-3 rounded-2xl bg-slate-100 text-slate-700 font-black text-sm uppercase hover:bg-slate-200 transition-colors">
-                Cancel
-              </button>
-              <button onClick={() => deleteReport(confirmDelete)}
-                className="px-6 py-3 rounded-2xl bg-red-600 text-white font-black text-sm uppercase hover:bg-red-700 transition-colors">
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <main className="flex-1 flex overflow-hidden">
 
-        {/* ════════════ DASHBOARD ════════════ */}
-        {view === "dashboard" && (
+        {/* ── DASHBOARD ── */}
+        {view === 'dashboard' && (
           <div className="flex-1 overflow-y-auto p-8 lg:p-12">
             <div className="max-w-6xl mx-auto">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
@@ -1005,15 +940,8 @@ ${chaptersHtml}
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {reports.map(r => (
-                    <div key={r.id}
-                      className="bg-white p-7 rounded-[2rem] border border-slate-100 hover:shadow-2xl transition-all cursor-pointer group flex flex-col active:scale-[0.98] relative"
-                      onClick={() => { setReportData(r); setView("ortho-workflow"); setCurrentChapter(0); }}>
-                      {/* Delete button */}
-                      <button
-                        onClick={e => { e.stopPropagation(); setConfirmDelete(r.id); }}
-                        className="absolute top-5 right-5 w-7 h-7 rounded-full bg-slate-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                    <div key={r.id} onClick={() => { setReportData(r); setView('ortho-workflow'); setCurrentChapter(0); }}
+                      className="bg-white p-7 rounded-[2rem] border border-slate-100 hover:shadow-2xl transition-all cursor-pointer group flex flex-col active:scale-[0.98]">
                       <div className="flex justify-between items-start mb-5">
                         <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">
                           CASE #{String(r.id).slice(-6).toUpperCase()}
@@ -1024,10 +952,10 @@ ${chaptersHtml}
                         {r.patientName || "UNTITLED PATIENT"}
                       </h3>
                       <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                        {r.ref || "NO REFERENCE"}
+                        {r.ref || "NO REFERENCE SET"}
                       </div>
                       <div className="mt-auto pt-5 border-t border-slate-50 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <span>{r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-ZA") : "N/A"}</span>
+                        <span>{r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-ZA') : 'N/A'}</span>
                         <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
@@ -1038,10 +966,10 @@ ${chaptersHtml}
           </div>
         )}
 
-        {/* ════════════ FINAL PREVIEW ════════════ */}
-        {view === "final-preview" && (
+        {/* ── FINAL PREVIEW ── */}
+        {view === 'final-preview' && (
           <div className="flex-1 bg-slate-200 overflow-y-auto p-8 lg:p-12 relative">
-            <button onClick={() => setView("ortho-workflow")}
+            <button onClick={() => setView('ortho-workflow')}
               className="fixed left-6 top-20 bg-white p-4 rounded-2xl shadow-xl hover:bg-slate-50 active:scale-95 transition-all flex flex-col items-center gap-1 text-blue-600 font-black uppercase text-[9px] z-[50]">
               <ChevronLeft className="w-5 h-5" /> Back
             </button>
@@ -1049,13 +977,13 @@ ${chaptersHtml}
             {/* FABs */}
             <div className="fixed bottom-10 right-10 flex flex-col gap-3 z-[50]">
               {[
-                { icon: <Copy className="w-6 h-6" />,     bg: "bg-purple-600", action: copyToClipboard,    tip: "Copy for Word" },
-                { icon: <Download className="w-6 h-6" />, bg: "bg-blue-600",   action: downloadAsWord,     tip: "Export .doc" },
-                { icon: <Printer className="w-6 h-6" />,  bg: "bg-slate-900",  action: () => window.print(), tip: "Print / PDF" },
-              ].map(({ icon, bg, action, tip }) => (
-                <div key={tip} className="group flex items-center gap-3 justify-end">
+                { label: "Copy for Word", action: copyToClipboard,    bg: "bg-purple-600", icon: <Copy className="w-6 h-6" /> },
+                { label: "Export .doc",   action: downloadAsWord,     bg: "bg-blue-600",   icon: <Download className="w-6 h-6" /> },
+                { label: "Print",         action: () => window.print(),bg: "bg-slate-900",  icon: <Printer className="w-6 h-6" /> },
+              ].map(({ label, action, bg, icon }) => (
+                <div key={label} className="group flex items-center gap-3">
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-full whitespace-nowrap shadow-xl">
-                    {tip}
+                    {label}
                   </span>
                   <button onClick={action} className={`${bg} text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all`}>
                     {icon}
@@ -1066,8 +994,8 @@ ${chaptersHtml}
           </div>
         )}
 
-        {/* ════════════ EDITOR ════════════ */}
-        {view === "ortho-workflow" && (
+        {/* ── EDITOR ── */}
+        {view === 'ortho-workflow' && (
           <>
             {/* Sidebar desktop */}
             <aside className="hidden lg:flex flex-shrink-0">
@@ -1075,7 +1003,7 @@ ${chaptersHtml}
                 setShowMobileMenu={setShowMobileMenu} setFocusedPrompt={setFocusedPrompt} />
             </aside>
 
-            {/* Sidebar mobile */}
+            {/* Sidebar mobile overlay */}
             {showMobileMenu && (
               <div className="fixed inset-0 z-[100] bg-slate-900/70 backdrop-blur-sm flex lg:hidden">
                 <div className="w-80 h-full">
@@ -1088,10 +1016,9 @@ ${chaptersHtml}
               </div>
             )}
 
-            {/* Main editor */}
+            {/* Main content */}
             <div className="flex-1 overflow-y-auto bg-slate-50 relative">
-              <div className="max-w-4xl mx-auto p-6 lg:p-10 pb-52">
-                {/* Chapter header */}
+              <div className="max-w-4xl mx-auto p-6 lg:p-10 pb-48">
                 <div className="mb-8">
                   <div className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
                     Chapter {currentChapter + 1} of {ORTHO_CHAPTERS.length}
@@ -1100,21 +1027,22 @@ ${chaptersHtml}
                     {ORTHO_CHAPTERS[currentChapter].title}
                   </h2>
                 </div>
-                {renderContent()}
+                {renderChapterContent()}
               </div>
 
-              {/* ── Bottom dictation bar ── */}
-              <div className="fixed bottom-0 left-0 lg:left-80 right-0 bg-slate-50/95 backdrop-blur-xl border-t border-slate-200 z-[50] p-5">
+              {/* Bottom dictation bar */}
+              <div className="fixed bottom-0 left-0 lg:left-80 right-0 p-5 bg-slate-50/95 backdrop-blur-xl border-t border-slate-200 z-[50]">
                 <div className="max-w-3xl mx-auto flex items-center gap-3">
                   <button onClick={() => setCurrentChapter(c => Math.max(0, c - 1))}
                     className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm active:scale-95 hover:bg-slate-50 transition-all flex-shrink-0">
                     <ChevronLeft className="w-5 h-5" />
                   </button>
+
                   <button onClick={isProcessing ? undefined : toggleVoice} disabled={isProcessing}
-                    className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-3xl font-black text-sm tracking-[0.2em] uppercase shadow-xl transition-all active:scale-[0.98] ${
-                      isProcessing  ? "bg-slate-400 text-white cursor-not-allowed opacity-50" :
-                      isRecording   ? "bg-red-500 text-white ring-4 ring-red-200 animate-pulse" :
-                                      "bg-slate-900 text-white hover:bg-black"
+                    className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-3xl font-black text-sm tracking-[0.2em] uppercase shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 ${
+                      isProcessing ? 'bg-slate-400 text-white cursor-not-allowed' :
+                      isRecording  ? 'bg-red-500 text-white animate-pulse ring-4 ring-red-200' :
+                                     'bg-slate-900 text-white hover:bg-black'
                     }`}>
                     {isProcessing
                       ? <><Loader2 className="w-5 h-5 animate-spin"/> Processing...</>
@@ -1123,17 +1051,19 @@ ${chaptersHtml}
                       : <><Mic className="w-5 h-5"/> Dictate Findings</>
                     }
                   </button>
-                  <button onClick={() => currentChapter < 10 ? setCurrentChapter(c => c + 1) : setView("final-preview")}
+
+                  <button onClick={() => currentChapter < 10 ? setCurrentChapter(c => c + 1) : setView('final-preview')}
                     className="p-4 rounded-2xl bg-blue-600 text-white shadow-xl active:scale-95 hover:bg-blue-700 transition-all flex-shrink-0">
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
+
                 {isRecording && (
                   <div className="mt-3 max-w-3xl mx-auto bg-white border border-red-100 rounded-2xl p-4 shadow-lg">
                     <div className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1 flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                       Capturing Audio
-                      {focusedPrompt && <span className="text-blue-600 normal-case font-bold">— {focusedPrompt}</span>}
+                      {focusedPrompt && <span className="text-blue-600">— {focusedPrompt}</span>}
                     </div>
                     <div className="text-sm text-slate-700 italic truncate">
                       {liveTranscript || "Listening..."}
@@ -1146,7 +1076,7 @@ ${chaptersHtml}
         )}
       </main>
 
-      {/* ── Processing overlay ── */}
+      {/* Processing overlay */}
       {isProcessing && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] flex items-center justify-center">
           <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-slate-100">
@@ -1161,8 +1091,8 @@ ${chaptersHtml}
 }
 
 
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
   </script>
 </body>
 </html>
