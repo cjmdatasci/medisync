@@ -1,9 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MediSync MedLegal</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel (transpiles JSX in-browser) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Supabase (optional — only used if SUPABASE_URL is set) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    @media print {
+      header, aside, .fixed, .sticky { display: none !important; }
+      main { overflow: visible !important; }
+      .print\:shadow-none { box-shadow: none !important; }
+      .print\:p-0 { padding: 0 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, forwardRef, memo } = React;
+const { 
   FileText, Mic, Loader2, CheckCircle2, Clock, ChevronRight,
   MicOff, Stethoscope, X, ChevronLeft, Sparkles, Printer,
-  Download, UserPlus, Table as TableIcon, Menu, Wand2, Lightbulb, Copy
-} from 'lucide-react';
+  Download, UserPlus, Table: TableIcon, Menu, Wand2, Lightbulb, Copy
+} = lucide;
 
 // =============================================================================
 // CONFIGURATION — fill these in before deploying
@@ -173,7 +213,7 @@ const Sidebar = ({ currentChapter, setCurrentChapter, setShowMobileMenu, setFocu
   </div>
 );
 
-const ADLRow = React.memo(({ act, type, adlData, setReportData }) => (
+const ADLRow = memo(({ act, type, adlData, setReportData }) => (
   <div className="grid grid-cols-6 p-4 border-b border-slate-100 items-center hover:bg-slate-50/50 transition-colors">
     <div className="col-span-2 text-xs font-bold text-slate-700">{act}</div>
     {ADL_LABELS.map((label, val) => (
@@ -193,7 +233,7 @@ const ADLRow = React.memo(({ act, type, adlData, setReportData }) => (
   </div>
 ));
 
-const FinalReportLayout = React.forwardRef(({ reportData }, ref) => {
+const FinalReportLayout = forwardRef(({ reportData }, ref) => {
   const chContent = (id) => {
     const raw = reportData?.chapters?.find(c => c.id === id)?.content;
     return typeof raw === "string" ? raw : (raw ? JSON.stringify(raw, null, 2) : "No information entered.");
@@ -1123,3 +1163,10 @@ ${chaptersHtml}
     </div>
   );
 }
+
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
