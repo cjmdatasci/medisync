@@ -1,1172 +1,1282 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  Plus, FileText, Mic, MicOff, ChevronRight, ChevronLeft,
-  Loader2, CheckCircle2, Clock, Stethoscope, Sparkles,
-  Wand2, Lightbulb, Download, Printer, Copy, X, Menu,
-  UserPlus, Table as TableIcon, Cloud, RefreshCw
+  Plus, FileText, Mic, Camera, Send, ArrowLeft, Loader2, CheckCircle2,
+  AlertCircle, Clock, User, Activity, ChevronRight, ClipboardList,
+  Edit3, Save, MicOff, RefreshCw, Stethoscope, Brain, Syringe,
+  FileSearch, Accessibility, X, Upload, Paperclip, ChevronLeft,
+  ImageIcon, Sparkles, Printer, Download, UserPlus, LayoutGrid,
+  Menu, Wand2, Lightbulb, Copy, Trash2, Eye, ArrowRight, Hash,
+  Zap, Shield, BookOpen, Search, BarChart3
 } from 'lucide-react';
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc } from 'firebase/firestore';
 
-// ── CONFIG ─────────────────────────────────────────────────────────────────
-const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'medisync-ortho-v2';
-const FB_CFG = (() => {
-  try { return typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null; }
-  catch { return null; }
-})();
+// ═══════════════════════════════════════════════════
+// CONSTANTS & CONFIGURATION
+// ═══════════════════════════════════════════════════
 
-let db = null, auth = null;
-if (FB_CFG && Object.keys(FB_CFG).length > 0) {
-  try {
-    const fbApp = getApps().length ? getApps()[0] : initializeApp(FB_CFG);
-    auth = getAuth(fbApp);
-    db = getFirestore(fbApp);
-  } catch (e) { console.warn('Firebase init failed:', e); }
-}
+const STORAGE_KEY = 'medisync_ortho_reports';
+const STORAGE_ACTIVE = 'medisync_ortho_active';
 
-// ── AI CALL (Anthropic API via artifact proxy) ──────────────────────────────
-async function callAI(system, user) {
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        system,
-        messages: [{ role: 'user', content: user }]
-      })
-    });
-    const data = await resp.json();
-    return data.content?.find(b => b.type === 'text')?.text || '';
-  } catch { return ''; }
-}
-
-// ── CONSTANTS ──────────────────────────────────────────────────────────────
-const CHAPTERS = [
-  { id: 0, title: 'Cover Page / Demographics', type: 'form' },
-  { id: 1, title: 'Ch 1: Documents Perused', type: 'dictation' },
-  { id: 2, title: 'Ch 2: Occupational & Medical History', type: 'dictation' },
+const ORTHO_CHAPTERS = [
+  { id: 0, title: "Cover Page / Demographics", short: "Demographics", type: "form", icon: "user" },
+  { id: 1, title: "Chapter 1: Documents Perused", short: "Documents", type: "dictation", icon: "file" },
+  { id: 2, title: "Chapter 2: Occupational & Medical Hx", short: "History", type: "dictation", icon: "clipboard" },
   {
-    id: 3, title: 'Ch 3: Summary of Hospital Records', type: 'guided',
+    id: 3, title: "Chapter 3: Summary of Hospital Records", short: "Hospital Records", type: "guided", icon: "building",
     steps: [
-      'Mechanism and date of accident', 'EMS assessment on scene',
-      'Transfer to hospital', 'Presentation to hospital',
-      'Initial assessment findings', 'Investigations & treatment',
-      'Diagnosis on admission', 'Admission & department transfer',
-      'Definitive management', 'Post-op treatment & rehab',
-      'Discharge & assistive devices', 'Follow-up & review'
+      "Mechanism and date of accident",
+      "EMS assessment on scene (presentation, complaints, GCS, suspected Dx)",
+      "Transfer to hospital (name, mode of transport)",
+      "Date of presentation and department",
+      "Complaints and findings on initial assessment",
+      "Immediate investigations/treatment rendered",
+      "Diagnosis",
+      "Admission, transfer, formal diagnosis",
+      "Definitive management and treatment (with dates)",
+      "Post-operative treatment and rehabilitation",
+      "Discharge, assistive devices, step-down treatment",
+      "Follow-up and review"
     ]
   },
-  { id: 4, title: 'Ch 4: Injuries Sustained', type: 'auto' },
-  { id: 5, title: 'Ch 5: Current Complaints', type: 'dictation' },
-  { id: 6, title: 'Ch 6: Clinical Evaluation', type: 'msk' },
-  { id: 7, title: 'Ch 7: Diagnosis', type: 'dictation' },
-  { id: 8, title: 'Ch 8: Further Treatment', type: 'dictation' },
-  { id: 9, title: 'Ch 9: Disability & Impairment', type: 'adl' },
-  { id: 10, title: 'Ch 10: Discussion', type: 'dictation' }
+  { id: 4, title: "Chapter 4: Injuries Sustained", short: "Injuries", type: "auto", icon: "alert" },
+  { id: 5, title: "Chapter 5: Current Complaints", short: "Complaints", type: "dictation", icon: "message" },
+  { id: 6, title: "Chapter 6: Clinical Evaluation", short: "Clinical Exam", type: "msk_exam", icon: "stethoscope" },
+  { id: 7, title: "Chapter 7: Diagnosis", short: "Diagnosis", type: "dictation", icon: "brain" },
+  { id: 8, title: "Chapter 8: Further Treatment", short: "Treatment", type: "dictation", icon: "syringe" },
+  { id: 9, title: "Chapter 9: Disability & Impairment", short: "Disability", type: "disability", icon: "accessibility" },
+  { id: 10, title: "Chapter 10: Discussion", short: "Discussion", type: "dictation", icon: "book" }
 ];
 
 const MSK_REGIONS = [
-  { name: 'Cervical Spine', prompts: ['Inspection', 'Palpation', 'ROM', 'Neurology', "Spurling's Test", 'Distraction Test'] },
-  { name: 'Lumbar Spine', prompts: ['Inspection', 'Palpation', 'ROM', 'Neurology', 'SLR Test', 'Slump Test'] },
-  { name: 'Shoulder', prompts: ['Inspection', 'Palpation', 'ROM', 'Power/Sensation/Reflexes', "Neer's Test", 'Hawkins Test', "Job's Test"] },
-  { name: 'Elbow', prompts: ['Inspection', 'Palpation', 'ROM', 'Power/Sensation', 'Lateral Epicondyle', "Tinel's Sign"] },
-  { name: 'Wrist & Hand', prompts: ['Inspection', 'Palpation', 'ROM', 'Grip Strength', "Finkelstein's Test", "Phalen's Test"] },
-  { name: 'Hip', prompts: ['Inspection', 'Palpation', 'ROM', 'Neurology', 'FABER Test', 'Trendelenburg Sign'] },
-  { name: 'Knee', prompts: ['Inspection', 'Palpation', 'ROM', 'Neurology', 'Lachman Test', "McMurray's Test", 'Valgus/Varus Stress'] },
-  { name: 'Foot & Ankle', prompts: ['Inspection', 'Palpation', 'ROM (DF/PF/Inv/Ev)', 'Power', 'Sensation', 'Reflexes', 'Thompson Test'] }
+  { name: "Cervical Spine", prompts: ["Inspection", "Palpation", "ROM", "Neurology", "Spurling's Test", "Distraction Test"] },
+  { name: "Thoracic Spine", prompts: ["Inspection", "Palpation", "ROM", "Neurology", "Percussion"] },
+  { name: "Lumbar Spine", prompts: ["Inspection", "Palpation", "ROM", "Neurology", "SLR Test", "Slump Test"] },
+  { name: "Shoulder", prompts: ["Inspection", "Palpation", "Range of Motion", "Power, Sensation, Reflexes", "Neer Hawkins Test", "Job's Test", "Speed's Test", "Apprehension Test"] },
+  { name: "Elbow", prompts: ["Inspection", "Palpation", "Range of Motion", "Stability", "Neurovascular"] },
+  { name: "Wrist/Hand", prompts: ["Inspection", "Palpation", "Range of Motion", "Grip Strength", "Sensation", "Tinel's Test", "Phalen's Test"] },
+  { name: "Hip", prompts: ["Gait", "Inspection", "Palpation", "ROM", "Leg Length", "FABER Test", "Thomas Test"] },
+  { name: "Knee", prompts: ["Gait", "Inspection", "Palpation", "ROM", "Stability", "Lachman Test", "McMurray", "Anterior Drawer"] },
+  { name: "Ankle/Foot", prompts: ["Inspection", "Palpation", "ROM", "Power", "Sensation", "Thompson Test", "Anterior Drawer"] }
 ];
 
-const ADL_BASIC = ['Bowel control','Bladder control','Grooming','Toileting','Feeding','Chair to bed transfer','Indoor mobility','Dressing','Stairs','Bathing'];
-const ADL_ADV   = ['Driving','Sexual function','Medical care','Money management','Writing/communication','Travelling','Shopping','Cooking','Housework','Moderate activities','Vigorous activities'];
-const ADL_OPTS  = ['N/A','None','Mild','Mod','Sev'];
+const GENERAL_EXAM_PROMPTS = [
+  "Gait",
+  "General impression",
+  "Assistive devices",
+  "Home language",
+  "Dexterity"
+];
 
-function emptyReport() {
-  return {
-    patientName: '', ref: `RGML/REF/${new Date().getFullYear()}/`, doi: '',
-    gender: 'Male', dob: '', age: '', address: '', contact: '',
-    preOcc: '', postOcc: '', doe: '', poe: 'RG Medlegal Rooms',
-    atty: '', attyCon: '', drName: '', quals: '',
-    createdAt: Date.now(), status: 'draft',
-    chapters: CHAPTERS.map(c => ({ id: c.id, content: '' })),
-    adl: { basic: {}, advanced: {} }
-  };
+const ADL_BASIC = [
+  "Bowel control", "Bladder control", "Grooming", "Toileting", "Feeding",
+  "Move from chair to bed", "Indoor mobility", "Dressing", "Stairs", "Bathing"
+];
+
+const ADL_ADVANCED = [
+  "Driving a car", "Sexual function", "Medical care", "Money management",
+  "Writing and communication", "Travelling", "Shopping", "Cooking", "Housework",
+  "Moderate activities: moving, pushing", "Vigorous activities: sport, heavy lifting"
+];
+
+const ADL_LABELS = ["N/A", "None", "Mild", "Moderate", "Severe"];
+
+const CHAPTER_ICONS = {
+  user: User, file: FileText, clipboard: ClipboardList, building: Activity,
+  alert: AlertCircle, message: Edit3, stethoscope: Stethoscope, brain: Brain,
+  syringe: Syringe, accessibility: Accessibility, book: BookOpen
+};
+
+// ═══════════════════════════════════════════════════
+// STORAGE HELPERS (localStorage persistence)
+// ═══════════════════════════════════════════════════
+
+function loadReports() {
+  try {
+    const raw = window.localStorage?.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
 }
 
-// ── CSS ────────────────────────────────────────────────────────────────────
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
-  :root {
-    --bg:#0a0b0f;--s1:#111318;--s2:#17191f;--bd:#1e2129;
-    --ac:#00e5b4;--ac2:#4f7cff;--gd:#f0a500;--rd:#ff4d4d;
-    --tx:#dce2f0;--mt:#4a5068;--pu:#a855f7;
+function saveReports(reports) {
+  try { window.localStorage?.setItem(STORAGE_KEY, JSON.stringify(reports)); } catch {}
+}
+
+function saveActiveReport(report) {
+  try { window.localStorage?.setItem(STORAGE_ACTIVE, JSON.stringify(report)); } catch {}
+}
+
+function loadActiveReport() {
+  try {
+    const raw = window.localStorage?.getItem(STORAGE_ACTIVE);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+// HTML escape for export
+function esc(s) {
+  return String(s || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ═══════════════════════════════════════════════════
+// AI PROCESSING (Anthropic API via built-in)
+// ═══════════════════════════════════════════════════
+
+async function callAI(systemPrompt, userPrompt) {
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.filter(b => b.type === "text").map(b => b.text).join("\n") || "";
+    return text.trim();
+  } catch (err) {
+    console.error("AI call failed:", err);
+    return null;
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html,body,#root{height:100%;background:var(--bg);color:var(--tx);font-family:'IBM Plex Mono',monospace;}
-  ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:transparent;}
-  ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px;}
-  .app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
-  /* HEADER */
-  .hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;
-    background:var(--s1);border-bottom:1px solid var(--bd);min-height:52px;flex-shrink:0;position:relative;z-index:60;}
-  .hdr-logo{display:flex;align-items:center;gap:10px;}
-  .hdr-icon{background:var(--ac2);border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .hdr-title{font-size:12px;font-weight:700;letter-spacing:2px;color:var(--tx);}
-  .hdr-title span{color:var(--ac);}
-  .hdr-sync{font-size:8px;color:var(--mt);letter-spacing:1px;display:flex;align-items:center;gap:4px;margin-top:2px;}
-  .sync-dot{width:5px;height:5px;border-radius:50%;}
-  .sync-dot.active{background:var(--gd);animation:pulse .8s infinite;}
-  .sync-dot.done{background:var(--ac);}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-  .hdr-btns{display:flex;gap:8px;}
-  /* BODY */
-  .body{display:flex;flex:1;overflow:hidden;}
-  /* SIDEBAR */
-  .sb{width:220px;min-width:220px;background:var(--s1);border-right:1px solid var(--bd);
-    display:flex;flex-direction:column;overflow:hidden;transition:width .2s,min-width .2s;}
-  .sb.closed{width:0;min-width:0;}
-  .sb-head{padding:14px;border-bottom:1px solid var(--bd);white-space:nowrap;}
-  .sb-label{font-size:8px;color:var(--ac);letter-spacing:3px;font-weight:700;}
-  .sb-sub{font-size:9px;color:var(--mt);margin-top:2px;letter-spacing:1px;}
-  .sb-list{flex:1;overflow-y:auto;padding:8px;}
-  .nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;
-    cursor:pointer;font-size:9px;font-weight:700;letter-spacing:1px;color:var(--mt);
-    border:1px solid transparent;transition:all .1s;margin-bottom:2px;white-space:nowrap;}
-  .nav-item:hover{color:var(--tx);background:var(--s2);}
-  .nav-item.on{color:var(--ac);border-color:var(--ac);background:rgba(0,229,180,.06);}
-  .nav-num{font-size:7px;color:var(--mt);min-width:14px;font-weight:700;}
-  /* MAIN */
-  .main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-  .content{flex:1;overflow-y:auto;padding:20px 24px 160px;}
-  /* CHAPTER HEADER */
-  .ch-hdr{margin-bottom:20px;}
-  .ch-num{font-size:8px;color:var(--ac);letter-spacing:3px;margin-bottom:4px;}
-  .ch-title{font-size:20px;font-weight:700;color:var(--tx);letter-spacing:-0.5px;}
-  .ch-bar{width:24px;height:2px;background:var(--ac);margin-top:6px;border-radius:1px;}
-  /* CARDS */
-  .card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:16px;margin-bottom:12px;}
-  .card.accent{border-color:var(--ac2);background:rgba(79,124,255,.03);}
-  .card.gold{border-color:var(--gd);background:rgba(240,165,0,.03);}
-  .card.green{border-color:var(--ac);background:rgba(0,229,180,.03);}
-  .card-title{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--tx);
-    margin-bottom:12px;display:flex;align-items:center;gap:8px;}
-  .badge{font-size:7px;font-weight:700;letter-spacing:2px;padding:2px 6px;border-radius:3px;}
-  .badge-teal{background:rgba(0,229,180,.12);color:var(--ac);}
-  .badge-gold{background:rgba(240,165,0,.12);color:var(--gd);}
-  .badge-pu{background:rgba(168,85,247,.12);color:var(--pu);}
-  .badge-rd{background:rgba(255,77,77,.12);color:var(--rd);}
-  /* FORMS */
-  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .fld{margin-bottom:0;}
-  label{font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--mt);
-    display:block;margin-bottom:4px;text-transform:uppercase;}
-  input,textarea,select{background:var(--s2);border:1px solid var(--bd);color:var(--tx);
-    border-radius:6px;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:11px;
-    width:100%;outline:none;transition:border-color .12s;resize:vertical;}
-  input:focus,textarea:focus,select:focus{border-color:var(--ac);}
-  textarea{min-height:60px;line-height:1.6;}
-  textarea.big{min-height:200px;font-size:12px;line-height:1.7;}
-  /* STEP BUTTONS */
-  .steps{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
-  .step-btn{padding:8px 10px;border-radius:6px;font-size:8px;font-weight:700;
-    letter-spacing:1px;cursor:pointer;border:1px solid var(--bd);
-    background:var(--s2);color:var(--mt);transition:all .1s;text-align:left;
-    display:flex;align-items:center;justify-content:space-between;}
-  .step-btn:hover{border-color:var(--ac2);color:var(--ac2);}
-  .step-btn.on{border-color:var(--ac);background:rgba(0,229,180,.08);color:var(--ac);}
-  /* MSK CHIPS */
-  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
-  .chip{padding:5px 10px;border-radius:20px;font-size:8px;font-weight:700;
-    letter-spacing:1px;cursor:pointer;border:1px solid var(--bd);
-    background:var(--s2);color:var(--mt);transition:all .1s;white-space:nowrap;}
-  .chip:hover{border-color:var(--ac2);color:var(--ac2);}
-  .chip.on{border-color:var(--ac);background:rgba(0,229,180,.08);color:var(--ac);}
-  .chip.has{border-color:rgba(0,229,180,.3);}
-  /* MSK PROMPTS */
-  .msk-prompts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
-  .prompt-btn{padding:7px 9px;border-radius:6px;font-size:8px;font-weight:700;
-    letter-spacing:1px;cursor:pointer;border:1px solid var(--bd);
-    background:var(--s2);color:var(--mt);transition:all .1s;text-align:left;}
-  .prompt-btn:hover{border-color:var(--pu);color:var(--pu);}
-  .prompt-btn.on{border-color:var(--pu);background:rgba(168,85,247,.08);color:var(--pu);}
-  /* ADL TABLE */
-  .adl-table{width:100%;border-collapse:collapse;}
-  .adl-table th,.adl-table td{padding:7px 8px;border-bottom:1px solid var(--bd);font-size:9px;}
-  .adl-table th{color:var(--mt);font-weight:700;letter-spacing:1px;text-transform:uppercase;
-    background:var(--s2);}
-  .adl-table td:first-child{color:var(--tx);font-weight:700;}
-  .adl-table td{text-align:center;color:var(--mt);}
-  /* BOTTOM BAR */
-  .bot-bar{position:absolute;bottom:0;left:0;right:0;background:var(--s1);
-    border-top:1px solid var(--bd);padding:10px 16px;z-index:50;}
-  .bot-inner{display:flex;align-items:center;gap:10px;max-width:900px;margin:0 auto;}
-  .dic-btn{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;
-    padding:12px;border-radius:8px;font-family:'IBM Plex Mono',monospace;
-    font-size:11px;font-weight:700;letter-spacing:2px;cursor:pointer;border:none;
-    transition:all .15s;}
-  .dic-btn.idle{background:var(--ac2);color:#fff;box-shadow:0 2px 14px rgba(79,124,255,.35);}
-  .dic-btn.idle:hover{filter:brightness(1.1);}
-  .dic-btn.rec{background:var(--rd);color:#fff;animation:rec-pulse 1.4s infinite;}
-  @keyframes rec-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,77,77,.5)}60%{box-shadow:0 0 0 10px rgba(255,77,77,0)}}
-  .dic-btn.proc{background:var(--s2);color:var(--mt);cursor:not-allowed;}
-  .nav-btn{display:flex;align-items:center;justify-content:center;
-    padding:12px;border-radius:8px;border:1px solid var(--bd);
-    background:var(--s2);color:var(--tx);cursor:pointer;transition:all .1s;}
-  .nav-btn:hover{border-color:var(--ac);color:var(--ac);}
-  .live-box{margin-top:8px;padding:10px 12px;background:rgba(255,77,77,.06);
-    border:1px solid rgba(255,77,77,.2);border-radius:6px;
-    font-size:10px;color:var(--rd);line-height:1.5;}
-  .live-dot{display:inline-block;width:6px;height:6px;border-radius:50%;
-    background:var(--rd);animation:blink .6s infinite;margin-right:6px;}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
-  /* FOCUS CHIP */
-  .focus-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
-    border-radius:20px;font-size:8px;font-weight:700;letter-spacing:1px;
-    background:rgba(0,229,180,.1);border:1px solid var(--ac);color:var(--ac);}
-  /* BUTTONS */
-  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;
-    border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;
-    letter-spacing:1px;cursor:pointer;border:none;transition:all .1s;}
-  .btn-teal{background:var(--ac);color:#0a0b0f;}.btn-teal:hover{filter:brightness(1.1);}
-  .btn-ghost{background:var(--s2);color:var(--tx);border:1px solid var(--bd);}
-  .btn-ghost:hover{border-color:var(--ac);color:var(--ac);}
-  .btn-gold{background:rgba(240,165,0,.1);color:var(--gd);border:1px solid rgba(240,165,0,.2);}
-  .btn-gold:hover{background:rgba(240,165,0,.18);}
-  .btn-pu{background:rgba(168,85,247,.1);color:var(--pu);border:1px solid rgba(168,85,247,.2);}
-  .btn-pu:hover{background:rgba(168,85,247,.18);}
-  .btn-rd{background:rgba(255,77,77,.1);color:var(--rd);border:1px solid rgba(255,77,77,.2);}
-  .btn:disabled{opacity:.4;cursor:not-allowed;}
-  /* DASHBOARD */
-  .dash{flex:1;overflow-y:auto;padding:24px;}
-  .dash-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;}
-  .dash-title{font-size:24px;font-weight:700;letter-spacing:-1px;color:var(--tx);}
-  .dash-sub{font-size:8px;color:var(--mt);letter-spacing:2px;margin-top:4px;}
-  .report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}
-  .new-card{background:rgba(79,124,255,.05);border:1px dashed var(--ac2);
-    border-radius:8px;padding:20px;cursor:pointer;display:flex;align-items:center;
-    justify-content:center;font-size:10px;font-weight:700;letter-spacing:2px;
-    color:var(--ac2);min-height:100px;transition:all .1s;}
-  .new-card:hover{background:rgba(79,124,255,.1);}
-  .rpt-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;
-    padding:16px;cursor:pointer;transition:all .12s;}
-  .rpt-card:hover{border-color:var(--ac);transform:translateY(-1px);}
-  .rpt-name{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:4px;letter-spacing:-0.5px;}
-  .rpt-ref{font-size:8px;color:var(--mt);letter-spacing:1px;}
-  .rpt-foot{display:flex;align-items:center;justify-content:space-between;
-    margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);}
-  .tag{font-size:7px;font-weight:700;letter-spacing:1px;padding:2px 8px;
-    border-radius:3px;background:rgba(0,229,180,.08);color:var(--ac);}
-  /* PREVIEW */
-  .preview{flex:1;overflow-y:auto;background:#eee;padding:32px;}
-  .preview-doc{max-width:760px;margin:0 auto;background:#fff;padding:60px;
-    font-family:'Libre Baskerville',serif;font-size:10.5pt;line-height:1.7;color:#111;
-    box-shadow:0 8px 48px rgba(0,0,0,.2);}
-  .preview-doc h1{font-size:14pt;text-align:center;text-transform:uppercase;
-    font-weight:700;margin-bottom:8px;}
-  .preview-doc h2{font-size:11pt;text-decoration:underline;text-transform:uppercase;
-    font-weight:700;margin:18px 0 6px;}
-  .preview-doc h3{font-size:10.5pt;font-weight:700;margin:10px 0 4px;}
-  .preview-doc p,.preview-doc div.body-text{margin:3px 0;}
-  .preview-doc table{border-collapse:collapse;width:100%;margin:6px 0;}
-  .preview-doc td,.preview-doc th{border:1px solid #aaa;padding:4px 7px;font-size:10pt;}
-  .preview-doc th{background:#f0f0f0;}
-  .preview-toolbar{position:sticky;top:0;background:rgba(17,19,24,.95);
-    border-bottom:1px solid var(--bd);padding:8px 18px;display:flex;
-    align-items:center;justify-content:space-between;z-index:50;}
-  .preview-actions{position:fixed;bottom:20px;right:20px;display:flex;
-    flex-direction:column;gap:8px;z-index:50;}
-  .action-btn{width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;transition:all .12s;
-    box-shadow:0 4px 16px rgba(0,0,0,.3);}
-  .action-btn:hover{transform:scale(1.1);}
-  /* NOTIF */
-  .notif{position:fixed;top:60px;left:50%;transform:translateX(-50%);
-    background:var(--s1);border:1px solid var(--bd);border-radius:6px;
-    padding:8px 16px;font-size:9px;font-weight:700;letter-spacing:1px;
-    display:flex;align-items:center;gap:8px;z-index:999;
-    box-shadow:0 8px 24px rgba(0,0,0,.4);}
-  .notif.success{border-color:var(--ac);color:var(--ac);}
-  .notif.error{border-color:var(--rd);color:var(--rd);}
-  .notif.info{border-color:var(--ac2);color:var(--ac2);}
-  /* OVERLAY */
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);
-    display:flex;align-items:center;justify-content:center;z-index:200;}
-  .spinner-box{background:var(--s1);border:1px solid var(--bd);border-radius:8px;
-    padding:32px;text-align:center;}
-  .spinner-box p{font-size:9px;color:var(--mt);letter-spacing:2px;margin-top:10px;}
-  /* AUTH */
-  .auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;}
-  .auth-box{background:var(--s1);border:1px solid var(--bd);border-radius:8px;
-    padding:36px;width:340px;}
-  .auth-logo{font-size:8px;color:var(--ac);letter-spacing:3px;font-weight:700;margin-bottom:8px;}
-  .auth-box h2{font-size:18px;font-weight:700;margin-bottom:4px;}
-  .auth-sub{font-size:9px;color:var(--mt);letter-spacing:1px;margin-bottom:20px;}
-  .auth-err{background:rgba(255,77,77,.08);border:1px solid rgba(255,77,77,.2);
-    border-radius:6px;padding:8px;font-size:9px;color:var(--rd);margin-bottom:12px;line-height:1.5;}
-  .auth-switch{text-align:center;margin-top:12px;font-size:9px;color:var(--mt);}
-  .auth-link{color:var(--ac);cursor:pointer;margin-left:4px;}
-`;
+}
 
-// ── AUTH COMPONENT ─────────────────────────────────────────────────────────
-function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState('login');
-  const [email, setEmail] = useState('');
-  const [pass, setPass] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
+// ═══════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════
 
-  const submit = async () => {
-    if (!auth) { onAuth({ uid: 'local', email: 'local' }); return; }
-    setErr(''); setBusy(true);
-    try {
-      if (mode === 'login') {
-        const { data, error } = await auth.signInWithPassword?.({ email, password: pass }).catch(() => ({}));
-        if (error) throw error;
-        onAuth(data?.user);
-      } else {
-        const { data, error } = await auth.signUp?.({ email, password: pass }).catch(() => ({}));
-        if (error) throw error;
-        if (data?.user && data?.session) onAuth(data.user);
-        else setErr('Account created — check your email for a confirmation link, then sign in.');
-      }
-    } catch (e) {
-      let msg = e?.message || 'Authentication error';
-      if (msg.toLowerCase().includes('email not confirmed'))
-        msg = 'Email not confirmed. Check your inbox (and spam) for the confirmation link.';
-      setErr(msg);
-    }
-    setBusy(false);
+function SidebarNav({ currentChapter, setCurrentChapter, chapterData, onClose }) {
+  const getCompletionStatus = (id) => {
+    const ch = chapterData?.find(c => c.id === id);
+    if (!ch) return 'empty';
+    const content = typeof ch.content === 'string' ? ch.content.trim() : '';
+    return content.length > 20 ? 'complete' : content.length > 0 ? 'partial' : 'empty';
   };
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-box">
-        <div className="auth-logo">▸ MEDISYNC</div>
-        <h2>MedLegal Engine</h2>
-        <div className="auth-sub">{mode === 'login' ? 'SIGN IN TO YOUR ACCOUNT' : 'CREATE ACCOUNT'}</div>
-        {err && <div className="auth-err">{err}</div>}
-        {!auth && (
-          <div className="auth-err" style={{ borderColor: 'var(--gd)', color: 'var(--gd)' }}>
-            No database configured — running in local mode.
+    <div className="w-72 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col h-full border-r border-slate-800/50">
+      <div className="p-5 border-b border-slate-800/50">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
+            <Stethoscope className="w-4 h-4 text-sky-400" />
           </div>
-        )}
-        {auth ? <>
-          <div className="fld" style={{ marginBottom: 10 }}>
-            <label>Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="doctor@example.com" onKeyDown={e => e.key === 'Enter' && submit()} />
+          <div>
+            <div className="text-white text-xs font-bold tracking-wide">MediSync Ortho</div>
+            <div className="text-slate-500 text-[9px] font-semibold tracking-wider uppercase">Report Builder</div>
           </div>
-          <div className="fld" style={{ marginBottom: 14 }}>
-            <label>Password</label>
-            <input type="password" value={pass} onChange={e => setPass(e.target.value)}
-              placeholder="Password" onKeyDown={e => e.key === 'Enter' && submit()} />
-          </div>
-          <button className="btn btn-teal" style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
-            onClick={submit} disabled={busy || !email || !pass}>
-            {busy ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
-          </button>
-          <div className="auth-switch">
-            {mode === 'login'
-              ? <>No account?<span className="auth-link" onClick={() => { setMode('signup'); setErr(''); }}>Sign up</span></>
-              : <>Have an account?<span className="auth-link" onClick={() => { setMode('login'); setErr(''); }}>Sign in</span></>
-            }
-          </div>
-        </> : (
-          <button className="btn btn-teal" style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
-            onClick={() => onAuth({ uid: 'local', email: 'local' })}>
-            Continue in Local Mode
-          </button>
-        )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-0.5" style={{ scrollbarWidth: 'thin', scrollbarColor: '#334155 transparent' }}>
+        {ORTHO_CHAPTERS.map((c) => {
+          const active = currentChapter === c.id;
+          const status = getCompletionStatus(c.id);
+          const Icon = CHAPTER_ICONS[c.icon] || FileText;
+          return (
+            <button
+              key={c.id}
+              onClick={() => { setCurrentChapter(c.id); onClose?.(); }}
+              className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 group relative ${
+                active
+                  ? 'bg-sky-500/15 text-sky-300 shadow-lg shadow-sky-500/5'
+                  : 'text-slate-500 hover:bg-white/[0.03] hover:text-slate-300'
+              }`}
+            >
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                active ? 'bg-sky-500/25 text-sky-300' : 'bg-slate-800/60 text-slate-600 group-hover:text-slate-400'
+              }`}>
+                <Icon className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-[11px] font-semibold truncate flex-1">{c.short}</span>
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors ${
+                status === 'complete' ? 'bg-emerald-500' : status === 'partial' ? 'bg-amber-500' : 'bg-slate-700'
+              }`} />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="p-4 border-t border-slate-800/50">
+        <div className="flex items-center gap-2 text-[9px] text-slate-600 font-medium">
+          <Shield className="w-3 h-3" />
+          <span>RAF Medico-Legal Compliant</span>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── MAIN APP ───────────────────────────────────────────────────────────────
-export default function App() {
-  const [view, setView] = useState('loading'); // loading | auth | dashboard | editor | preview
-  const [user, setUser] = useState(null);
-  const [reports, setReports] = useState([]);
-  const [reportData, setReportData] = useState(null);
-  const [currentChapter, setCurrentChapter] = useState(0);
-  const [sbOpen, setSbOpen] = useState(true);
-  const [activeRegion, setActiveRegion] = useState(null);
-  const [focusedPrompt, setFocusedPrompt] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [liveText, setLiveText] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [notif, setNotif] = useState({ show: false, msg: '', type: 'info' });
-
-  const recRef = useRef(null);
-  const accRef = useRef('');
-  const isRecRef = useRef(false);
-  const dataRef = useRef(null);
-  const saveTimerRef = useRef(null);
-  const secRef = useRef(0);
-
-  useEffect(() => { secRef.current = currentChapter; }, [currentChapter]);
-
-  // AUTH
-  useEffect(() => {
-    if (!auth) { setView('auth'); return; }
-    const tryToken = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token)
-          await signInWithCustomToken(auth, __initial_auth_token);
-        else
-          await signInAnonymously(auth);
-      } catch {}
-    };
-    tryToken();
-    const unsub = onAuthStateChanged(auth, u => {
-      if (u) { setUser(u); setView('dashboard'); }
-      else setView('auth');
-    });
-    return () => unsub();
-  }, []);
-
-  // FIREBASE REPORTS LISTENER
-  useEffect(() => {
-    if (!user || !db) return;
-    const col = collection(db, 'artifacts', APP_ID, 'public', 'data', 'reports');
-    return onSnapshot(col, snap => {
-      const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setReports(docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
-    });
-  }, [user]);
-
-  // AUTO-SAVE
-  useEffect(() => {
-    if (!reportData || !reportData.id) return;
-    dataRef.current = reportData;
-    if (!db) return; // local mode: no save
-    setIsSyncing(true);
-    clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'reports', reportData.id), reportData);
-      } catch {}
-      setIsSyncing(false);
-    }, 1500);
-    return () => clearTimeout(saveTimerRef.current);
-  }, [reportData]);
-
-  const notify = (msg, type = 'success') => {
-    setNotif({ show: true, msg, type });
-    setTimeout(() => setNotif(p => ({ ...p, show: false })), 3000);
-  };
-
-  // ── CHAPTER CONTENT HELPERS ──────────────────────────────────────────────
-  const getChapterContent = useCallback((id) => {
-    return reportData?.chapters?.find(c => c.id === id)?.content || '';
-  }, [reportData]);
-
-  const setChapterContent = useCallback((id, text) => {
-    setReportData(prev => {
-      if (!prev) return prev;
-      const next = { ...prev, chapters: prev.chapters.map(c => c.id === id ? { ...c, content: text } : c) };
-      dataRef.current = next;
-      return next;
-    });
-  }, []);
-
-  // ── DICTATION ────────────────────────────────────────────────────────────
-  const finalizeDictation = useCallback(async (raw) => {
-    if (!raw.trim()) return;
-    const chapterId = secRef.current;
-    const fp = focusedPrompt;
-    setIsProcessing(true);
-
-    const chapterTitle = CHAPTERS[chapterId]?.title || '';
-    const sectionNote = fp ? ` (Focused section: ${fp})` : '';
-
-    const corrected = await callAI(
-      'You are a medical grammar scribe. Fix ONLY spelling, grammar and punctuation. NEVER change clinical facts, terminology, measurements or observations. Return ONLY the corrected text with no explanation or preamble.',
-      `Chapter: "${chapterTitle}"${sectionNote}\n\nText to correct:\n${raw}`
-    );
-
-    const finalText = (corrected || raw).trim();
-    const prefix = fp ? `[${fp.toUpperCase()}]:\n` : '';
-
-    setChapterContent(chapterId, prev => {
-      const existing = (prev || '').trim();
-      return existing ? `${existing}\n\n${prefix}${finalText}` : `${prefix}${finalText}`;
-    });
-
-    setFocusedPrompt(null);
-    notify('Dictation synced');
-    setIsProcessing(false);
-  }, [focusedPrompt, setChapterContent]);
-
-  // Override setChapterContent to support functional updates
-  const setChapterContentFull = useCallback((id, updaterOrValue) => {
-    setReportData(prev => {
-      if (!prev) return prev;
-      const current = prev.chapters.find(c => c.id === id)?.content || '';
-      const newVal = typeof updaterOrValue === 'function' ? updaterOrValue(current) : updaterOrValue;
-      const next = { ...prev, chapters: prev.chapters.map(c => c.id === id ? { ...c, content: newVal } : c) };
-      dataRef.current = next;
-      return next;
-    });
-  }, []);
-
-  const finalizeFixed = useCallback(async (raw) => {
-    if (!raw.trim()) return;
-    const chapterId = secRef.current;
-    const fp = focusedPrompt;
-    setIsProcessing(true);
-
-    const chapterTitle = CHAPTERS[chapterId]?.title || '';
-    const sectionNote = fp ? ` (Focused section: ${fp})` : '';
-
-    const corrected = await callAI(
-      'You are a medical grammar scribe. Fix ONLY spelling, grammar and punctuation. NEVER change clinical facts, terminology, measurements or observations. Return ONLY the corrected text with no explanation or preamble.',
-      `Chapter: "${chapterTitle}"${sectionNote}\n\nText to correct:\n${raw}`
-    );
-
-    const finalText = (corrected || raw).trim();
-    const prefix = fp ? `[${fp.toUpperCase()}]:\n` : '';
-
-    setChapterContentFull(chapterId, (existing) => {
-      const prev = (existing || '').trim();
-      return prev ? `${prev}\n\n${prefix}${finalText}` : `${prefix}${finalText}`;
-    });
-
-    setFocusedPrompt(null);
-    notify('Dictation synced ✓');
-    setIsProcessing(false);
-  }, [focusedPrompt, setChapterContentFull]);
-
-  const toggleRec = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { notify('Speech recognition requires Chrome or Edge', 'error'); return; }
-
-    if (isRecRef.current) {
-      isRecRef.current = false;
-      setIsRecording(false);
-      recRef.current?.stop();
-      return;
-    }
-
-    const rec = new SR();
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.lang = 'en-ZA';
-
-    rec.onstart = () => { setLiveText(''); };
-    rec.onresult = (e) => {
-      let fin = '', interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) fin += e.results[i][0].transcript + ' ';
-        else interim += e.results[i][0].transcript;
-      }
-      if (fin) accRef.current += fin;
-      setLiveText(accRef.current + interim);
-    };
-    rec.onerror = (e) => {
-      isRecRef.current = false;
-      setIsRecording(false);
-      const msgs = {
-        'not-allowed': 'Mic blocked — click the lock icon in your address bar → Microphone → Allow',
-        'no-speech': 'No speech detected',
-        'network': 'Network error with speech service',
-        'audio-capture': 'No microphone found'
-      };
-      notify(msgs[e.error] || `Mic error: ${e.error}`, 'error');
-    };
-    rec.onend = () => {
-      if (isRecRef.current) { try { rec.start(); } catch {} return; }
-      const text = accRef.current.trim();
-      accRef.current = '';
-      setLiveText('');
-      setIsRecording(false);
-      if (text) finalizeFixed(text);
-    };
-
-    accRef.current = '';
-    isRecRef.current = true;
-    setIsRecording(true);
-    recRef.current = rec;
-    try { rec.start(); }
-    catch (e) { notify('Could not start microphone: ' + e.message, 'error'); isRecRef.current = false; setIsRecording(false); }
-  }, [finalizeFixed]);
-
-  // ── AI HELPERS ───────────────────────────────────────────────────────────
-  const aiExtractInjuries = async () => {
-    const ch3 = getChapterContent(3);
-    if (!ch3.trim()) { notify('Complete Chapter 3 first', 'error'); return; }
-    setIsProcessing(true);
-    const res = await callAI(
-      'You are an orthopaedic medico-legal specialist. Extract all injuries from the hospital records text. Format as a clean bullet list using • characters. Include each injury on its own line. Be precise and clinical.',
-      ch3
-    );
-    if (res) setChapterContentFull(4, res.trim());
-    setIsProcessing(false);
-    notify('Injuries extracted ✓');
-  };
-
-  const aiSuggestDiagnosis = async () => {
-    const ch6 = getChapterContent(6);
-    if (!ch6.trim()) { notify('Complete Chapter 6 first', 'error'); return; }
-    setIsProcessing(true);
-    const res = await callAI(
-      'You are an orthopaedic medico-legal specialist. Based on these clinical examination findings, provide a formal numbered diagnosis list with sub-bullets for functional outcomes. Use precise clinical terminology appropriate for a South African RAF medico-legal report.',
-      ch6
-    );
-    if (res) setChapterContentFull(7, res.trim());
-    setIsProcessing(false);
-    notify('Diagnoses suggested ✓');
-  };
-
-  const aiDraftDiscussion = async () => {
-    const ctx = [
-      `Patient: ${reportData?.patientName || 'Unknown'}`,
-      `Mechanism: ${reportData?.ref || ''}`,
-      `Hospital Records: ${getChapterContent(3)}`,
-      `Injuries: ${getChapterContent(4)}`,
-      `Clinical Examination: ${getChapterContent(6)}`,
-      `Diagnosis: ${getChapterContent(7)}`,
-      `Further Treatment: ${getChapterContent(8)}`,
-      `Occupational Effects: ${getChapterContent(9)}`
-    ].join('\n\n');
-
-    setIsProcessing(true);
-    const res = await callAI(
-      'You are a senior orthopaedic medico-legal expert writing a Discussion section for a South African Road Accident Fund (RAF) medico-legal report. Write 6-8 formal paragraphs covering: mechanism of injury, injuries sustained and hospital management, current clinical findings, long-term impairment and functional loss, qualification under Narrative Test criterion 5.1 (serious long-term impairment or loss of body function), prognosis and life expectancy. Use authoritative clinical language appropriate for court use.',
-      ctx
-    );
-    if (res) setChapterContentFull(10, res.trim());
-    setIsProcessing(false);
-    notify('Discussion drafted ✓');
-  };
-
-  // ── REPORT MANAGEMENT ───────────────────────────────────────────────────
-  const startNewReport = async () => {
-    setIsProcessing(true);
-    const initial = emptyReport();
-    if (db) {
-      try {
-        const col = collection(db, 'artifacts', APP_ID, 'public', 'data', 'reports');
-        const ref = await addDoc(col, { ...initial, createdBy: user?.uid });
-        setReportData({ id: ref.id, ...initial, createdBy: user?.uid });
-      } catch {
-        setReportData({ id: 'local_' + Date.now(), ...initial });
-      }
-    } else {
-      setReportData({ id: 'local_' + Date.now(), ...initial });
-    }
-    setCurrentChapter(0);
-    setActiveRegion(null);
-    setFocusedPrompt(null);
-    setView('editor');
-    setIsProcessing(false);
-  };
-
-  const openReport = (r) => {
-    setReportData(r);
-    setCurrentChapter(0);
-    setActiveRegion(null);
-    setFocusedPrompt(null);
-    setView('editor');
-  };
-
-  // ── EXPORT ───────────────────────────────────────────────────────────────
-  const exportDoc = () => {
-    const name = (reportData?.patientName || 'PATIENT').replace(/\s+/g, '_').toUpperCase();
-    const chapHtml = CHAPTERS.filter(c => c.id > 0).map(c => {
-      const content = getChapterContent(c.id) || 'Pending.';
-      return `<h2>${c.title}</h2><div class="body">${content.replace(/\n/g, '<br/>')}</div>`;
-    }).join('');
-
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<style>body{font-family:'Times New Roman',serif;font-size:11pt;margin:1in;color:#000;line-height:1.6;}
-h1{text-align:center;text-transform:uppercase;font-size:14pt;text-decoration:underline;margin-bottom:20pt;}
-h2{font-size:11pt;text-transform:uppercase;text-decoration:underline;margin-top:16pt;margin-bottom:6pt;}
-.body{margin-left:10pt;white-space:pre-wrap;margin-bottom:14pt;}
-table{border-collapse:collapse;width:100%;}td,th{border:1px solid #999;padding:4pt;}
-</style></head><body>
-<h1>MEDICO-LEGAL REPORT</h1>
-<table style="margin-bottom:20pt"><tbody>
-<tr><td><b>Our Reference:</b></td><td>${reportData?.ref || '—'}</td></tr>
-<tr><td><b>Patient Name:</b></td><td><b>${reportData?.patientName || '—'}</b></td></tr>
-<tr><td><b>Date of Injury:</b></td><td>${reportData?.doi || '—'}</td></tr>
-<tr><td><b>Date of Examination:</b></td><td>${reportData?.doe || '—'}</td></tr>
-</tbody></table>
-${chapHtml}
-<div style="margin-top:60pt;text-align:center">
-  <p>________________________________</p>
-  <p><b>${reportData?.drName || '[PRACTITIONER NAME]'}</b></p>
-  <p><i>${reportData?.quals || '[QUALIFICATIONS]'}</i></p>
-  <p>Orthopaedic Surgeon</p>
-  <p style="font-size:9pt;margin-top:16pt;border-top:1px solid #ccc;padding-top:8pt">
-    VALIDITY: This report will remain valid for use in a court of law for 2 (two) years from the date of first consultation.
-  </p>
-</div>
-</body></html>`;
-
-    const blob = new Blob([html], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${name}_MEDLEGAL.doc`;
-    a.click(); URL.revokeObjectURL(url);
-    notify('Document exported ✓');
-  };
-
-  const copyHtml = () => {
-    const text = CHAPTERS.filter(c => c.id > 0).map(c =>
-      `${c.title}\n${getChapterContent(c.id) || '—'}`
-    ).join('\n\n---\n\n');
-    navigator.clipboard.writeText(text).then(() => notify('Copied to clipboard ✓'));
-  };
-
-  // ── RENDER CHAPTER CONTENT ───────────────────────────────────────────────
-  const renderChapter = () => {
-    const ch = CHAPTERS[currentChapter];
-    const content = getChapterContent(ch.id);
-
-    if (currentChapter === 0) {
-      return (
-        <div className="card">
-          <div className="card-title"><span className="badge badge-teal">FORM</span>Patient & Case Details</div>
-          <div className="form-grid">
-            {[
-              ['patientName', 'Patient Full Name'], ['ref', 'Our Reference'],
-              ['doi', 'Date of Injury'], ['doe', 'Date of Examination'],
-              ['dob', 'Date of Birth'], ['age', 'Current Age'],
-              ['contact', 'Contact Number'], ['atty', 'Instructing Attorney'],
-              ['attyCon', 'Attorney Contact'], ['poe', 'Place of Examination'],
-              ['preOcc', 'Pre-Accident Occupation'], ['postOcc', 'Post-Accident Occupation'],
-              ['drName', 'Practitioner Name'], ['quals', 'Qualifications']
-            ].map(([k, l]) => (
-              <div key={k} className="fld">
-                <label>{l}</label>
-                <input value={reportData?.[k] || ''} onChange={e => setReportData(p => ({ ...p, [k]: e.target.value }))} />
+function ADLTable({ title, items, type, adlData, onUpdate }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-slate-900 px-5 py-4 flex items-center gap-2">
+        <BarChart3 className="w-4 h-4 text-sky-400" />
+        <span className="text-white text-xs font-bold tracking-wide">{title}</span>
+      </div>
+      <div className="grid grid-cols-7 bg-slate-50 px-4 py-2.5 border-b border-slate-100">
+        <div className="col-span-2 text-[9px] font-bold text-slate-500 uppercase tracking-wider">Activity</div>
+        {ADL_LABELS.map(l => (
+          <div key={l} className="text-center text-[9px] font-bold text-slate-500 uppercase tracking-wider">{l}</div>
+        ))}
+      </div>
+      {items.map(act => {
+        const val = adlData?.[act] ?? -1;
+        return (
+          <div key={act} className="grid grid-cols-7 px-4 py-3 border-b border-slate-50 items-center hover:bg-sky-50/30 transition-colors">
+            <div className="col-span-2 text-xs font-medium text-slate-700">{act}</div>
+            {ADL_LABELS.map((label, i) => (
+              <div key={i} className="flex justify-center">
+                <input
+                  type="radio"
+                  name={`adl-${type}-${act}`}
+                  checked={val === i}
+                  onChange={() => onUpdate(act, i)}
+                  className="w-4 h-4 text-sky-600 cursor-pointer accent-sky-600"
+                />
               </div>
             ))}
-            <div className="fld">
-              <label>Gender</label>
-              <select value={reportData?.gender || 'Male'} onChange={e => setReportData(p => ({ ...p, gender: e.target.value }))}>
-                <option>Male</option><option>Female</option><option>Other</option>
-              </select>
-            </div>
-            <div className="fld">
-              <label>Residential Address</label>
-              <textarea rows={2} value={reportData?.address || ''} onChange={e => setReportData(p => ({ ...p, address: e.target.value }))} />
-            </div>
           </div>
-        </div>
-      );
-    }
+        );
+      })}
+    </div>
+  );
+}
 
-    if (currentChapter === 9) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[['Basic ADL', ADL_BASIC, 'basic'], ['Advanced ADL', ADL_ADV, 'advanced']].map(([title, items, type]) => (
-            <div key={type} className="card">
-              <div className="card-title"><span className="badge badge-teal">ADL</span>{title}</div>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="adl-table">
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', minWidth: 160 }}>Activity</th>
-                      {ADL_OPTS.map(o => <th key={o} style={{ minWidth: 50 }}>{o}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map(act => (
-                      <tr key={act}>
-                        <td style={{ textAlign: 'left' }}>{act}</td>
-                        {ADL_OPTS.map(o => (
-                          <td key={o}>
-                            <input type="radio"
-                              name={`${type}_${act}`} value={o}
-                              checked={(reportData?.adl?.[type]?.[act] || 'None') === o}
-                              onChange={() => setReportData(p => ({
-                                ...p,
-                                adl: { ...p.adl, [type]: { ...(p.adl?.[type] || {}), [act]: o } }
-                              }))}
-                              style={{ accentColor: 'var(--ac)', cursor: 'pointer' }}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-          <div className="card">
-            <div className="card-title"><span className="badge badge-teal">9.2</span>Occupational Effects & Limitations</div>
-            <textarea className="big" value={content}
-              onChange={e => setChapterContentFull(9, e.target.value)}
-              placeholder="Dictate or type occupational effects and limitations..." />
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Step selector for Ch3 */}
-        {ch.id === 3 && ch.steps && (
-          <div className="card accent">
-            <div className="card-title"><span className="badge badge-teal">TARGET</span>Select Sub-Section for Dictation</div>
-            <div className="steps">
-              {ch.steps.map(s => (
-                <button key={s} className={`step-btn ${focusedPrompt === s ? 'on' : ''}`}
-                  onClick={() => { setFocusedPrompt(s); notify(`Focus: ${s}`); }}>
-                  {s}
-                  {focusedPrompt === s && <CheckCircle2 size={10} />}
-                </button>
-              ))}
-            </div>
-          </div>
+function ContentEditor({ value, onChange, placeholder, focusedPrompt }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-[380px]">
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-100 flex-wrap">
+        <Edit3 className="w-3.5 h-3.5 text-slate-400" />
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Content Editor</span>
+        {focusedPrompt && (
+          <span className="bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider">
+            Focus: {focusedPrompt}
+          </span>
         )}
-
-        {/* MSK region selector for Ch6 */}
-        {ch.type === 'msk' && (
-          <div className="card accent">
-            <div className="card-title"><span className="badge badge-teal">MSK</span>Select Region</div>
-            <div className="chips">
-              {MSK_REGIONS.map(r => {
-                const hasData = content.includes(`[${r.name.toUpperCase()}`);
-                return (
-                  <div key={r.name}
-                    className={`chip ${activeRegion?.name === r.name ? 'on' : ''} ${hasData ? 'has' : ''}`}
-                    onClick={() => { setActiveRegion(r); setFocusedPrompt(null); }}>
-                    {r.name}{hasData ? ' ✓' : ''}
-                  </div>
-                );
-              })}
-            </div>
-            {activeRegion && (
-              <div>
-                <div style={{ fontSize: 8, color: 'var(--mt)', letterSpacing: '1px', marginBottom: 8 }}>
-                  SELECT EXAMINATION PROMPT
-                </div>
-                <div className="msk-prompts">
-                  {activeRegion.prompts.map(p => (
-                    <button key={p} className={`prompt-btn ${focusedPrompt === p ? 'on' : ''}`}
-                      onClick={() => { setFocusedPrompt(p); notify(`Focus: ${activeRegion.name} — ${p}`); }}>
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* AI action buttons */}
-        {(ch.id === 4 || ch.id === 7 || ch.id === 10) && (
-          <div className="card gold">
-            <div className="card-title"><span className="badge badge-gold">AI</span>Smart Actions</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {ch.id === 4 && (
-                <button className="btn btn-gold" onClick={aiExtractInjuries} disabled={isProcessing}>
-                  <Sparkles size={12} /> Auto-Extract from Ch. 3
-                </button>
-              )}
-              {ch.id === 7 && (
-                <button className="btn btn-pu" onClick={aiSuggestDiagnosis} disabled={isProcessing}>
-                  <Lightbulb size={12} /> AI Suggest Diagnoses
-                </button>
-              )}
-              {ch.id === 10 && (
-                <button className="btn btn-gold" onClick={aiDraftDiscussion} disabled={isProcessing}>
-                  <Wand2 size={12} /> AI Draft Discussion
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Main content textarea — CONTROLLED, always reflects state */}
-        <div className="card">
-          <div className="card-title" style={{ marginBottom: 6 }}>
-            <span className="badge badge-teal">CONTENT</span>
-            {focusedPrompt && (
-              <span className="focus-chip">
-                <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--ac)', animation: 'blink .6s infinite' }} />
-                {activeRegion ? `${activeRegion.name} — ${focusedPrompt}` : focusedPrompt}
-              </span>
-            )}
-          </div>
-          <textarea
-            className="big"
-            value={content}
-            onChange={e => setChapterContentFull(ch.id, e.target.value)}
-            placeholder={`Dictate or type content for ${ch.title}...`}
-            style={{ minHeight: 280 }}
-          />
-        </div>
       </div>
-    );
+      <textarea
+        className="flex-1 w-full px-6 py-4 text-sm leading-relaxed text-slate-800 outline-none resize-none bg-transparent min-h-[320px]"
+        placeholder={placeholder || "Dictate or type content here..."}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function Notification({ notification }) {
+  if (!notification.show) return null;
+  const colors = {
+    error: 'bg-red-900/95 text-red-200 border-red-700/50',
+    info: 'bg-slate-900/95 text-sky-300 border-sky-700/50',
+    success: 'bg-slate-900/95 text-emerald-300 border-emerald-700/50'
+  };
+  return (
+    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] pointer-events-none" style={{ animation: 'slideDown 0.3s ease-out' }}>
+      <div className={`px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2.5 border text-xs font-semibold ${colors[notification.type] || colors.success}`}>
+        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+        {notification.message}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// FINAL REPORT PREVIEW
+// ═══════════════════════════════════════════════════
+
+const FinalReportPreview = React.forwardRef(({ reportData }, ref) => {
+  const ch = (id) => {
+    const c = reportData?.chapters?.find(ch => ch.id === id);
+    return typeof c?.content === 'string' ? c.content : '';
   };
 
-  // ── PREVIEW RENDER ────────────────────────────────────────────────────────
-  const renderPreview = () => {
-    const adlTableHtml = (title, items, type) => {
-      const rows = items.map(act => {
-        const val = reportData?.adl?.[type]?.[act] || 'None';
-        return `<tr><td>${act}</td>${ADL_OPTS.map(o => `<td style="text-align:center">${val === o ? '✓' : ''}</td>`).join('')}</tr>`;
-      }).join('');
-      return `<h3>${title}</h3><table><thead><tr><th>Activity</th>${ADL_OPTS.map(o => `<th>${o}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
-    };
-
-    return (
-      <div className="preview">
-        <div className="preview-toolbar">
-          <div style={{ fontSize: 10, color: 'var(--mt)', letterSpacing: '2px' }}>
-            REPORT PREVIEW — {reportData?.patientName || 'PATIENT'}
-          </div>
-          <button className="btn btn-ghost" onClick={() => setView('editor')}>
-            <ChevronLeft size={12} /> Back to Editor
-          </button>
-        </div>
-        <div className="preview-doc">
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #111', paddingBottom: 16, marginBottom: 24 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, fontStyle: 'italic', color: '#bbb', letterSpacing: -2 }}>[PRACTICE LOGO]</div>
-            <div style={{ textAlign: 'right', fontSize: '9pt' }}>
-              <div style={{ fontWeight: 700, fontSize: '11pt' }}>{reportData?.drName || '[PRACTITIONER NAME]'}</div>
-              <div style={{ fontStyle: 'italic' }}>{reportData?.quals || '[QUALIFICATIONS]'}</div>
-            </div>
-          </div>
-          <h1>Medico-Legal Report</h1>
-          <table style={{ marginBottom: 20 }}><tbody>
-            {[['Our Reference', reportData?.ref], ['Attorney Reference', ''], ['Patient Full Name', reportData?.patientName],
-              ['Date of Birth', reportData?.dob], ['Age', reportData?.age], ['Gender', reportData?.gender],
-              ['Residential Address', reportData?.address], ['Contact', reportData?.contact],
-              ['Date of Injury', reportData?.doi], ['Mechanism', 'Motor Vehicle Accident'],
-              ['Pre-Accident Occupation', reportData?.preOcc], ['Post-Accident Occupation', reportData?.postOcc],
-              ['Date of Examination', reportData?.doe], ['Place of Examination', reportData?.poe],
-              ['Instructing Attorney', reportData?.atty], ['Attorney Contact', reportData?.attyCon]
-            ].map(([k, v]) => v !== undefined ? (
-              <tr key={k}><td style={{ fontWeight: 700, width: '200px', padding: '3px 6px', border: '1px solid #bbb' }}>{k}:</td>
-                <td style={{ padding: '3px 6px', border: '1px solid #bbb' }}>{v || '—'}</td></tr>
-            ) : null)}
-          </tbody></table>
-
-          {CHAPTERS.filter(c => c.id > 0).map(c => (
-            <div key={c.id} style={{ marginBottom: 16 }}>
-              <h2>{c.title}</h2>
-              {c.id === 9 ? (
-                <div dangerouslySetInnerHTML={{ __html: adlTableHtml('Basic Activities of Daily Living', ADL_BASIC, 'basic') + adlTableHtml('Advanced Activities of Daily Living', ADL_ADV, 'advanced') }} />
-              ) : (
-                <div style={{ whiteSpace: 'pre-wrap', paddingLeft: 12 }}>{getChapterContent(c.id) || 'No content entered.'}</div>
-              )}
-            </div>
-          ))}
-
-          <div style={{ marginTop: 60, paddingTop: 20, borderTop: '1px solid #ccc', textAlign: 'center' }}>
-            <p>________________________________</p>
-            <p><strong>{reportData?.drName || '[PRACTITIONER NAME]'}</strong></p>
-            <p><em>{reportData?.quals || '[QUALIFICATIONS]'}</em></p>
-            <p>Orthopaedic Surgeon</p>
-            <p style={{ fontSize: '9pt', marginTop: 12, color: '#666' }}>
-              VALIDITY: This report will remain valid for use in a court of law for 2 (two) years from the date of first consultation.
-            </p>
-          </div>
-        </div>
-        <div className="preview-actions">
-          <button className="action-btn" style={{ background: '#7c3aed' }} onClick={copyHtml} title="Copy text">
-            <Copy size={20} color="white" />
-          </button>
-          <button className="action-btn" style={{ background: 'var(--ac2)' }} onClick={exportDoc} title="Export .doc">
-            <Download size={20} color="white" />
-          </button>
-          <button className="action-btn" style={{ background: '#111' }} onClick={() => window.print()} title="Print">
-            <Printer size={20} color="white" />
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // ── MAIN RENDER ───────────────────────────────────────────────────────────
-  if (view === 'loading') return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
-      <Loader2 size={24} color="var(--ac)" style={{ animation: 'spin 1s linear infinite' }} />
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+  const adlTable = (title, items, type) => (
+    <div className="mb-4">
+      <div className="font-bold text-xs mb-1 uppercase">{title}</div>
+      <table className="w-full text-[10px] border-collapse border border-slate-300">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className="text-left p-1.5 border border-slate-300 font-bold w-40">Activity</th>
+            {ADL_LABELS.map(l => <th key={l} className="p-1.5 border border-slate-300 font-bold text-center w-16">{l}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(act => {
+            const val = reportData?.adl?.[type]?.[act] ?? -1;
+            return (
+              <tr key={act}>
+                <td className="p-1.5 border border-slate-300">{act}</td>
+                {ADL_LABELS.map((l, i) => (
+                  <td key={l} className="p-1.5 border border-slate-300 text-center font-bold text-sky-600">{val === i ? "\u2713" : ""}</td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 
-  if (view === 'auth') return (
-    <>
-      <style>{CSS}</style>
-      <AuthScreen onAuth={u => { setUser(u); setView('dashboard'); }} />
-    </>
+  return (
+    <div ref={ref} className="bg-white p-12 max-w-3xl mx-auto shadow-2xl min-h-screen font-serif text-slate-900 text-[11pt] leading-relaxed print:shadow-none print:p-0">
+      {/* Header */}
+      <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3 mb-6">
+        <div className="text-2xl font-black italic text-slate-300 tracking-tighter uppercase">[Practice Logo]</div>
+        <div className="text-right">
+          <div className="text-base font-bold uppercase">{reportData?.drName || "[Practitioner Name]"}</div>
+          <div className="text-[10px] italic">{reportData?.quals || "[Qualifications]"}</div>
+          <div className="text-[9px] text-slate-500 mt-0.5">[Address] &bull; [Contact Details]</div>
+        </div>
+      </div>
+
+      <h1 className="text-center text-sm font-bold underline uppercase mb-6 tracking-wider">Medico-Legal Report</h1>
+
+      {/* Demographics Table */}
+      <table className="w-full mb-6 text-[10.5pt]">
+        <tbody>
+          {[
+            ["Our Reference", reportData?.ref],
+            ["Attorney Reference", reportData?.attyRef],
+            ["Patient's Full Name", reportData?.patientName],
+            ["ID / Refugee Ref Number", reportData?.idNumber],
+            ["Gender", reportData?.gender],
+            ["Date of Birth", reportData?.dob],
+            ["Current Age", reportData?.age],
+            ["Residential Address", reportData?.address],
+            ["Contact Numbers", reportData?.contact],
+            ["Date of Injury", reportData?.doi],
+            ["Mechanism of Injury", reportData?.mechanism],
+            ["Pre-Accident Occupation", reportData?.preOcc],
+            ["Post-Accident Occupation", reportData?.postOcc],
+            ["Date of Examination", reportData?.doe],
+            ["Place of Examination", reportData?.poe],
+            ["Instructing Attorney", reportData?.atty],
+            ["Attorney Contact Details", reportData?.attyCon],
+          ].map(([k, v]) => v ? (
+            <tr key={k}>
+              <td className="font-bold pr-4 py-0.5 w-52 align-top text-left">{k}:</td>
+              <td className={k === "Patient's Full Name" ? "font-bold uppercase" : ""}>{v || "---"}</td>
+            </tr>
+          ) : null)}
+        </tbody>
+      </table>
+
+      {/* Chapter Contents */}
+      {ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => {
+        const content = ch(c.id);
+        if (c.id === 9) {
+          return (
+            <div key={c.id} className="mb-5 break-inside-avoid">
+              <h2 className="font-bold uppercase mb-2 border-b border-slate-300 pb-1 text-[11pt]">{c.title}</h2>
+              <div className="pl-2">
+                {adlTable("9.1 Basic Activities of Daily Living", ADL_BASIC, "basic")}
+                {adlTable("9.1 Advanced Activities of Daily Living", ADL_ADVANCED, "advanced")}
+                {content && (
+                  <div className="mt-3">
+                    <div className="font-bold text-xs mb-1">9.2 Occupational Effects and Limitations</div>
+                    <div className="whitespace-pre-wrap text-[10.5pt]">{content}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div key={c.id} className="mb-5 break-inside-avoid">
+            <h2 className="font-bold uppercase mb-2 border-b border-slate-300 pb-1 text-[11pt]">{c.title}</h2>
+            <div className="whitespace-pre-wrap pl-2 text-[10.5pt] leading-6">
+              {content || "No information entered."}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Signature Block */}
+      <div className="mt-16 pt-8 border-t border-slate-300 text-center break-inside-avoid">
+        <div className="mb-2">_________________________</div>
+        <div className="font-bold text-sm mt-1">{reportData?.drName || "[Practitioner Name]"}</div>
+        <div className="text-xs italic uppercase tracking-widest">{reportData?.quals || "[Designation / Specialty]"}</div>
+        <p className="text-[9pt] text-slate-500 mt-6 max-w-md mx-auto">
+          VALIDITY: This report will remain valid to be used in a court of law for a period of 2 (two) years from the date of the first consultation.
+        </p>
+      </div>
+    </div>
   );
+});
+
+
+// ═══════════════════════════════════════════════════
+// MAIN APPLICATION COMPONENT
+// ═══════════════════════════════════════════════════
+
+export default function MediSyncOrtho() {
+  // --- STATE ---
+  const [view, setView] = useState('dashboard');
+  const [currentChapter, setCurrentChapter] = useState(0);
+  const [activeRegion, setActiveRegion] = useState(null);
+  const [focusedPrompt, setFocusedPrompt] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [reportData, setReportData] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // --- REFS ---
+  const isRecordingRef = useRef(false);
+  const accumulatedTranscriptRef = useRef("");
+  const recognitionRef = useRef(null);
+  const reportRef = useRef(null);
+  const currentChapterRef = useRef(currentChapter);
+  const focusedPromptRef = useRef(focusedPrompt);
+  const activeRegionRef = useRef(activeRegion);
+
+  useEffect(() => { currentChapterRef.current = currentChapter; }, [currentChapter]);
+  useEffect(() => { focusedPromptRef.current = focusedPrompt; }, [focusedPrompt]);
+  useEffect(() => { activeRegionRef.current = activeRegion; }, [activeRegion]);
+
+  // --- LOAD REPORTS FROM STORAGE ---
+  useEffect(() => {
+    setReports(loadReports());
+  }, []);
+
+  // --- AUTO-SAVE DEBOUNCED ---
+  useEffect(() => {
+    if (!reportData || !reportData.id) return;
+    const timer = setTimeout(() => {
+      const all = loadReports();
+      const idx = all.findIndex(r => r.id === reportData.id);
+      if (idx >= 0) all[idx] = reportData;
+      else all.unshift(reportData);
+      saveReports(all);
+      saveActiveReport(reportData);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [reportData]);
+
+  // --- NOTIFICATIONS ---
+  const notify = useCallback((message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 2500);
+  }, []);
+
+  // --- CONTENT HELPERS ---
+  const getChapterContent = useCallback((id) => {
+    const c = reportData?.chapters?.find(ch => ch.id === id);
+    return typeof c?.content === 'string' ? c.content : '';
+  }, [reportData]);
+
+  const setChapterContent = useCallback((id, valOrFn) => {
+    setReportData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        chapters: prev.chapters.map(ch => {
+          if (ch.id !== id) return ch;
+          const next = typeof valOrFn === 'function' ? valOrFn(ch.content || "") : valOrFn;
+          return { ...ch, content: next };
+        })
+      };
+    });
+  }, []);
+
+  const setField = useCallback((key, val) => {
+    setReportData(prev => prev ? { ...prev, [key]: val } : prev);
+  }, []);
+
+  const setADL = useCallback((type, act, val) => {
+    setReportData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        adl: {
+          ...prev.adl,
+          [type]: { ...(prev.adl?.[type] || {}), [act]: val }
+        }
+      };
+    });
+  }, []);
+
+  // --- REPORT LIFECYCLE ---
+  const startNewReport = useCallback(() => {
+    const newReport = {
+      id: generateId(),
+      patientName: "",
+      ref: `RGML/REF/${new Date().getFullYear()}/`,
+      attyRef: "",
+      doi: "", dob: "", doe: "", gender: "Male",
+      age: "", address: "", contact: "", idNumber: "",
+      mechanism: "Motor Vehicle Accident",
+      poe: "RG Medlegal Rooms, Kings Court Centre, Walmer Heights, Gqeberha, 6070",
+      preOcc: "", postOcc: "",
+      atty: "", attyCon: "", drName: "", quals: "",
+      createdAt: Date.now(),
+      status: 'draft',
+      chapters: ORTHO_CHAPTERS.map(c => ({ id: c.id, content: "" })),
+      adl: { basic: {}, advanced: {} }
+    };
+    setReportData(newReport);
+    setCurrentChapter(0);
+    setView('workflow');
+    const all = loadReports();
+    all.unshift(newReport);
+    saveReports(all);
+    setReports(all);
+    notify("New case created", "info");
+  }, [notify]);
+
+  const openReport = useCallback((r) => {
+    setReportData(r);
+    setView('workflow');
+    setCurrentChapter(0);
+    setActiveRegion(null);
+    setFocusedPrompt(null);
+  }, []);
+
+  const deleteReport = useCallback((id, e) => {
+    e.stopPropagation();
+    const all = loadReports().filter(r => r.id !== id);
+    saveReports(all);
+    setReports(all);
+    notify("Report deleted");
+  }, [notify]);
+
+  // --- AI HANDLERS ---
+  const processDictation = useCallback(async (transcript, chapterId, prompt, region) => {
+    setIsProcessing(true);
+    const chapterTitle = ORTHO_CHAPTERS[chapterId]?.title || "";
+    const result = await callAI(
+      "You are a medical scribe. Correct ONLY spelling, grammar, and punctuation. Do NOT change clinical facts, measurements, values, or observations. Return ONLY the corrected text with no preamble.",
+      `Context: "${chapterTitle}" ${prompt ? `(Section: ${prompt})` : ''} ${region ? `(Region: ${region})` : ''}\n\nRaw dictation:\n"${transcript}"`
+    );
+
+    if (result) {
+      const regionLabel = region ? `${region} — ` : '';
+      const prefix = prompt ? `[${regionLabel}${prompt.toUpperCase()}]: ` : (region ? `[${region.toUpperCase()}]: ` : '');
+
+      setChapterContent(chapterId, prev => {
+        const existing = (prev || "").trim();
+        const entry = `${prefix}${result}`;
+        return existing ? `${existing}\n\n${entry}` : entry;
+      });
+      notify("Transcription synced");
+    }
+    setIsProcessing(false);
+  }, [setChapterContent, notify]);
+
+  const handleAutoExtract = useCallback(async () => {
+    const ch3 = getChapterContent(3);
+    if (!ch3.trim()) { notify("Complete Chapter 3 first", "error"); return; }
+    setIsProcessing(true);
+    const result = await callAI(
+      "You are an Orthopaedic Medico-Legal Specialist. Extract all injuries from hospital records into a clean numbered list. Be precise and clinical. Return only the list.",
+      ch3
+    );
+    if (result) {
+      setChapterContent(4, result);
+      notify("Injuries extracted");
+    }
+    setIsProcessing(false);
+  }, [getChapterContent, setChapterContent, notify]);
+
+  const handleDiagnosisAssistant = useCallback(async () => {
+    const ch6 = getChapterContent(6);
+    if (!ch6.trim()) { notify("Complete Chapter 6 first", "error"); return; }
+    setIsProcessing(true);
+    const result = await callAI(
+      "You are an Orthopaedic Medico-Legal Specialist. Based on physical exam findings, suggest formal numbered clinical diagnoses with sub-points for functional outcomes. Use the format from South African RAF medico-legal reports.",
+      `Clinical Examination Findings:\n${ch6}\n\nHospital Records:\n${getChapterContent(3)}`
+    );
+    if (result) {
+      setChapterContent(7, result);
+      notify("Diagnoses suggested");
+    }
+    setIsProcessing(false);
+  }, [getChapterContent, setChapterContent, notify]);
+
+  const handleSmartDiscussion = useCallback(async () => {
+    setIsProcessing(true);
+    const context = [
+      `Patient: ${reportData?.patientName || "Unknown"}`,
+      `Date of Injury: ${reportData?.doi || "Unknown"}`,
+      `Mechanism: ${reportData?.mechanism || "Unknown"}`,
+      `Hospital Records:\n${getChapterContent(3)}`,
+      `Injuries:\n${getChapterContent(4)}`,
+      `Current Complaints:\n${getChapterContent(5)}`,
+      `Clinical Examination:\n${getChapterContent(6)}`,
+      `Diagnosis:\n${getChapterContent(7)}`,
+      `Further Treatment:\n${getChapterContent(8)}`
+    ].join("\n\n---\n\n");
+
+    const result = await callAI(
+      "You are an Orthopaedic Medico-Legal Specialist writing a Discussion section for a South African RAF medico-legal report. Write 5-8 numbered professional paragraphs. Reference the Narrative Test criteria 5.1 (Serious long-term impairment or loss of body function). Include WPI assessment reference. Be authoritative and formal.",
+      context
+    );
+    if (result) {
+      setChapterContent(10, result);
+      notify("Discussion drafted");
+    }
+    setIsProcessing(false);
+  }, [reportData, getChapterContent, setChapterContent, notify]);
+
+  // --- VOICE RECORDING ---
+  const toggleVoice = useCallback(() => {
+    if (isRecordingRef.current) {
+      isRecordingRef.current = false;
+      setIsRecording(false);
+      recognitionRef.current?.stop();
+    } else {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { notify("Speech recognition requires Chrome or Edge", "error"); return; }
+
+      const rec = new SR();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = "en-ZA";
+
+      rec.onresult = (e) => {
+        let finalText = "";
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
+        }
+        if (finalText) accumulatedTranscriptRef.current += finalText;
+        setLiveTranscript(accumulatedTranscriptRef.current);
+      };
+
+      rec.onerror = (e) => {
+        isRecordingRef.current = false;
+        setIsRecording(false);
+        const msgs = {
+          "not-allowed": "Microphone blocked — allow access in browser settings",
+          "no-speech": "No speech detected. Try again.",
+          "network": "Network error with speech service",
+          "audio-capture": "No microphone found"
+        };
+        notify(msgs[e.error] || `Mic error: ${e.error}`, "error");
+      };
+
+      rec.onend = () => {
+        if (isRecordingRef.current) {
+          try { rec.start(); } catch {}
+          return;
+        }
+        const text = accumulatedTranscriptRef.current.trim();
+        accumulatedTranscriptRef.current = "";
+        setLiveTranscript("");
+        setIsRecording(false);
+
+        if (text) {
+          processDictation(
+            text,
+            currentChapterRef.current,
+            focusedPromptRef.current,
+            activeRegionRef.current?.name
+          );
+        }
+      };
+
+      accumulatedTranscriptRef.current = "";
+      setLiveTranscript("");
+      isRecordingRef.current = true;
+      setIsRecording(true);
+      recognitionRef.current = rec;
+
+      try { rec.start(); } catch (e) {
+        isRecordingRef.current = false;
+        setIsRecording(false);
+        notify("Could not start microphone: " + e.message, "error");
+      }
+    }
+  }, [notify, processDictation]);
+
+  // --- EXPORT ---
+  const downloadAsWord = useCallback(() => {
+    if (!reportData) return;
+    const filename = `${(reportData.patientName || 'REPORT').replace(/\s+/g, '_').toUpperCase()}_MLR.doc`;
+
+    const buildAdlHtml = (title, items, type) => {
+      const rows = items.map(act => {
+        const val = reportData?.adl?.[type]?.[act] ?? -1;
+        return `<tr><td style="padding:3px 6px;border:1px solid #ccc">${esc(act)}</td>` +
+          ADL_LABELS.map((l, i) => `<td style="text-align:center;border:1px solid #ccc;padding:3px">${val === i ? "\u2713" : ""}</td>`).join("") +
+          `</tr>`;
+      }).join("");
+      return `<p style="font-weight:bold;margin:12pt 0 4pt">${esc(title)}</p>
+        <table border="1" cellpadding="3" style="border-collapse:collapse;width:100%;font-size:10pt">
+        <thead><tr style="background:#f0f0f0"><th style="text-align:left;padding:3px 6px">Activity</th>${ADL_LABELS.map(l => `<th style="padding:3px">${l}</th>`).join("")}</tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    };
+
+    const chaptersHtml = ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => {
+      const content = getChapterContent(c.id) || "Pending entry.";
+      if (c.id === 9) {
+        return `<h2 style="font-size:11pt;text-transform:uppercase;border-bottom:1px solid #ccc;padding-bottom:4pt;margin-top:18pt">${esc(c.title)}</h2>
+          ${buildAdlHtml("9.1 Basic Activities of Daily Living", ADL_BASIC, "basic")}
+          ${buildAdlHtml("9.1 Advanced Activities of Daily Living", ADL_ADVANCED, "advanced")}
+          <p style="font-weight:bold;margin:12pt 0 4pt">9.2 Occupational Effects and Limitations</p>
+          <div style="white-space:pre-wrap;margin-left:12pt">${esc(content)}</div>`;
+      }
+      return `<h2 style="font-size:11pt;text-transform:uppercase;border-bottom:1px solid #ccc;padding-bottom:4pt;margin-top:18pt">${esc(c.title)}</h2>
+        <div style="white-space:pre-wrap;margin-left:12pt">${esc(content)}</div>`;
+    }).join("\n");
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Medico-Legal Report</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>body{font-family:'Times New Roman',serif;font-size:11pt;color:#000;line-height:1.6;margin:72pt 72pt 72pt 72pt}h1{text-align:center;text-decoration:underline;font-size:13pt;text-transform:uppercase;margin-bottom:18pt}h2{font-weight:bold;font-size:11pt}table{font-family:'Times New Roman',serif}</style>
+</head><body>
+<table style="width:100%;border-bottom:2pt solid #000;margin-bottom:24pt"><tr>
+<td style="font-size:20pt;font-weight:bold;font-style:italic;color:#999">[PRACTICE LOGO]</td>
+<td style="text-align:right;font-size:10pt"><b>${esc(reportData.drName || "[PRACTITIONER NAME]")}</b><br><i>${esc(reportData.quals || "[QUALIFICATIONS]")}</i><br><small>[ADDRESS] &bull; [CONTACT]</small></td>
+</tr></table>
+<h1>MEDICO-LEGAL REPORT</h1>
+<table style="width:100%;margin-bottom:24pt;font-size:11pt"><tbody>
+${[
+  ["Our Reference", reportData.ref], ["Attorney Reference", reportData.attyRef],
+  ["Patient's Full Name", reportData.patientName], ["ID / Refugee Ref", reportData.idNumber],
+  ["Gender", reportData.gender], ["Date of Birth", reportData.dob],
+  ["Current Age", reportData.age], ["Residential Address", reportData.address],
+  ["Contact Numbers", reportData.contact], ["Date of Injury", reportData.doi],
+  ["Mechanism of Injury", reportData.mechanism],
+  ["Pre-Accident Occupation", reportData.preOcc], ["Post-Accident Occupation", reportData.postOcc],
+  ["Date of Examination", reportData.doe], ["Place of Examination", reportData.poe],
+  ["Instructing Attorney", reportData.atty], ["Attorney Contact Details", reportData.attyCon],
+].filter(([,v]) => v).map(([k,v]) => `<tr><td style="font-weight:bold;width:40%;padding:2pt 6pt;vertical-align:top">${esc(k)}:</td><td style="padding:2pt 6pt">${k === "Patient's Full Name" ? `<b><u>${esc(v)}</u></b>` : esc(v)}</td></tr>`).join("\n")}
+</tbody></table>
+${chaptersHtml}
+<div style="margin-top:60pt;text-align:center;border-top:1pt solid #ccc;padding-top:24pt">
+<br><div>_________________________</div>
+<div style="font-weight:bold;font-size:12pt;margin-top:4pt">${esc(reportData.drName || "[PRACTITIONER NAME]")}</div>
+<div style="font-style:italic">${esc(reportData.quals || "[DESIGNATION / SPECIALTY]")}</div>
+<p style="font-size:9pt;color:#666;margin-top:18pt;max-width:400px;margin-left:auto;margin-right:auto">VALIDITY: This report will remain valid to be used in a court of law for a period of 2 (two) years from the date of the first consultation.</p>
+</div></body></html>`;
+
+    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    notify(`Exported: ${filename}`);
+  }, [reportData, getChapterContent, notify]);
+
+  const copyToClipboard = useCallback(() => {
+    if (!reportRef.current) return;
+    const el = document.createElement('div');
+    el.innerHTML = reportRef.current.innerHTML;
+    el.style.position = 'fixed';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {
+      document.execCommand('copy');
+      notify("Copied! Paste into Word.");
+    } catch {
+      notify("Copy failed", "error");
+    }
+    document.body.removeChild(el);
+  }, [notify]);
+
+  // --- FILTERED REPORTS ---
+  const filteredReports = useMemo(() => {
+    if (!searchTerm) return reports;
+    const s = searchTerm.toLowerCase();
+    return reports.filter(r =>
+      (r.patientName || '').toLowerCase().includes(s) ||
+      (r.ref || '').toLowerCase().includes(s)
+    );
+  }, [reports, searchTerm]);
+
+  const currentChapterDef = ORTHO_CHAPTERS[currentChapter];
+
+  // ═══════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════
 
   return (
-    <>
-      <style>{CSS}</style>
-      <div className="app">
-        {/* HEADER */}
-        <header className="hdr">
-          <div className="hdr-logo">
-            {view === 'editor' && (
-              <button className="btn btn-ghost" style={{ padding: '5px 8px' }} onClick={() => setSbOpen(p => !p)}>
-                <Menu size={14} />
-              </button>
-            )}
-            <div className="hdr-icon"><Stethoscope size={16} color="white" /></div>
-            <div>
-              <div className="hdr-title">MediSync <span>Ortho</span></div>
-              <div className="hdr-sync">
-                <div className={`sync-dot ${isSyncing ? 'active' : 'done'}`} />
-                {isSyncing ? 'SYNCING' : db ? 'CLOUD SAVED' : 'LOCAL MODE'}
-              </div>
-            </div>
-          </div>
-          <div className="hdr-btns">
-            {view === 'editor' && (
-              <button className="btn btn-ghost" style={{ fontSize: 9 }} onClick={() => setView('preview')}>
-                <FileText size={12} /> Preview
-              </button>
-            )}
-            {view === 'preview' && (
-              <button className="btn btn-ghost" style={{ fontSize: 9 }} onClick={() => setView('editor')}>
-                <ChevronLeft size={12} /> Editor
-              </button>
-            )}
-            {(view === 'editor' || view === 'preview') && (
-              <button className="btn btn-ghost" style={{ fontSize: 9 }}
-                onClick={() => { setView('dashboard'); setReportData(null); }}>
-                Exit
-              </button>
-            )}
-          </div>
-        </header>
+    <div className="min-h-screen bg-slate-100 flex flex-col relative overflow-hidden" style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
+      <style>{`
+        @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 70% { box-shadow: 0 0 0 12px rgba(239,68,68,0); } }
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+      `}</style>
 
-        {/* BODY */}
-        <div className="body" style={{ flex: 1, overflow: 'hidden' }}>
-          {view === 'dashboard' && (
-            <div className="dash">
-              <div className="dash-head">
-                <div>
-                  <div className="dash-title">Patient Reports</div>
-                  <div className="dash-sub">MEDLEGAL WORKFLOW SYSTEM</div>
+      {/* HEADER */}
+      <header className="bg-slate-950 text-white px-4 py-3 flex justify-between items-center z-[60] border-b border-slate-800/50">
+        <div className="flex items-center gap-3">
+          {view === 'workflow' && (
+            <button onClick={() => setShowMobileMenu(true)} className="lg:hidden p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors">
+              <Menu className="w-4 h-4" />
+            </button>
+          )}
+          <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
+            <Stethoscope className="w-4 h-4 text-sky-400" />
+          </div>
+          <div>
+            <div className="text-sm font-bold tracking-tight">MediSync <span className="text-sky-400">Ortho</span></div>
+            <div className="text-[9px] text-slate-500 font-medium tracking-wider">MEDICO-LEGAL REPORT ENGINE</div>
+          </div>
+        </div>
+        <div className="flex gap-2 items-center">
+          {view === 'workflow' && (
+            <button onClick={() => setView('preview')} className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 transition-colors">
+              <Eye className="w-3.5 h-3.5" /> Preview
+            </button>
+          )}
+          {view !== 'dashboard' && (
+            <button onClick={() => { setView('dashboard'); setReports(loadReports()); }} className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-colors">
+              Dashboard
+            </button>
+          )}
+        </div>
+      </header>
+
+      <Notification notification={notification} />
+
+      <main className="flex-1 flex overflow-hidden">
+
+        {/* ═══════ DASHBOARD ═══════ */}
+        {view === 'dashboard' && (
+          <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+            <div className="max-w-5xl mx-auto">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
+                <div className="text-left">
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Case Reports</h2>
+                  <p className="text-slate-500 text-sm mt-1">Orthopaedic Medico-Legal Workflow</p>
                 </div>
-                <button className="btn btn-teal" onClick={startNewReport} disabled={isProcessing}>
-                  <UserPlus size={13} /> New Report
+                <button onClick={startNewReport} className="bg-sky-600 hover:bg-sky-500 text-white px-6 py-3.5 rounded-2xl shadow-lg shadow-sky-600/20 font-bold text-xs uppercase flex items-center gap-2 transition-all active:scale-[0.97]">
+                  <Plus className="w-4 h-4" /> New Case
                 </button>
               </div>
-              <div className="report-grid">
-                <div className="new-card" onClick={startNewReport}>
-                  + NEW CASE
-                </div>
-                {reports.map(r => (
-                  <div key={r.id} className="rpt-card" onClick={() => openReport(r)}>
-                    <div style={{ fontSize: 8, color: 'var(--ac)', letterSpacing: '1px', marginBottom: 8 }}>
-                      CASE #{r.id.slice(-6).toUpperCase()}
-                    </div>
-                    <div className="rpt-name">{r.patientName || 'Unnamed Patient'}</div>
-                    <div className="rpt-ref">{r.ref || 'No reference'}</div>
-                    <div className="rpt-foot">
-                      <span className="tag">{r.doi ? `DOI: ${r.doi}` : new Date(r.createdAt).toLocaleDateString('en-ZA')}</span>
-                      <ChevronRight size={12} color="var(--mt)" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {view === 'editor' && reportData && (
-            <>
-              {/* SIDEBAR */}
-              <aside className={`sb ${sbOpen ? '' : 'closed'}`}>
-                <div className="sb-head">
-                  <div className="sb-label">▸ MEDISYNC</div>
-                  <div className="sb-sub">ACTIVE CHAPTERS</div>
+              {reports.length > 3 && (
+                <div className="relative mb-6">
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by patient name or reference..."
+                    className="w-full pl-11 pr-4 py-3 bg-white rounded-2xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
                 </div>
-                <div className="sb-list">
-                  {CHAPTERS.map((c, i) => (
-                    <div key={i}
-                      className={`nav-item ${currentChapter === i ? 'on' : ''}`}
-                      onClick={() => { setCurrentChapter(i); setFocusedPrompt(null); setActiveRegion(null); }}>
-                      <span className="nav-num">{String(i).padStart(2, '0')}</span>
-                      {c.title.replace(/^Ch \d+: /, '')}
+              )}
+
+              {filteredReports.length === 0 ? (
+                <div className="text-center py-20 text-slate-400">
+                  <Stethoscope className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p className="font-bold text-sm">{searchTerm ? 'No matching reports' : 'No reports yet'}</p>
+                  <p className="text-xs mt-1">{searchTerm ? 'Try a different search term' : 'Click "New Case" to begin'}</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredReports.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => openReport(r)}
+                      className="bg-white p-6 rounded-2xl border border-slate-100 hover:shadow-xl hover:border-sky-200 transition-all cursor-pointer group flex flex-col active:scale-[0.98]"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-[9px] font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full uppercase tracking-wide">
+                          #{String(r.id).slice(0, 6)}
+                        </span>
+                        <button
+                          onClick={(e) => deleteReport(r.id, e)}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900 mb-1 leading-tight uppercase truncate text-left">
+                        {r.patientName || "Untitled Patient"}
+                      </h3>
+                      <div className="text-slate-400 text-[10px] font-semibold mt-0.5 text-left truncate">{r.ref || "No reference"}</div>
+                      <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                        <span>{r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-ZA') : 'N/A'}</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform text-sky-400 opacity-0 group-hover:opacity-100" />
+                      </div>
                     </div>
                   ))}
                 </div>
-              </aside>
+              )}
+            </div>
+          </div>
+        )}
 
-              {/* MAIN EDITOR */}
-              <div className="main" style={{ position: 'relative' }}>
-                <div className="content">
-                  <div className="ch-hdr">
-                    <div className="ch-num">CHAPTER {currentChapter.toString().padStart(2, '0')}</div>
-                    <div className="ch-title">{CHAPTERS[currentChapter].title}</div>
-                    <div className="ch-bar" />
+        {/* ═══════ PREVIEW ═══════ */}
+        {view === 'preview' && (
+          <div className="flex-1 bg-slate-200 overflow-y-auto p-6 lg:p-10 relative">
+            <FinalReportPreview ref={reportRef} reportData={reportData} />
+            <div className="fixed bottom-8 right-8 flex flex-col items-center gap-2.5 z-[50]">
+              <button onClick={() => setView('workflow')} className="bg-slate-700 hover:bg-slate-600 text-white p-3.5 rounded-full shadow-xl transition-all" title="Back to Editor">
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <button onClick={copyToClipboard} className="bg-purple-600 hover:bg-purple-500 text-white p-3.5 rounded-full shadow-xl transition-all" title="Copy for Word">
+                <Copy className="w-5 h-5" />
+              </button>
+              <button onClick={downloadAsWord} className="bg-sky-600 hover:bg-sky-500 text-white p-3.5 rounded-full shadow-xl transition-all" title="Export .doc">
+                <Download className="w-5 h-5" />
+              </button>
+              <button onClick={() => window.print()} className="bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-full shadow-xl transition-all" title="Print">
+                <Printer className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════ WORKFLOW ═══════ */}
+        {view === 'workflow' && (
+          <>
+            {/* Desktop Sidebar */}
+            <aside className="hidden lg:flex flex-shrink-0">
+              <SidebarNav
+                currentChapter={currentChapter}
+                setCurrentChapter={setCurrentChapter}
+                chapterData={reportData?.chapters}
+                onClose={() => setShowMobileMenu(false)}
+              />
+            </aside>
+
+            {/* Mobile Sidebar Overlay */}
+            {showMobileMenu && (
+              <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex lg:hidden">
+                <SidebarNav
+                  currentChapter={currentChapter}
+                  setCurrentChapter={setCurrentChapter}
+                  chapterData={reportData?.chapters}
+                  onClose={() => setShowMobileMenu(false)}
+                />
+                <button onClick={() => setShowMobileMenu(false)} className="flex-1" />
+              </div>
+            )}
+
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-y-auto bg-slate-50 relative">
+              <div className="max-w-3xl mx-auto p-5 lg:p-8 pb-44 text-left">
+
+                {/* Chapter Header */}
+                <div className="mb-6">
+                  <div className="text-sky-600 text-[10px] font-bold uppercase tracking-widest mb-1">
+                    Step {currentChapter + 1} of {ORTHO_CHAPTERS.length}
                   </div>
-                  {renderChapter()}
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                    {currentChapterDef.title}
+                  </h2>
                 </div>
 
-                {/* BOTTOM DICTATION BAR */}
-                <div className="bot-bar">
-                  <div className="bot-inner">
-                    <button className="nav-btn" onClick={() => setCurrentChapter(p => Math.max(0, p - 1))}>
-                      <ChevronLeft size={16} />
-                    </button>
+                <div className="space-y-5">
+
+                  {/* ─── CHAPTER 0: DEMOGRAPHICS FORM ─── */}
+                  {currentChapter === 0 && (
+                    <div className="bg-white p-6 lg:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Patient Full Name</label>
+                          <input
+                            type="text"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold uppercase text-lg text-sky-900 focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
+                            placeholder="PATIENT NAME"
+                            value={reportData?.patientName || ""}
+                            onChange={e => setField('patientName', e.target.value)}
+                          />
+                        </div>
+
+                        {[
+                          { key: "ref", label: "Our Reference" },
+                          { key: "attyRef", label: "Attorney Reference" },
+                          { key: "idNumber", label: "ID / Refugee Ref Number" },
+                          { key: "dob", label: "Date of Birth", type: "date" },
+                          { key: "age", label: "Current Age" },
+                          { key: "address", label: "Residential Address" },
+                          { key: "contact", label: "Contact Numbers" },
+                          { key: "doi", label: "Date of Injury", type: "date" },
+                          { key: "mechanism", label: "Mechanism of Injury" },
+                          { key: "doe", label: "Date of Examination", type: "date" },
+                          { key: "poe", label: "Place of Examination" },
+                          { key: "preOcc", label: "Pre-Accident Occupation" },
+                          { key: "postOcc", label: "Post-Accident Occupation" },
+                          { key: "atty", label: "Instructing Attorney" },
+                          { key: "attyCon", label: "Attorney Contact Details" },
+                          { key: "drName", label: "Practitioner Name" },
+                          { key: "quals", label: "Qualifications (e.g. FC Ortho SA)" },
+                        ].map(field => (
+                          <div key={field.key} className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{field.label}</label>
+                            <input
+                              type={field.type || "text"}
+                              className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
+                              value={reportData?.[field.key] || ""}
+                              onChange={e => setField(field.key, e.target.value)}
+                            />
+                          </div>
+                        ))}
+
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gender</label>
+                          <select
+                            className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-sky-500 outline-none"
+                            value={reportData?.gender || "Male"}
+                            onChange={e => setField('gender', e.target.value)}
+                          >
+                            <option>Male</option><option>Female</option><option>Other</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── CHAPTER 3: GUIDED HOSPITAL RECORDS ─── */}
+                  {currentChapter === 3 && (
+                    <div className="bg-slate-900 p-5 rounded-2xl border border-slate-700/50">
+                      <div className="flex items-center gap-2.5 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select sub-section, then dictate</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                        {currentChapterDef.steps.map((step, i) => (
+                          <button
+                            key={step}
+                            onClick={() => { setFocusedPrompt(step); notify(`Focus: ${step}`, 'info'); }}
+                            className={`text-left p-3 rounded-xl border text-[10px] font-semibold transition-all flex items-center gap-2 ${
+                              focusedPrompt === step
+                                ? 'bg-sky-600 border-sky-500 text-white shadow-lg'
+                                : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                            }`}
+                          >
+                            <span className="w-5 h-5 rounded flex items-center justify-center bg-white/10 text-[9px] font-bold flex-shrink-0">
+                              {String.fromCharCode(97 + i)}
+                            </span>
+                            <span className="truncate">{step}</span>
+                            {focusedPrompt === step && <CheckCircle2 className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── CHAPTER 6: MSK EXAMINATION ─── */}
+                  {currentChapterDef.type === "msk_exam" && (
+                    <div className="space-y-4">
+                      {/* General Examination Section */}
+                      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-700/50">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">6.1 General Examination</div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                          {GENERAL_EXAM_PROMPTS.map(p => (
+                            <button
+                              key={p}
+                              onClick={() => { setActiveRegion(null); setFocusedPrompt(p); notify(`General: ${p}`, 'info'); }}
+                              className={`p-2.5 rounded-xl border text-[10px] font-semibold transition-all ${
+                                !activeRegion && focusedPrompt === p
+                                  ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg'
+                                  : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* MSK Region Selection */}
+                      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-700/50">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">6.2 Musculoskeletal Examination — Select Region</div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 mb-4">
+                          {MSK_REGIONS.map(reg => (
+                            <button
+                              key={reg.name}
+                              onClick={() => { setActiveRegion(reg); setFocusedPrompt(null); }}
+                              className={`p-3 rounded-xl border text-[10px] font-bold transition-all ${
+                                activeRegion?.name === reg.name
+                                  ? 'bg-sky-600 border-sky-500 text-white shadow-lg'
+                                  : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                              }`}
+                            >
+                              {reg.name}
+                            </button>
+                          ))}
+                        </div>
+
+                        {activeRegion && (
+                          <div className="pt-4 border-t border-white/10">
+                            <div className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-2.5">
+                              {activeRegion.name} — Examination Prompts
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                              {activeRegion.prompts.map(p => (
+                                <button
+                                  key={p}
+                                  onClick={() => { setFocusedPrompt(p); notify(`${activeRegion.name} \u2014 ${p}`, 'info'); }}
+                                  className={`p-2.5 rounded-xl border text-[9px] font-bold uppercase transition-all ${
+                                    focusedPrompt === p
+                                      ? 'bg-purple-600 border-purple-500 text-white shadow-lg'
+                                      : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                                  }`}
+                                >
+                                  {p}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Evidence of Injury Section Prompt */}
+                      <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+                        <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-1">6.3 Evidence of Injury &amp; Special Investigations</div>
+                        <p className="text-xs text-amber-600">Use the text editor below to document scarring, disfigurement, and radiological findings. Upload x-ray images and reports separately.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ─── CHAPTER 9: DISABILITY & IMPAIRMENT ─── */}
+                  {currentChapter === 9 && (
+                    <div className="space-y-5">
+                      <ADLTable
+                        title="9.1 Basic Activities of Daily Living"
+                        items={ADL_BASIC}
+                        type="basic"
+                        adlData={reportData?.adl?.basic}
+                        onUpdate={(act, val) => setADL('basic', act, val)}
+                      />
+                      <ADLTable
+                        title="9.1 Advanced Activities of Daily Living"
+                        items={ADL_ADVANCED}
+                        type="advanced"
+                        adlData={reportData?.adl?.advanced}
+                        onUpdate={(act, val) => setADL('advanced', act, val)}
+                      />
+                      <ContentEditor
+                        value={getChapterContent(9)}
+                        onChange={(val) => setChapterContent(9, val)}
+                        placeholder="Dictate or type 9.2 Occupational Effects & Limitations..."
+                        focusedPrompt={focusedPrompt}
+                      />
+                    </div>
+                  )}
+
+                  {/* ─── AI ASSIST BAR (Ch 4, 7, 10) ─── */}
+                  {(currentChapter === 4 || currentChapter === 7 || currentChapter === 10) && (
+                    <div className="bg-gradient-to-r from-sky-50 to-purple-50 border border-sky-200 p-4 rounded-2xl flex items-center gap-3 flex-wrap">
+                      <Zap className="w-4 h-4 text-sky-600" />
+                      <span className="text-[10px] font-bold text-sky-700 uppercase tracking-wider">AI Assist</span>
+                      {currentChapter === 4 && (
+                        <button onClick={handleAutoExtract} disabled={isProcessing} className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 disabled:opacity-40 transition-colors">
+                          <Sparkles className="w-3.5 h-3.5" /> Extract Injuries from Ch.3
+                        </button>
+                      )}
+                      {currentChapter === 7 && (
+                        <button onClick={handleDiagnosisAssistant} disabled={isProcessing} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 disabled:opacity-40 transition-colors">
+                          <Lightbulb className="w-3.5 h-3.5" /> Suggest Diagnoses
+                        </button>
+                      )}
+                      {currentChapter === 10 && (
+                        <button onClick={handleSmartDiscussion} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 disabled:opacity-40 transition-colors">
+                          <Wand2 className="w-3.5 h-3.5" /> Draft Discussion
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ─── TEXT EDITOR (All dictation/guided chapters except form/disability) ─── */}
+                  {currentChapterDef.type !== "form" && currentChapter !== 9 && (
+                    <ContentEditor
+                      value={getChapterContent(currentChapter)}
+                      onChange={(val) => setChapterContent(currentChapter, val)}
+                      placeholder={`Dictate or type ${currentChapterDef.short} content...`}
+                      focusedPrompt={focusedPrompt}
+                    />
+                  )}
+                </div>
+
+                {/* ─── BOTTOM NAVIGATION BAR ─── */}
+                <div className="fixed bottom-0 left-0 lg:left-72 right-0 p-4 bg-white/95 backdrop-blur-lg border-t border-slate-200 z-[50]">
+                  <div className="max-w-3xl mx-auto flex items-center gap-3">
                     <button
-                      className={`dic-btn ${isProcessing ? 'proc' : isRecording ? 'rec' : 'idle'}`}
-                      onClick={isProcessing ? undefined : toggleRec}
-                      disabled={isProcessing}>
-                      {isProcessing
-                        ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</>
-                        : isRecording
-                          ? <><MicOff size={14} /> Stop & Sync</>
-                          : <><Mic size={14} /> Dictate Findings</>
-                      }
+                      onClick={() => setCurrentChapter(c => Math.max(0, c - 1))}
+                      disabled={currentChapter === 0}
+                      className="p-3.5 rounded-2xl bg-slate-100 border border-slate-200 hover:bg-slate-200 active:scale-95 transition-all flex-shrink-0 disabled:opacity-30"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-slate-600" />
                     </button>
-                    <button className="nav-btn"
-                      onClick={() => currentChapter < 10 ? setCurrentChapter(p => p + 1) : setView('preview')}
-                      style={{ background: currentChapter === 10 ? 'var(--ac2)' : undefined,
-                               borderColor: currentChapter === 10 ? 'var(--ac2)' : undefined,
-                               color: currentChapter === 10 ? '#fff' : undefined }}>
-                      <ChevronRight size={16} />
+
+                    <button
+                      onClick={isProcessing ? undefined : toggleVoice}
+                      disabled={isProcessing || currentChapterDef.type === 'form'}
+                      className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider shadow-lg transition-all active:scale-[0.98] disabled:opacity-40 ${
+                        isProcessing ? 'bg-slate-400 text-white cursor-not-allowed' :
+                        isRecording ? 'bg-red-500 text-white shadow-red-500/30' :
+                        'bg-slate-900 text-white hover:bg-slate-800'
+                      }`}
+                      style={isRecording ? { animation: 'pulse-ring 1.5s infinite' } : {}}
+                    >
+                      {isProcessing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> :
+                       isRecording ? <><MicOff className="w-4 h-4" /> Stop &amp; Sync</> :
+                       <><Mic className="w-4 h-4" /> Dictate</>}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (currentChapter < ORTHO_CHAPTERS.length - 1) {
+                          setCurrentChapter(c => c + 1);
+                          setFocusedPrompt(null);
+                          setActiveRegion(null);
+                        } else {
+                          setView('preview');
+                        }
+                      }}
+                      className="p-3.5 rounded-2xl bg-sky-600 text-white shadow-lg hover:bg-sky-500 active:scale-95 transition-all flex-shrink-0"
+                    >
+                      {currentChapter < ORTHO_CHAPTERS.length - 1 ? <ChevronRight className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
+
+                  {/* Live Transcript Display */}
                   {isRecording && (
-                    <div className="live-box" style={{ maxWidth: 700, margin: '6px auto 0' }}>
-                      <span className="live-dot" />
-                      {focusedPrompt ? <strong>{activeRegion ? `${activeRegion.name} — ` : ''}{focusedPrompt}: </strong> : ''}
-                      {liveText || 'Listening — speak now...'}
+                    <div className="mt-2.5 max-w-3xl mx-auto bg-red-50 border border-red-200 rounded-2xl p-3.5">
+                      <div className="text-[9px] font-bold text-red-500 uppercase tracking-wider mb-1 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                        Recording
+                        {focusedPrompt && <span className="text-sky-600">\u2014 {focusedPrompt}</span>}
+                        {activeRegion && <span className="text-purple-600">\u2014 {activeRegion.name}</span>}
+                      </div>
+                      <div className="text-xs text-slate-700 italic truncate">{liveTranscript || "Listening..."}</div>
                     </div>
                   )}
                 </div>
               </div>
-            </>
-          )}
-
-          {view === 'preview' && reportData && renderPreview()}
-        </div>
-
-        {/* NOTIFICATION */}
-        {notif.show && (
-          <div className={`notif ${notif.type}`}>
-            <CheckCircle2 size={12} />
-            {notif.msg}
-          </div>
-        )}
-
-        {/* PROCESSING OVERLAY */}
-        {isProcessing && (
-          <div className="overlay">
-            <div className="spinner-box">
-              <Loader2 size={36} color="var(--ac)" style={{ animation: 'spin 1s linear infinite' }} />
-              <p>SYNTHESISING</p>
             </div>
-          </div>
+          </>
         )}
-        <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </>
+      </main>
+
+      {/* Processing Overlay */}
+      {isProcessing && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] flex items-center justify-center">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl text-center border border-slate-100">
+            <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-slate-900">Processing</h3>
+            <p className="text-slate-400 mt-1 text-xs">Synthesizing clinical data...</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
