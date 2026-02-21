@@ -8,231 +8,371 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body,#root{height:100%;background:#0c0e14;color:#dde2f0;font-family:system-ui,sans-serif;font-size:13px;}
+.center{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0c0e14;}
+/* AUTH */
+.auth-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0c0e14;}
+.auth-box{background:#131620;border:1px solid #22273a;border-radius:12px;padding:36px;width:360px;}
+.auth-logo{font-size:8px;color:#10d9b0;letter-spacing:3px;font-weight:700;margin-bottom:6px;}
+.auth-box h2{font-size:22px;font-weight:800;color:#dde2f0;margin-bottom:4px;}
+.auth-sub{font-size:11px;color:#5e6882;margin-bottom:24px;}
+.auth-err{background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.25);border-radius:6px;padding:9px 11px;font-size:11px;color:#e05555;margin-bottom:12px;}
+.auth-switch{text-align:center;margin-top:14px;font-size:11px;color:#5e6882;}
+.auth-link{color:#10d9b0;cursor:pointer;}
+/* DASHBOARD */
+.dash{min-height:100vh;background:#0c0e14;}
+.dash-hdr{background:#131620;border-bottom:1px solid #22273a;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;}
+.dash-logo{font-size:8px;color:#10d9b0;letter-spacing:3px;font-weight:700;}
+.dash-title{font-size:14px;font-weight:700;color:#dde2f0;}
+.dash-body{padding:24px;}
+.dash-h2{font-size:20px;font-weight:800;color:#dde2f0;margin-bottom:4px;}
+.dash-hint{font-size:11px;color:#5e6882;margin-bottom:20px;}
+.rpt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
+.new-card{background:rgba(91,142,245,.05);border:1px dashed #5b8ef5;border-radius:8px;padding:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#5b8ef5;min-height:90px;transition:all .12s;}
+.new-card:hover{background:rgba(91,142,245,.12);}
+.rpt-card{background:#131620;border:1px solid #22273a;border-radius:8px;padding:14px;cursor:pointer;transition:all .12s;}
+.rpt-card:hover{border-color:#10d9b0;transform:translateY(-1px);}
+.rpt-name{font-size:13px;font-weight:700;color:#dde2f0;margin-bottom:4px;}
+.rpt-mech{font-size:10px;color:#5e6882;}
+.rpt-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.rpt-tag{font-size:9px;background:rgba(16,217,176,.1);color:#10d9b0;padding:2px 7px;border-radius:4px;}
+.db-err{background:rgba(224,85,85,.07);border:1px solid rgba(224,85,85,.2);border-radius:8px;padding:16px;margin-bottom:16px;}
+.db-err h3{color:#e05555;font-size:13px;margin-bottom:8px;}
+.db-err p{font-size:11px;color:#5e6882;margin-bottom:8px;line-height:1.6;}
+.sql-box{background:#0c0e14;color:#10d9b0;padding:12px;border-radius:6px;font-size:10px;font-family:monospace;white-space:pre;overflow-x:auto;margin-top:8px;}
+/* EDITOR */
+.editor{display:flex;height:100vh;overflow:hidden;}
+.sidebar{width:205px;min-width:205px;background:#131620;border-right:1px solid #22273a;display:flex;flex-direction:column;transition:width .2s,min-width .2s;overflow:hidden;}
+.sidebar.closed{width:0;min-width:0;}
+.sb-head{padding:14px 13px 10px;border-bottom:1px solid #22273a;white-space:nowrap;}
+.sb-logo{font-size:8px;color:#10d9b0;letter-spacing:3px;font-weight:700;}
+.sb-title{font-size:13px;color:#dde2f0;font-weight:700;margin-top:2px;}
+.sb-sub{font-size:8px;color:#5e6882;margin-top:2px;}
+.nav-item{padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:7px;font-size:11px;color:#5e6882;border-left:2px solid transparent;transition:all .12s;white-space:nowrap;}
+.nav-item:hover{color:#dde2f0;background:#191d2b;}
+.nav-item.on{color:#10d9b0;border-left-color:#10d9b0;background:rgba(16,217,176,.07);}
+.nav-n{font-size:9px;color:#5e6882;min-width:16px;font-family:monospace;}
+.sb-foot{padding:10px 12px;border-top:1px solid #22273a;display:flex;flex-direction:column;gap:6px;margin-top:auto;}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
+.top-bar{height:46px;min-height:46px;background:#131620;border-bottom:1px solid #22273a;display:flex;align-items:center;justify-content:space-between;padding:0 14px;gap:8px;}
+.page{flex:1;overflow-y:auto;padding:16px 20px 14px;}
+.bot-bar{background:#131620;border-top:1px solid #22273a;padding:9px 14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-height:55px;}
+/* CARDS */
+.card{background:#131620;border:1px solid #22273a;border-radius:8px;padding:15px;margin-bottom:11px;}
+.card-accent{border-color:#5b8ef5;background:rgba(91,142,245,.03);}
+.card-green{border-color:#10d9b0;background:rgba(16,217,176,.04);}
+.card-red{border-color:#e05555;background:rgba(224,85,85,.04);}
+.card-yellow{border-color:#d4a44c;background:rgba(212,164,76,.04);}
+.card-title{font-size:13px;font-weight:700;margin-bottom:10px;color:#dde2f0;display:flex;align-items:center;gap:6px;}
+.badge{font-size:8px;padding:2px 5px;border-radius:3px;letter-spacing:1px;font-family:monospace;font-weight:700;}
+.b-teal{background:rgba(16,217,176,.12);color:#10d9b0;}
+.b-gold{background:rgba(212,164,76,.12);color:#d4a44c;}
+.b-pu{background:rgba(155,114,245,.15);color:#9b72f5;}
+.b-red{background:rgba(224,85,85,.12);color:#e05555;}
+/* FORMS */
+.fld{margin-bottom:10px;}
+label{font-size:9px;color:#5e6882;display:block;margin-bottom:3px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;}
+input,textarea,select{background:#191d2b;border:1px solid #22273a;color:#dde2f0;border-radius:6px;padding:7px 10px;font-family:inherit;font-size:12px;width:100%;outline:none;transition:border-color .12s;}
+input:focus,textarea:focus,select:focus{border-color:#10d9b0;}
+textarea{resize:vertical;min-height:70px;line-height:1.55;}
+textarea.rec{border-color:#e05555!important;background:rgba(224,85,85,.04);}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;transition:all .12s;font-family:inherit;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-teal{background:#10d9b0;color:#0c0e14;}.btn-teal:hover{filter:brightness(1.1);}
+.btn-ghost{background:#191d2b;color:#dde2f0;border:1px solid #22273a;}.btn-ghost:hover{border-color:#10d9b0;color:#10d9b0;}
+.btn-gold{background:rgba(212,164,76,.1);color:#d4a44c;border:1px solid rgba(212,164,76,.25);}.btn-gold:hover{background:rgba(212,164,76,.2);}
+.btn-pu{background:rgba(155,114,245,.12);color:#9b72f5;border:1px solid rgba(155,114,245,.3);}.btn-pu:hover{background:rgba(155,114,245,.22);}
+.btn-red{background:rgba(224,85,85,.1);color:#e05555;border:1px solid rgba(224,85,85,.2);}
+/* DICTATE BAR */
+.dbtn{padding:9px 20px;border-radius:20px;font-weight:700;font-size:12px;cursor:pointer;border:none;font-family:inherit;display:flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap;}
+.dbtn-idle{background:#5b8ef5;color:#fff;box-shadow:0 2px 10px rgba(91,142,245,.3);}
+.dbtn-idle:hover{filter:brightness(1.1);}
+.dbtn-rec{background:#e05555;color:#fff;animation:rp 1.2s infinite;}
+.dbtn-wait{background:#191d2b;color:#5e6882;border:1px solid #22273a;cursor:wait;}
+@keyframes rp{0%,100%{box-shadow:0 0 0 0 rgba(224,85,85,.5)}60%{box-shadow:0 0 0 10px rgba(224,85,85,0)}}
+.d-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.d-sec{font-size:9px;color:#10d9b0;font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.d-txt{font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+/* MISC */
+.save-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.dot-saving{background:#d4a44c;animation:bl .8s infinite;}
+.dot-saved{background:#10d9b0;}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+.pulse{animation:bl .6s infinite;}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px;}
+.chip{padding:5px 10px;border-radius:12px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid #22273a;background:#191d2b;color:#5e6882;transition:all .12s;white-space:nowrap;}
+.chip:hover{border-color:#5b8ef5;color:#5b8ef5;}
+.chip.on{border-color:#10d9b0;background:rgba(16,217,176,.1);color:#10d9b0;}
+.chip.has{border-color:rgba(16,217,176,.3);}
+.parse-bar{margin-top:9px;padding:9px 11px;background:rgba(155,114,245,.06);border:1px solid rgba(155,114,245,.2);border-radius:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.parse-note{font-size:10px;color:#9b72f5;width:100%;margin-bottom:2px;}
+.std-box{background:rgba(16,217,176,.04);border:1px solid rgba(16,217,176,.14);border-radius:6px;padding:11px;font-size:11px;line-height:1.65;color:#dde2f0;}
+.mskp{background:#191d2b;border:1px solid #22273a;border-radius:6px;padding:9px;margin-bottom:6px;}
+.mskp h4{font-size:11px;font-weight:700;color:#5e6882;margin-bottom:3px;}
+.mskp.has h4{color:#10d9b0;}
+.ch-n{font-size:8px;color:#10d9b0;letter-spacing:2px;margin-bottom:3px;font-family:monospace;}
+.ch-t{font-size:18px;font-weight:800;color:#dde2f0;}
+.ch-bar{width:26px;height:2px;background:#10d9b0;margin-top:5px;border-radius:2px;margin-bottom:16px;}
+.docrow{display:flex;align-items:center;gap:7px;padding:6px 10px;background:#191d2b;border-radius:5px;margin-bottom:4px;font-size:11px;color:#dde2f0;}
+.doc-n{color:#10d9b0;font-size:9px;min-width:16px;font-family:monospace;}
+.adlt{width:100%;border-collapse:collapse;}
+.adlt th,.adlt td{padding:5px 7px;text-align:left;border-bottom:1px solid #22273a;font-size:11px;color:#dde2f0;}
+.adlt th{font-size:8px;color:#5e6882;letter-spacing:1px;background:#191d2b;text-transform:uppercase;}
+/* PREVIEW */
+.pv{position:fixed;inset:0;background:#f0ebe2;z-index:500;overflow-y:auto;}
+.pv-bar{position:sticky;top:0;background:#e6e0d6;border-bottom:1px solid #ccc;padding:8px 18px;display:flex;align-items:center;justify-content:space-between;z-index:10;}
+.pv-doc{max-width:740px;margin:24px auto 90px;padding:48px 56px;background:#fff;font-family:'Times New Roman',serif;font-size:11pt;line-height:1.65;color:#111;box-shadow:0 4px 36px rgba(0,0,0,.15);}
+.pv-doc h1{font-size:14pt;text-align:center;text-transform:uppercase;margin-bottom:4px;}
+.pv-doc h2{font-size:12pt;text-decoration:underline;text-transform:uppercase;margin:14px 0 5px;}
+.pv-doc h3{font-size:11pt;font-weight:700;margin:9px 0 3px;}
+.pv-doc p{margin:3px 0;}
+.pv-doc table{border-collapse:collapse;width:100%;margin:6px 0;}
+.pv-doc td,.pv-doc th{border:1px solid #aaa;padding:4px 6px;font-size:10pt;}
+.pv-doc th{background:#eee;}
+.pv-act{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:20;}
+</style>
 </head>
-<body style="margin:0;background:#0c0e14">
+<body>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useCallback } = React;
 
 const SUPA_URL = "https://lwmghkbqdwvqcadhocxa.supabase.co";
 const SUPA_KEY = "sb_publishable_2vo76E53tWg9k3OHeT7DRA_AeVe0C6l";
-const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-const HOSPITAL_TARGETS = ["Mechanism of Accident","EMS Assessment (Scene)","Transfer to Hospital","Initial Hospital Assessment","Immediate Investigations & Treatment","Diagnosis on Admission","Formal Admission & Department","Definitive Management","Post-Operative Treatment","Discharge & Assistive Devices","Follow-Up & Review"];
-const MSK_REGIONS = [
-  {name:"Cervical Spine",prompts:["Inspection","Palpation","ROM","Neurology","Spurling's Test","Distraction Test"]},
-  {name:"Lumbar Spine",prompts:["Inspection","Palpation","ROM","Neurology","SLR Test","Slump Test"]},
-  {name:"Shoulder",prompts:["Inspection","Palpation","ROM","Power/Sensation/Reflexes","Neer's Test","Hawkins Test","Job's Test"]},
-  {name:"Elbow",prompts:["Inspection","Palpation","ROM","Power/Sensation","Lateral Epicondyle","Tinel's Sign"]},
-  {name:"Wrist & Hand",prompts:["Inspection","Palpation","ROM","Grip Strength","Finkelstein's Test","Phalen's Test"]},
-  {name:"Hip",prompts:["Inspection","Palpation","ROM","Neurology","FABER Test","Trendelenburg Sign"]},
-  {name:"Knee",prompts:["Inspection","Palpation","ROM","Neurology","Lachman Test","McMurray's Test","Valgus/Varus Stress"]},
-  {name:"Foot & Ankle",prompts:["Inspection","Palpation","ROM (DF/PF/Inv/Ev)","Power","Sensation","Reflexes","Thompson Test"]},
+const HT = [
+  "Mechanism of Accident",
+  "EMS Assessment (Scene)",
+  "Transfer to Hospital",
+  "Initial Hospital Assessment",
+  "Immediate Investigations and Treatment",
+  "Diagnosis on Admission",
+  "Formal Admission and Department",
+  "Definitive Management",
+  "Post-Operative Treatment",
+  "Discharge and Assistive Devices",
+  "Follow-Up and Review"
 ];
-const ADL_BASIC = ["Bowel control","Bladder control","Grooming","Toileting","Feeding","Chair to bed transfer","Indoor mobility","Dressing","Stairs","Bathing"];
-const ADL_ADV = ["Driving","Sexual function","Medical care","Money management","Writing/communication","Travelling","Shopping","Cooking","Housework","Moderate activities","Vigorous activities"];
-const ADL_OPTS = ["N/A","None","Mild","Mod","Sev"];
-const NAV = [{id:0,n:"00",l:"Cover Page"},{id:1,n:"01",l:"Documents"},{id:2,n:"02",l:"Occ & Medical Hx"},{id:3,n:"03",l:"Hospital Records"},{id:4,n:"04",l:"Injuries"},{id:5,n:"05",l:"Complaints"},{id:6,n:"06",l:"Clinical Eval"},{id:7,n:"07",l:"Diagnosis"},{id:8,n:"08",l:"Treatment"},{id:9,n:"09",l:"Disability"},{id:10,n:"10",l:"Discussion"}];
 
-async function callAI(sys,usr){
-  try{
-    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,system:sys,messages:[{role:"user",content:usr}]})});
-    const d=await r.json();return d.content?.find(b=>b.type==="text")?.text||"";
-  }catch{return "";}
+const MSK_REGIONS = [
+  {name:"Cervical Spine", prompts:["Inspection","Palpation","Range of Motion","Neurology","Spurling Test","Distraction Test"]},
+  {name:"Lumbar Spine",   prompts:["Inspection","Palpation","Range of Motion","Neurology","SLR Test","Slump Test"]},
+  {name:"Shoulder",       prompts:["Inspection","Palpation","Range of Motion","Power/Sensation/Reflexes","Neer Test","Hawkins Test","Job Test"]},
+  {name:"Elbow",          prompts:["Inspection","Palpation","Range of Motion","Power/Sensation","Lateral Epicondyle","Tinel Sign"]},
+  {name:"Wrist and Hand", prompts:["Inspection","Palpation","Range of Motion","Grip Strength","Finkelstein Test","Phalen Test"]},
+  {name:"Hip",            prompts:["Inspection","Palpation","Range of Motion","Neurology","FABER Test","Trendelenburg Sign"]},
+  {name:"Knee",           prompts:["Inspection","Palpation","Range of Motion","Neurology","Lachman Test","McMurray Test","Valgus Varus Stress"]},
+  {name:"Foot and Ankle", prompts:["Inspection","Palpation","Range of Motion","Power","Sensation","Reflexes","Thompson Test"]},
+];
+
+const ADLB = ["Bowel control","Bladder control","Grooming","Toileting","Feeding","Chair to bed transfer","Indoor mobility","Dressing","Stairs","Bathing"];
+const ADLA = ["Driving","Sexual function","Medical care","Money management","Writing and communication","Travelling","Shopping","Cooking","Housework","Moderate activities","Vigorous activities"];
+const ADLO = ["N/A","None","Mild","Mod","Sev"];
+
+const NAVS = [
+  {id:0, n:"00", l:"Cover Page"},
+  {id:1, n:"01", l:"Documents"},
+  {id:2, n:"02", l:"Occ and Medical Hx"},
+  {id:3, n:"03", l:"Hospital Records"},
+  {id:4, n:"04", l:"Injuries"},
+  {id:5, n:"05", l:"Complaints"},
+  {id:6, n:"06", l:"Clinical Eval"},
+  {id:7, n:"07", l:"Diagnosis"},
+  {id:8, n:"08", l:"Treatment"},
+  {id:9, n:"09", l:"Disability"},
+  {id:10,n:"10", l:"Discussion"}
+];
+
+const SLAB = {0:"Cover Page",1:"Documents",2:"Occ and Medical Hx",3:"Hospital Records",4:"Injuries",5:"Complaints",6:"Clinical Eval",7:"Diagnosis",8:"Treatment",9:"Disability",10:"Discussion"};
+
+function newReport() {
+  return {
+    cv:   {ourRef:"",attRef:"",name:"",idRef:"",gender:"Male",dob:"",age:"",address:"",contact:"",doi:"",mech:"Motor Vehicle Accident",preOcc:"",postOcc:"",doe:"",poe:"RG Medlegal Rooms",atty:"",attyCon:"",drName:"",quals:""},
+    docs: ["Instruction Letter","Accident Report","Ambulance Voucher","Hospital Records","Patient Questionnaire"],
+    occ:  {grade:"",tert:"None",pre:"",post:""},
+    pmhx: {inj:"None reported.",sx:"None reported.",med:"None reported.",meds:"None reported."},
+    hs:   {},
+    inj:  "",
+    cp:   {pre:"",cur:""},
+    gn:   {gait:"",imp:"",dev:"None.",lang:"",dex:"Right-handed."},
+    md:   {},
+    sc:   "",
+    xr:   "",
+    dg:   "",
+    tx:   "",
+    rf:   "",
+    ab:   {},
+    aa:   {},
+    oe:   "",
+    ds:   ""
+  };
 }
 
-const emptyReport=()=>({
-  cv:{ourRef:"",attRef:"",name:"",idRef:"",gender:"Male",dob:"",age:"",address:"",contact:"",doi:"",mech:"Motor Vehicle Accident",preOcc:"",postOcc:"",doe:"",poe:"RG Medlegal Rooms",atty:"",attyCon:"",drName:"",quals:""},
-  docs:["Instruction Letter","Accident Report","Ambulance Voucher","Hospital Records","Patient Questionnaire"],
-  occ:{grade:"",tert:"None",pre:"",post:""},
-  pmhx:{inj:"None reported.",sx:"None reported.",med:"None reported.",meds:"None reported."},
-  hs:{},inj:"",cp:{pre:"",cur:""},gn:{gait:"",imp:"",dev:"None.",lang:"",dex:"Right-handed."},
-  md:{},sc:"",xr:"",dg:"",tx:"",rf:"",ab:{},aa:{},oe:"",ds:""
-});
+async function callAI(sys, usr) {
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1200, system:sys, messages:[{role:"user",content:usr}]})
+    });
+    const d = await r.json();
+    return d.content && d.content[0] ? d.content[0].text || "" : "";
+  } catch(e) {
+    console.error("AI call failed", e);
+    return "";
+  }
+}
 
-const CSS=`
-:root{--bg:#0c0e14;--s1:#131620;--s2:#191d2b;--bd:#22273a;--ac:#10d9b0;--ac2:#5b8ef5;--gd:#d4a44c;--dg:#e05555;--tx:#dde2f0;--mt:#5e6882;--pu:#9b72f5;}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif;font-size:13px;}
-.app{display:flex;height:100vh;overflow:hidden;}
-.sb{width:210px;min-width:210px;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto;transition:width .2s,min-width .2s;}
-.sb.off{width:0;min-width:0;overflow:hidden;}
-.sbb{padding:14px 13px 10px;border-bottom:1px solid var(--bd);}
-.logo{font-size:8px;color:var(--ac);letter-spacing:3px;font-weight:700;}
-.sbb h1{font-size:13px;color:var(--tx);margin-top:2px;font-weight:700;}
-.ni{padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--mt);border-left:2px solid transparent;transition:all .12s;white-space:nowrap;}
-.ni:hover{color:var(--tx);background:var(--s2);}.ni.on{color:var(--ac);border-left-color:var(--ac);background:rgba(16,217,176,.07);}
-.nn{font-size:9px;color:var(--mt);min-width:15px;font-family:monospace;}
-.wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-.hdr{height:46px;min-height:46px;background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 14px;gap:8px;}
-.content{flex:1;overflow-y:auto;padding:16px 20px 14px;}
-.card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:15px;margin-bottom:11px;}
-.card.hl{border-color:var(--ac2);background:rgba(91,142,245,.03);}
-.card.good{border-color:var(--ac);background:rgba(16,217,176,.04);}
-.card.bad{border-color:var(--dg);background:rgba(224,85,85,.04);}
-.card.warn{border-color:var(--gd);background:rgba(212,164,76,.04);}
-.ct{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--tx);display:flex;align-items:center;gap:6px;}
-.bx{background:rgba(16,217,176,.12);color:var(--ac);font-size:8px;padding:2px 5px;border-radius:3px;letter-spacing:1px;font-family:monospace;}
-.bxg{background:rgba(212,164,76,.12);color:var(--gd);}
-.bxp{background:rgba(155,114,245,.15);color:var(--pu);}
-.bxr{background:rgba(224,85,85,.12);color:var(--dg);}
-input,textarea,select{background:var(--s2);border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:7px 10px;font-family:inherit;font-size:12px;width:100%;outline:none;transition:border-color .12s;}
-input:focus,textarea:focus,select:focus{border-color:var(--ac);}
-textarea{resize:vertical;min-height:70px;line-height:1.55;}
-textarea.live{border-color:var(--dg)!important;background:rgba(224,85,85,.04);}
-label{font-size:9px;color:var(--mt);display:block;margin-bottom:3px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;}
-.fld{margin-bottom:10px;}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:none;transition:all .12s;font-family:inherit;}
-.bp{background:var(--ac);color:#0c0e14;}.bp:hover{filter:brightness(1.1);}
-.bs{background:var(--s2);color:var(--tx);border:1px solid var(--bd);}.bs:hover{border-color:var(--ac);color:var(--ac);}
-.bg{background:rgba(212,164,76,.1);color:var(--gd);border:1px solid rgba(212,164,76,.25);}.bg:hover{background:rgba(212,164,76,.2);}
-.bpu{background:rgba(155,114,245,.12);color:var(--pu);border:1px solid rgba(155,114,245,.3);}.bpu:hover{background:rgba(155,114,245,.22);}
-.bdr{background:rgba(224,85,85,.1);color:var(--dg);border:1px solid rgba(224,85,85,.2);}
-.btn:disabled{opacity:.4;cursor:not-allowed;}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.chip{padding:5px 10px;border-radius:12px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--bd);background:var(--s2);color:var(--mt);transition:all .12s;white-space:nowrap;}
-.chip:hover{border-color:var(--ac2);color:var(--ac2);}.chip.on{border-color:var(--ac);background:rgba(16,217,176,.1);color:var(--ac);}
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px;}
-.dbar{background:var(--s1);border-top:1px solid var(--bd);padding:9px 14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-height:55px;}
-.dbtn{padding:9px 20px;border-radius:20px;font-weight:700;font-size:12px;cursor:pointer;border:none;font-family:inherit;display:flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap;}
-.dbtn.idle{background:var(--ac2);color:#fff;box-shadow:0 2px 10px rgba(91,142,245,.35);}.dbtn.idle:hover{filter:brightness(1.1);}
-.dbtn.rec{background:var(--dg);color:#fff;animation:rp 1.2s infinite;}
-.dbtn.busy{background:var(--s2);color:var(--mt);border:1px solid var(--bd);cursor:wait;}
-@keyframes rp{0%,100%{box-shadow:0 0 0 0 rgba(224,85,85,.5)}60%{box-shadow:0 0 0 10px rgba(224,85,85,0)}}
-.dinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-.dsec{font-size:9px;color:var(--ac);font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
-.dtxt{font-size:11px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-.syn{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
-.syn.ing{background:var(--gd);animation:bk .8s infinite;}.syn.ed{background:var(--ac);}
-@keyframes bk{0%,100%{opacity:1}50%{opacity:.3}}
-.parse-bar{margin-top:9px;padding:9px 11px;background:rgba(155,114,245,.06);border:1px solid rgba(155,114,245,.2);border-radius:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
-.pn{font-size:10px;color:var(--pu);width:100%;margin-bottom:2px;}
-.aib{background:rgba(16,217,176,.04);border:1px solid rgba(16,217,176,.14);border-radius:6px;padding:11px;font-size:11px;line-height:1.65;white-space:pre-wrap;}
-.mskp{background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:9px;margin-bottom:6px;}
-.mskp h4{font-size:11px;font-weight:700;color:var(--mt);margin-bottom:3px;}.mskp.filled h4{color:var(--ac);}
-.ch{margin-bottom:16px;}.chn{font-size:8px;color:var(--ac);letter-spacing:2px;margin-bottom:3px;font-family:monospace;}.cht{font-size:18px;font-weight:800;}.chb{width:26px;height:2px;background:var(--ac);margin-top:5px;border-radius:2px;}
-.docr{display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--s2);border-radius:5px;margin-bottom:4px;font-size:11px;}
-.docn{color:var(--ac);font-size:9px;min-width:16px;font-family:monospace;}
-hr{border:none;border-top:1px solid var(--bd);margin:11px 0;}
-.adlt{width:100%;border-collapse:collapse;}.adlt th,.adlt td{padding:5px 7px;text-align:left;border-bottom:1px solid var(--bd);font-size:11px;}.adlt th{font-size:8px;color:var(--mt);letter-spacing:1px;background:var(--s2);text-transform:uppercase;}
-.blink{animation:bk .6s infinite;}
-/* AUTH SCREEN */
-.auth{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);}
-.auth-card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:36px;width:360px;}
-.auth-card h2{font-size:20px;font-weight:800;margin-bottom:4px;}
-.auth-card p{font-size:11px;color:var(--mt);margin-bottom:24px;}
-.auth-err{background:rgba(224,85,85,.1);border:1px solid rgba(224,85,85,.2);border-radius:6px;padding:9px 11px;font-size:11px;color:var(--dg);margin-bottom:12px;}
-/* DASHBOARD */
-.dash{padding:24px;}
-.dash h2{font-size:20px;font-weight:800;margin-bottom:4px;}
-.dash p{font-size:11px;color:var(--mt);margin-bottom:20px;}
-.rpt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;}
-.rpt-card{background:var(--s1);border:1px solid var(--bd);border-radius:8px;padding:14px;cursor:pointer;transition:all .12s;}
-.rpt-card:hover{border-color:var(--ac);transform:translateY(-2px);}
-.rpt-card h3{font-size:13px;font-weight:700;margin-bottom:4px;}
-.rpt-card p{font-size:10px;color:var(--mt);}
-.rpt-card .tag{font-size:9px;background:rgba(16,217,176,.1);color:var(--ac);padding:2px 6px;border-radius:4px;display:inline-block;margin-top:6px;}
-.new-card{background:rgba(91,142,245,.05);border:1px dashed var(--ac2);border-radius:8px;padding:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--ac2);font-size:12px;font-weight:600;transition:all .12s;}
-.new-card:hover{background:rgba(91,142,245,.1);}
-/* PREVIEW */
-.pv{position:fixed;inset:0;background:#f0ebe2;z-index:500;overflow-y:auto;display:none;}.pv.open{display:block;}
-.pvd{max-width:740px;margin:24px auto 90px;padding:48px 56px;background:#fff;font-family:'Times New Roman',serif;font-size:11pt;line-height:1.65;color:#111;box-shadow:0 4px 36px rgba(0,0,0,.15);}
-.pvd h1{font-size:14pt;text-align:center;text-transform:uppercase;margin-bottom:4px;}
-.pvd h2{font-size:12pt;text-decoration:underline;text-transform:uppercase;margin:14px 0 5px;}
-.pvd h3{font-size:11pt;font-weight:700;margin:9px 0 3px;}
-.pvd p{margin:3px 0;}.pvd table{border-collapse:collapse;width:100%;margin:6px 0;}
-.pvd td,.pvd th{border:1px solid #aaa;padding:4px 6px;font-size:10pt;}.pvd th{background:#eee;}
-.pvh{position:sticky;top:0;background:#e6e0d6;border-bottom:1px solid #ccc;padding:8px 18px;display:flex;align-items:center;justify-content:space-between;z-index:510;}
-.pva{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:520;}
-`;
+function F({label, children}) {
+  return <div className="fld"><label>{label}</label>{children}</div>;
+}
 
-function CH({n,t}){return<div className="ch"><div className="chn">CH {n}</div><div className="cht">{t}</div><div className="chb"/></div>;}
-function F({label,ch}){return<div className="fld"><label>{label}</label>{ch}</div>;}
+function CH({n, t}) {
+  return (
+    <div>
+      <div className="ch-n">CHAPTER {n}</div>
+      <div className="ch-t">{t}</div>
+      <div className="ch-bar"/>
+    </div>
+  );
+}
 
-// ── AUTH SCREEN ──────────────────────────────────────────────────
-function AuthScreen({onAuth}){
-  const[mode,setMode]=useState("login");
-  const[email,setEmail]=useState("");
-  const[pass,setPass]=useState("");
-  const[err,setErr]=useState("");
-  const[loading,setLoading]=useState(false);
+// ── AUTH ──────────────────────────────────────────────────────────
+function Auth({onAuth}) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [pass, setPass]  = useState("");
+  const [err, setErr]    = useState("");
+  const [busy, setBusy]  = useState(false);
 
-  const submit=async()=>{
-    setErr("");setLoading(true);
-    try{
-      if(mode==="login"){
-        const{data,error}=await sb.auth.signInWithPassword({email,password:pass});
-        if(error)throw error;
+  async function submit() {
+    setErr(""); setBusy(true);
+    try {
+      if (mode === "login") {
+        const {data, error} = await supa.auth.signInWithPassword({email, password:pass});
+        if (error) throw error;
         onAuth(data.user);
-      }else{
-        const{data,error}=await sb.auth.signUp({email,password:pass});
-        if(error)throw error;
-        if(data.user)onAuth(data.user);
-        else setErr("Check your email to confirm your account.");
+      } else {
+        const {data, error} = await supa.auth.signUp({email, password:pass});
+        if (error) throw error;
+        if (data.user && data.session) onAuth(data.user);
+        else setErr("Account created! Check your email to confirm, then sign in.");
       }
-    }catch(e){setErr(e.message);}
-    setLoading(false);
-  };
+    } catch(e) {
+      let msg = e.message;
+      if (msg && msg.toLowerCase().includes("email not confirmed")) {
+        msg = "Email not confirmed. Please check your inbox and spam folder for a confirmation link. If you can't find it, try signing up again to get a new link.";
+      }
+      setErr(msg);
+    }
+    setBusy(false);
+  }
 
-  return(
-    <div className="auth">
-      <div className="auth-card">
-        <div style={{fontSize:9,color:"var(--ac)",letterSpacing:3,fontWeight:700,marginBottom:8}}>▸ MEDISYNC</div>
+  return (
+    <div className="auth-wrap">
+      <div className="auth-box">
+        <div className="auth-logo">MEDISYNC</div>
         <h2>MedLegal Engine</h2>
-        <p>{mode==="login"?"Sign in to your account":"Create a new account"}</p>
-        {err&&<div className="auth-err">{err}</div>}
-        <div className="fld"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="doctor@example.com" onKeyDown={e=>e.key==="Enter"&&submit()}/></div>
-        <div className="fld" style={{marginBottom:16}}><label>Password</label><input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&submit()}/></div>
-        <button className="btn bp" style={{width:"100%",justifyContent:"center",padding:"10px",fontSize:13}} onClick={submit} disabled={loading||!email||!pass}>
-          {loading?"Please wait…":mode==="login"?"Sign In":"Create Account"}
+        <div className="auth-sub">{mode==="login" ? "Sign in to your account" : "Create a new account"}</div>
+        {err && <div className="auth-err">{err}</div>}
+        <F label="Email">
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="doctor@example.com" onKeyDown={e=>e.key==="Enter"&&submit()}/>
+        </F>
+        <F label="Password">
+          <input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Password" onKeyDown={e=>e.key==="Enter"&&submit()}/>
+        </F>
+        <div style={{height:6}}/>
+        <button className="btn btn-teal" style={{width:"100%",justifyContent:"center",padding:"10px 0",fontSize:13}} onClick={submit} disabled={busy||!email||!pass}>
+          {busy ? "Please wait..." : mode==="login" ? "Sign In" : "Create Account"}
         </button>
-        <div style={{textAlign:"center",marginTop:14,fontSize:11,color:"var(--mt)"}}>
-          {mode==="login"?<>No account? <span style={{color:"var(--ac)",cursor:"pointer"}} onClick={()=>setMode("signup")}>Sign up</span></>:<>Have an account? <span style={{color:"var(--ac)",cursor:"pointer"}} onClick={()=>setMode("login")}>Sign in</span></>}
+        <div className="auth-switch">
+          {mode==="login"
+            ? <span>No account? <span className="auth-link" onClick={()=>{setMode("signup");setErr("");}}>Sign up</span></span>
+            : <span>Have an account? <span className="auth-link" onClick={()=>{setMode("login");setErr("");}}>Sign in</span></span>
+          }
         </div>
       </div>
     </div>
   );
 }
 
-// ── DASHBOARD ────────────────────────────────────────────────────
-function Dashboard({user,onOpen,onNew,onLogout}){
-  const[reports,setReports]=useState([]);
-  const[loading,setLoading]=useState(true);
+// ── DASHBOARD ─────────────────────────────────────────────────────
+function Dashboard({user, onOpen, onNew, onLogout}) {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dbErr,   setDbErr]   = useState(null);
 
-  useEffect(()=>{
-    sb.from("reports").select("id,patient_name,created_at,updated_at,mechanism").eq("user_id",user.id).order("updated_at",{ascending:false})
-      .then(({data})=>{setReports(data||[]);setLoading(false);});
-  },[user]);
+  useEffect(() => {
+    supa.from("reports")
+      .select("id,patient_name,mechanism,updated_at")
+      .eq("user_id", user.id)
+      .order("updated_at", {ascending:false})
+      .then(({data, error}) => {
+        if (error) { setDbErr(error.message); }
+        else { setReports(data || []); }
+        setLoading(false);
+      });
+  }, [user.id]);
 
-  const del=async(id,e)=>{
+  async function del(id, e) {
     e.stopPropagation();
-    if(!confirm("Delete this report?"))return;
-    await sb.from("reports").delete().eq("id",id);
-    setReports(p=>p.filter(r=>r.id!==id));
-  };
+    if (!confirm("Delete this report?")) return;
+    await supa.from("reports").delete().eq("id", id);
+    setReports(p => p.filter(r => r.id !== id));
+  }
 
-  return(
-    <div style={{minHeight:"100vh",background:"var(--bg)"}}>
-      <div style={{background:"var(--s1)",borderBottom:"1px solid var(--bd)",padding:"12px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div><div style={{fontSize:8,color:"var(--ac)",letterSpacing:3,fontWeight:700}}>▸ MEDISYNC</div><div style={{fontSize:14,fontWeight:700}}>MedLegal Engine</div></div>
+  const SQL = `create table reports (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  patient_name text default '',
+  mechanism text default '',
+  data jsonb default '{}',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table reports enable row level security;
+create policy "Users see own reports" on reports
+  for all using (auth.uid() = user_id);`;
+
+  return (
+    <div className="dash">
+      <div className="dash-hdr">
+        <div>
+          <div className="dash-logo">MEDISYNC</div>
+          <div className="dash-title">MedLegal Engine</div>
+        </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:11,color:"var(--mt)"}}>{user.email}</span>
-          <button className="btn bs" style={{fontSize:10}} onClick={onLogout}>Sign Out</button>
+          <span style={{fontSize:11,color:"#5e6882"}}>{user.email}</span>
+          <button className="btn btn-ghost" style={{fontSize:10}} onClick={onLogout}>Sign Out</button>
         </div>
       </div>
-      <div className="dash">
-        <h2>Patient Reports</h2>
-        <p>All reports are saved automatically to your account</p>
-        {loading?<p style={{color:"var(--mt)",fontSize:12}}>Loading…</p>:(
+      <div className="dash-body">
+        <div className="dash-h2">Patient Reports</div>
+        <div className="dash-hint">Reports save automatically. Click any report to continue.</div>
+        {dbErr && (
+          <div className="db-err">
+            <h3>Database table missing</h3>
+            <p>Run the following SQL in your Supabase dashboard under SQL Editor, then refresh this page:</p>
+            <div className="sql-box">{SQL}</div>
+            <button className="btn btn-teal" style={{marginTop:10}} onClick={()=>window.location.reload()}>Refresh</button>
+          </div>
+        )}
+        {loading && <div style={{color:"#5e6882",fontSize:12}}>Loading reports...</div>}
+        {!loading && !dbErr && (
           <div className="rpt-grid">
-            <div className="new-card" onClick={onNew}>＋ New Report</div>
-            {reports.map(r=>(
+            <div className="new-card" onClick={onNew}>+ New Report</div>
+            {reports.map(r => (
               <div key={r.id} className="rpt-card" onClick={()=>onOpen(r.id)}>
-                <h3>{r.patient_name||"Unnamed Patient"}</h3>
-                <p>{r.mechanism||"—"}</p>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8}}>
-                  <span className="tag">Updated {new Date(r.updated_at).toLocaleDateString()}</span>
-                  <button className="btn bdr" style={{fontSize:9,padding:"2px 7px"}} onClick={e=>del(r.id,e)}>Delete</button>
+                <div className="rpt-name">{r.patient_name || "Unnamed Patient"}</div>
+                <div className="rpt-mech">{r.mechanism || "—"}</div>
+                <div className="rpt-foot">
+                  <span className="rpt-tag">Updated {new Date(r.updated_at).toLocaleDateString("en-ZA")}</span>
+                  <button className="btn btn-red" style={{fontSize:9,padding:"2px 7px"}} onClick={e=>del(r.id,e)}>Delete</button>
                 </div>
               </div>
             ))}
@@ -243,363 +383,837 @@ function Dashboard({user,onOpen,onNew,onLogout}){
   );
 }
 
-// ── MAIN REPORT EDITOR ──────────────────────────────────────────
-function ReportEditor({user,reportId,onBack}){
-  const[sec,setSec]=useState(0);
-  const[sb2,setSb2]=useState(true);
-  const[pv,setPv]=useState(false);
-  const[syn,setSyn]=useState("ed");
-  const[micState,setMicState]=useState("idle");
-  const[micMsg,setMicMsg]=useState("");
-  const[liveText,setLiveText]=useState("");
-  const[ail,setAil]=useState({});
-  const[drafts,setDraftsS]=useState({});
-  const[hsDraft,setHsDraft]=useState("");
-  const[nd,setNd]=useState("");
+// ── EDITOR ────────────────────────────────────────────────────────
+function Editor({user, reportId, onBack}) {
+  const [sec,    setSec]    = useState(0);
+  const [sbOpen, setSbOpen] = useState(true);
+  const [showPv, setShowPv] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [data,   setData]   = useState(() => reportId === "new" ? newReport() : null);
+  const [micState, setMicState] = useState("idle"); // idle | requesting | ready | recording | processing | error
+  const [micMsg,   setMicMsg]   = useState("");
+  const [liveText, setLiveText] = useState("");
+  const [busy,  setBusy]  = useState({});  // AI work flags
+  const [hosDraft, setHosDraft] = useState("");
+  const [ch6Draft, setCh6Draft] = useState("");
+  const [mskSel,   setMskSel]   = useState(null);
+  const [newDoc,   setNewDoc]   = useState("");
 
-  const rrRef=useRef(null);
-  const stRef=useRef(null);
-  const saveTimer=useRef(null);
-  const accumRef=useRef("");
-  const secRef=useRef(0);
-  const dataRef=useRef(null);
+  const srRef      = useRef(null);
+  const accumRef   = useRef("");
+  const saveTimer  = useRef(null);
+  const dataRef    = useRef(null);
+  const secRef     = useRef(0);
 
-  const[data,setDataS]=useState(null);
+  useEffect(() => { secRef.current = sec; }, [sec]);
 
-  // Load or create report
-  useEffect(()=>{
-    if(reportId==="new"){
-      const d={...emptyReport(),id:null};
-      setDataS(d);dataRef.current=d;
-    }else{
-      sb.from("reports").select("*").eq("id",reportId).single()
-        .then(({data:row})=>{
-          if(row){const d={...emptyReport(),...row.data,id:row.id};setDataS(d);dataRef.current=d;}
+  // Load report
+  useEffect(() => {
+    if (reportId === "new") {
+      // Already initialized via useState lazy init, just sync ref
+      dataRef.current = data || newReport();
+      if (!data) {
+        const d = newReport();
+        setData(d);
+        dataRef.current = d;
+      }
+    } else {
+      supa.from("reports").select("*").eq("id", reportId).single()
+        .then(({data:row, error}) => {
+          if (!error && row) {
+            const d = Object.assign(newReport(), row.data || {});
+            setData(d);
+            dataRef.current = d;
+          } else {
+            // Fallback: start fresh if load fails
+            const d = newReport();
+            setData(d);
+            dataRef.current = d;
+          }
         });
     }
-  },[reportId]);
+  }, [reportId]);
 
-  useEffect(()=>{secRef.current=sec;},[sec]);
-
-  const sv=useCallback(()=>{
-    setSyn("ing");
+  // Auto-save
+  function triggerSave() {
+    setSaving(true);
     clearTimeout(saveTimer.current);
-    saveTimer.current=setTimeout(async()=>{
-      const d=dataRef.current;if(!d)return;
-      const payload={user_id:user.id,patient_name:d.cv?.name||"",mechanism:d.cv?.mech||"",data:d,updated_at:new Date().toISOString()};
-      if(d.id){
-        await sb.from("reports").update(payload).eq("id",d.id);
-      }else{
-        const{data:row}=await sb.from("reports").insert(payload).select().single();
-        if(row){setDataS(p=>({...p,id:row.id}));dataRef.current={...dataRef.current,id:row.id};}
+    saveTimer.current = setTimeout(async () => {
+      const d = dataRef.current;
+      if (!d) return;
+      const payload = {
+        user_id: user.id,
+        patient_name: d.cv ? d.cv.name || "" : "",
+        mechanism: d.cv ? d.cv.mech || "" : "",
+        data: d,
+        updated_at: new Date().toISOString()
+      };
+      if (d._id) {
+        await supa.from("reports").update(payload).eq("id", d._id);
+      } else {
+        const {data:row} = await supa.from("reports").insert(payload).select().single();
+        if (row) {
+          dataRef.current._id = row.id;
+          setData(prev => Object.assign({}, prev, {_id: row.id}));
+        }
       }
-      setSyn("ed");
-    },1800);
-  },[user]);
+      setSaving(false);
+    }, 1500);
+  }
 
-  const upd=useCallback((path,val)=>{
-    setDataS(p=>{
-      if(!p)return p;
-      const n={...p};
-      const parts=path.split(".");
-      let cur=n;
-      for(let i=0;i<parts.length-1;i++){cur[parts[i]]={...cur[parts[i]]};cur=cur[parts[i]];}
-      cur[parts[parts.length-1]]=val;
-      dataRef.current=n;
-      return n;
+  // Deep set by dot path
+  function set(path, val) {
+    setData(prev => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev));
+      const parts = path.split(".");
+      let cur = next;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (cur[parts[i]] === undefined || cur[parts[i]] === null) cur[parts[i]] = {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length - 1]] = val;
+      dataRef.current = next;
+      return next;
     });
-    sv();
-  },[sv]);
+    triggerSave();
+  }
 
-  const setDraft=(s,v)=>{setDraftsS(p=>({...p,[s]:v}));};
+  // Apply dictated text directly to the right field for each section
+  function applyToField(s, text) {
+    setData(prev => {
+      if (!prev) return prev;
+      const next = JSON.parse(JSON.stringify(prev));
+      function app(path, val) {
+        const parts = path.split(".");
+        let c = next;
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!c[parts[i]]) c[parts[i]] = {};
+          c = c[parts[i]];
+        }
+        c[parts[parts.length - 1]] = val;
+      }
+      function get(path) {
+        const parts = path.split(".");
+        let c = next;
+        for (const p of parts) { if (!c) return ""; c = c[p] || ""; }
+        return c;
+      }
+      const join = (a, b, sep) => (a ? a + sep : "") + b;
+      if      (s === 1) { next.docs = [...(next.docs||[]), ...text.split("\n").map(x=>x.trim()).filter(Boolean)]; }
+      else if (s === 2) { app("occ.post", join(get("occ.post"), text, " ")); }
+      else if (s === 4) { app("inj", join(get("inj"), text, "\n")); }
+      else if (s === 5) { app("cp.cur", join(get("cp.cur"), text, " ")); }
+      else if (s === 7) { app("dg", join(get("dg"), text, "\n")); }
+      else if (s === 8) { app("tx", join(get("tx"), text, "\n")); }
+      else if (s === 9) { app("oe", join(get("oe"), text, " ")); }
+      else if (s === 10){ app("ds", join(get("ds"), text, " ")); }
+      dataRef.current = next;
+      return next;
+    });
+    triggerSave();
+  }
 
   // Speech recognition
-  const buildSR=useCallback(()=>{
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR)return null;
-    const r=new SR();r.continuous=true;r.interimResults=true;r.lang="en-ZA";
-    r.onstart=()=>{setMicState("recording");setMicMsg("");};
-    r.onresult=(e)=>{
-      let fin="",int="";
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        if(e.results[i].isFinal)fin+=e.results[i][0].transcript+" ";
-        else int+=e.results[i][0].transcript;
+  function startSR() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { setMicMsg("Use Chrome or Edge for dictation."); setMicState("error"); return; }
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = "en-ZA";
+    r.onstart = () => { setMicState("recording"); setMicMsg(""); };
+    r.onresult = (e) => {
+      let fin = "", interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) fin += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
       }
-      if(fin)accumRef.current+=fin;
-      setLiveText(accumRef.current+int);
+      if (fin) accumRef.current += fin;
+      setLiveText(accumRef.current + interim);
     };
-    r.onerror=(e)=>{
-      const msgs={"not-allowed":"Mic blocked. Click 🔒 in address bar → Microphone → Allow, then reload.","service-not-allowed":"Speech blocked. Make sure you're on HTTPS (not file://).","audio-capture":"No microphone found.","no-speech":"No speech detected.","network":"Network error."};
-      setMicMsg(msgs[e.error]||"Error: "+e.error);setMicState("error");
+    r.onerror = (e) => {
+      const msgs = {
+        "not-allowed": "Mic blocked. Click the lock icon in your address bar, set Microphone to Allow, then reload.",
+        "service-not-allowed": "Speech service blocked. Make sure you are on HTTPS.",
+        "audio-capture": "No microphone found.",
+        "no-speech": "No speech detected. Try speaking louder.",
+        "network": "Network error with speech service."
+      };
+      setMicMsg(msgs[e.error] || "Microphone error: " + e.error);
+      setMicState("error");
     };
-    r.onend=()=>{
-      const raw=accumRef.current;const s=secRef.current;
-      accumRef.current="";setLiveText("");
-      if(raw.trim())finalize(raw,s);else setMicState("ready");
+    r.onend = () => {
+      const raw = accumRef.current;
+      const s = secRef.current;
+      accumRef.current = "";
+      setLiveText("");
+      if (raw.trim()) finalizeDictation(raw.trim(), s);
+      else setMicState("ready");
     };
-    return r;
-  },[]);
+    srRef.current = r;
+    try { r.start(); }
+    catch(e) {
+      setTimeout(() => { try { r.start(); } catch(e2) { setMicMsg("Could not start: " + e2.message); setMicState("error"); } }, 300);
+    }
+  }
 
-  const finalize=useCallback(async(raw,targetSec)=>{
-    setMicState("processing");
-    const k="ai"+Date.now();setAil(p=>({...p,[k]:true}));
-    let clean=raw.trim();
-    try{const res=await callAI("Medical grammar scribe. Fix ONLY spelling, grammar, punctuation. Never change clinical facts. Return ONLY corrected text.",raw.trim());if(res)clean=res;}catch{}
-    setAil(p=>{const n={...p};delete n[k];return n;});
-    setMicState("ready");
-    const s=targetSec??secRef.current;
-    if(s===3)setHsDraft(p=>(p?p+" ":"")+clean);
-    else setDraft(s,(drafts[s]?drafts[s]+" ":"")+clean);
-    sv();
-  },[drafts,sv]);
-
-  const requestMic=useCallback(async()=>{
-    setMicState("requesting");setMicMsg("");
-    try{
+  async function requestMic() {
+    setMicState("requesting"); setMicMsg("");
+    try {
       await navigator.mediaDevices.getUserMedia({audio:true});
-      setMicState("ready");setMicMsg("Microphone ready ✓");
-      rrRef.current=buildSR();
-    }catch(e){
-      let msg="Could not access microphone.";
-      if(e.name==="NotAllowedError")msg="Permission denied. Click 🔒 in address bar → Microphone → Allow.";
-      else if(e.name==="NotFoundError")msg="No microphone found.";
-      setMicMsg(msg);setMicState("error");
+      setMicState("ready");
+      setMicMsg("Microphone ready");
+    } catch(e) {
+      let msg = "Could not access microphone.";
+      if (e.name === "NotAllowedError") msg = "Permission denied. Click the lock icon in your address bar, set Microphone to Allow.";
+      else if (e.name === "NotFoundError") msg = "No microphone found.";
+      setMicMsg(msg);
+      setMicState("error");
     }
-  },[buildSR]);
+  }
 
-  const toggleRec=useCallback(()=>{
-    if(micState==="recording"){try{rrRef.current?.stop();}catch{}}
-    else if(micState==="ready"){
-      rrRef.current=buildSR();
-      accumRef.current="";setLiveText("");setMicMsg("");
-      try{rrRef.current?.start();}catch(e){
-        if(e.name==="InvalidStateError")setTimeout(()=>{try{rrRef.current?.start();}catch{}},300);
-        else{setMicMsg("Could not start: "+e.message);setMicState("error");}
-      }
+  function toggleRec() {
+    if (micState === "recording") {
+      try { srRef.current && srRef.current.stop(); } catch(e) {}
+    } else if (micState === "ready") {
+      accumRef.current = "";
+      setLiveText("");
+      startSR();
     }
-  },[micState,buildSR]);
+  }
 
-  const applyDraft=(s)=>{
-    const d=drafts[s];if(!d?.trim())return;
-    if(s===1)upd("docs",[...(data?.docs||[]),...d.split(/\n+/).map(x=>x.trim()).filter(Boolean)]);
-    else if(s===4)upd("inj",(data?.inj?data.inj+"\n":"")+d);
-    else if(s===5)upd("cp.cur",(data?.cp?.cur?data.cp.cur+" ":"")+d);
-    else if(s===7)upd("dg",(data?.dg?data.dg+"\n":"")+d);
-    else if(s===8)upd("tx",(data?.tx?data.tx+"\n":"")+d);
-    else if(s===9)upd("oe",(data?.oe?data.oe+" ":"")+d);
-    else if(s===10)upd("ds",(data?.ds?data.ds+" ":"")+d);
-    setDraft(s,"");sv();
-  };
+  async function finalizeDictation(raw, s) {
+    setMicState("processing");
+    const k = "fin" + Date.now();
+    setBusy(p => ({...p, [k]:1}));
+    let clean = raw;
+    try {
+      const res = await callAI("Medical grammar scribe. Fix spelling, grammar and punctuation only. Do not change any clinical facts or medical terms. Return only the corrected text.", raw);
+      if (res && res.trim()) clean = res.trim();
+    } catch(e) {}
+    setBusy(p => { const n = {...p}; delete n[k]; return n; });
+    setMicState("ready");
+    // Ch3 and Ch6 use special draft zones with AI parsing
+    if (s === 3) {
+      setHosDraft(prev => prev ? prev + " " + clean : clean);
+    } else if (s === 6) {
+      setCh6Draft(prev => prev ? prev + " " + clean : clean);
+    } else {
+      applyToField(s, clean);
+    }
+  }
 
-  const parseHosp=async()=>{
-    if(!hsDraft?.trim())return;
-    const k="hosp";setAil(p=>({...p,[k]:true}));
-    const res=await callAI(`Extract into these hospital sections: ${HOSPITAL_TARGETS.join(", ")}. Return ONLY valid JSON, keys = exact section names.`,hsDraft);
-    try{const p=JSON.parse(res.replace(/```json|```/g,"").trim());Object.entries(p).forEach(([k,v])=>{if(v)upd(`hs.${k}`,v);});setHsDraft("");}
-    catch{upd(`hs.${HOSPITAL_TARGETS[0]}`,hsDraft);setHsDraft("");}
-    setAil(p=>{const n={...p};delete n[k];return n;});sv();
-  };
+  // AI helpers
+  async function aiParseHospital() {
+    if (!hosDraft.trim()) return;
+    const k = "hosp"; setBusy(p => ({...p, [k]:1}));
+    const res = await callAI(
+      "You are a medical scribe. Extract the text into these hospital record sections: " + HT.join(", ") + ". Return ONLY valid JSON. Keys must exactly match the section names provided.",
+      hosDraft
+    );
+    try {
+      const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
+      Object.entries(parsed).forEach(([k, v]) => { if (v && typeof v === "string") set("hs." + k, v); });
+      setHosDraft("");
+    } catch(e) {
+      set("hs." + HT[0], hosDraft);
+      setHosDraft("");
+    }
+    setBusy(p => { const n = {...p}; delete n[k]; return n; });
+  }
 
-  const parseMSK=async(rn)=>{
-    const d=drafts[6];if(!d?.trim()||!rn)return;
-    const region=MSK_REGIONS.find(r=>r.name===rn);if(!region)return;
-    const k="msk"+rn;setAil(p=>({...p,[k]:true}));
-    const res=await callAI(`Extract ${rn} exam for: ${region.prompts.join(", ")}. ONLY valid JSON, keys = prompt names.`,d);
-    try{const p=JSON.parse(res.replace(/```json|```/g,"").trim());Object.entries(p).forEach(([pr,v])=>{if(v)upd(`md.${rn}::${pr}`,v);});setDraft(6,"");}
-    catch{upd(`md.${rn}::Inspection`,d);setDraft(6,"");}
-    setAil(p=>{const n={...p};delete n[k];return n;});sv();
-  };
+  async function aiParseMSK(regionName) {
+    if (!ch6Draft.trim()) return;
+    const region = MSK_REGIONS.find(r => r.name === regionName);
+    if (!region) return;
+    const k = "msk" + regionName; setBusy(p => ({...p, [k]:1}));
+    const res = await callAI(
+      "You are a medical scribe. Extract " + regionName + " examination findings for these prompts: " + region.prompts.join(", ") + ". Return ONLY valid JSON where keys exactly match the prompt names.",
+      ch6Draft
+    );
+    try {
+      const parsed = JSON.parse(res.replace(/```json|```/g, "").trim());
+      Object.entries(parsed).forEach(([pr, v]) => { if (v) set("md." + regionName + "::" + pr, v); });
+      setCh6Draft("");
+    } catch(e) {
+      set("md." + regionName + "::Inspection", ch6Draft);
+      setCh6Draft("");
+    }
+    setBusy(p => { const n = {...p}; delete n[k]; return n; });
+    setMskSel(regionName);
+  }
 
-  const parseGen=async()=>{
-    const d=drafts[6];if(!d?.trim())return;
-    const k="gen";setAil(p=>({...p,[k]:true}));
-    const res=await callAI("Extract: gait, general impression, assistive devices, home language, dexterity. ONLY valid JSON: {gait,imp,dev,lang,dex}.",d);
-    try{const p=JSON.parse(res.replace(/```json|```/g,"").trim());
-      if(p.gait)upd("gn.gait",p.gait);if(p.imp)upd("gn.imp",p.imp);
-      if(p.dev)upd("gn.dev",p.dev);if(p.lang)upd("gn.lang",p.lang);if(p.dex)upd("gn.dex",p.dex);
-      setDraft(6,"");}catch{}
-    setAil(p=>{const n={...p};delete n[k];return n;});sv();
-  };
+  async function aiParseGeneral() {
+    if (!ch6Draft.trim()) return;
+    const k = "gen"; setBusy(p => ({...p, [k]:1}));
+    const res = await callAI(
+      "Extract general examination findings. Return ONLY valid JSON with these keys: gait, imp (general impression), dev (assistive devices), lang (home language), dex (dexterity).",
+      ch6Draft
+    );
+    try {
+      const p = JSON.parse(res.replace(/```json|```/g, "").trim());
+      if (p.gait) set("gn.gait", p.gait);
+      if (p.imp)  set("gn.imp",  p.imp);
+      if (p.dev)  set("gn.dev",  p.dev);
+      if (p.lang) set("gn.lang", p.lang);
+      if (p.dex)  set("gn.dex",  p.dex);
+      setCh6Draft("");
+    } catch(e) {}
+    setBusy(p => { const n = {...p}; delete n[k]; return n; });
+  }
 
-  const aiExtract=async()=>{const ctx=Object.entries(data?.hs||{}).map(([k,v])=>`${k}: ${v}`).join("\n\n");if(!ctx.trim())return alert("Complete Ch. 3 first.");const k="inj";setAil(p=>({...p,[k]:true}));const r=await callAI("Extract all injuries. Clinical bullet list using •.",ctx);if(r){upd("inj",r);}setAil(p=>{const n={...p};delete n[k];return n;});};
-  const aiDiag=async()=>{const mc=Object.entries(data?.md||{}).map(([k,v])=>`${k}: ${v}`).join("\n");const k="dg";setAil(p=>({...p,[k]:true}));const r=await callAI("Orthopaedic medico-legal expert. Numbered diagnosis list with sub-bullet functional outcomes.",`Gait: ${data?.gn?.gait}.\nMSK:\n${mc}`);if(r){upd("dg",r);}setAil(p=>{const n={...p};delete n[k];return n;});};
-  const aiDisc=async()=>{const k="ds";setAil(p=>({...p,[k]:true}));const ctx=[`PATIENT: ${data?.cv?.name}, Mechanism: ${data?.cv?.mech}, DOI: ${data?.cv?.doi}`,`HOSPITAL: ${Object.entries(data?.hs||{}).filter(([,v])=>v).map(([k,v])=>`${k}: ${v}`).join(". ")}`,`INJURIES: ${data?.inj}`,`CLINICAL: ${Object.entries(data?.md||{}).map(([k,v])=>`${k}: ${v}`).join(". ")}`,`DIAGNOSIS: ${data?.dg}`].join("\n");const r=await callAI("Senior orthopaedic medico-legal expert. Draft Discussion for South African RAF report. 6-8 paragraphs: mechanism, injuries, management, findings, impairment, Narrative Test 5.1, prognosis.",ctx);if(r){upd("ds",r);}setAil(p=>{const n={...p};delete n[k];return n;});};
+  async function aiExtractInjuries() {
+    const ctx = Object.entries(data.hs || {}).map(([k,v]) => k + ": " + v).join("\n\n");
+    if (!ctx.trim()) { alert("Complete Chapter 3 first."); return; }
+    const k = "inj"; setBusy(p => ({...p, [k]:1}));
+    const res = await callAI("Extract all injuries as a numbered clinical bullet list.", ctx);
+    if (res) set("inj", res);
+    setBusy(p => { const n = {...p}; delete n[k]; return n; });
+  }
 
-  const buildRpt=()=>{const d=data||emptyReport();return`<div style="text-align:center;padding:10px;border:1px dashed #bbb;margin-bottom:14px;color:#999;font-size:9pt;">[PRACTICE LOGO]</div><h1>MEDICO-LEGAL REPORT</h1><p><b>Our Ref:</b> ${d.cv.ourRef||"—"}</p><p style="margin-bottom:10px;"><b>Attorney Ref:</b> ${d.cv.attRef||"—"}</p><table><tbody>${[["Patient Name",d.cv.name],["ID/Refugee Ref",d.cv.idRef],["Gender",d.cv.gender],["DOB",d.cv.dob],["Age",d.cv.age],["Address",d.cv.address],["Contact",d.cv.contact],["Date of Injury",d.cv.doi],["Mechanism",d.cv.mech],["Pre-Acc Occ",d.cv.preOcc],["Post-Acc Occ",d.cv.postOcc],["Date of Exam",d.cv.doe],["Place of Exam",d.cv.poe],["Attorney",d.cv.atty],["Attorney Contact",d.cv.attyCon]].map(([k,v])=>`<tr><td style="font-weight:700;width:180px;">${k}:</td><td>${v||"—"}</td></tr>`).join("")}</tbody></table><h2>1. Documents Perused</h2><ol>${(d.docs||[]).map(x=>`<li>${x}</li>`).join("")}</ol><h2>2. Occupational and Medical History</h2><h3>2.1 Occupational History</h3><p>Grade: ${d.occ.grade||"—"}</p><p>Tertiary: ${d.occ.tert}</p><p>${d.occ.pre||"—"}</p><p>${d.occ.post||"—"}</p><h3>2.2 Past Medical & Surgical Hx</h3><p><b>Injuries:</b> ${d.pmhx.inj}</p><p><b>Surgery:</b> ${d.pmhx.sx}</p><p><b>Medical:</b> ${d.pmhx.med}</p><p><b>Medication:</b> ${d.pmhx.meds}</p><h2>3. Summary of Hospital Records</h2>${HOSPITAL_TARGETS.map(t=>d.hs[t]?`<h3>${t}</h3><p style="white-space:pre-wrap;">${d.hs[t]}</p>`:"").join("")}<h2>4. Injuries Sustained</h2><div style="white-space:pre-wrap;">${d.inj||"—"}</div><h2>5. Current Complaints</h2><p>${d.cp.pre||"—"}</p><p style="white-space:pre-wrap;">${d.cp.cur||"—"}</p><h2>6. Clinical Evaluation</h2><p><b>Gait:</b> ${d.gn.gait||"—"}</p><p><b>Impression:</b> ${d.gn.imp||"—"}</p><p><b>Devices:</b> ${d.gn.dev||"—"}</p><p><b>Language:</b> ${d.gn.lang||"—"}</p><p><b>Dexterity:</b> ${d.gn.dex||"—"}</p>${Object.entries(d.md||{}).filter(([,v])=>v).map(([k,v])=>{const[rg,pr]=k.split("::");return`<p><b>${rg} — ${pr}:</b> ${v}</p>`;}).join("")}<p><b>Scarring:</b> ${d.sc||"—"}</p><p style="white-space:pre-wrap;"><b>Radiology:</b> ${d.xr||"—"}</p><h2>7. Diagnosis</h2><div style="white-space:pre-wrap;">${d.dg||"—"}</div><h2>8. Further Management</h2><div style="white-space:pre-wrap;">${d.tx||"—"}</div><p>${d.rf||"—"}</p><h3>8.3 Burden of Treatment</h3><p>Side effects from NSAIDs include allergic reactions, peptic ulcer, gastritis, kidney/liver damage, toxicity.</p><h2>9. Disability & Impairment</h2><table><thead><tr><th>Basic ADL</th>${ADL_OPTS.map(o=>`<th>${o}</th>`).join("")}</tr></thead><tbody>${ADL_BASIC.map(a=>`<tr><td>${a}</td>${ADL_OPTS.map(o=>`<td style="text-align:center;">${(d.ab[a]||"None")===o?"✓":""}</td>`).join("")}</tr>`).join("")}</tbody></table><table style="margin-top:8px;"><thead><tr><th>Advanced ADL</th>${ADL_OPTS.map(o=>`<th>${o}</th>`).join("")}</tr></thead><tbody>${ADL_ADV.map(a=>`<tr><td>${a}</td>${ADL_OPTS.map(o=>`<td style="text-align:center;">${(d.aa[a]||"None")===o?"✓":""}</td>`).join("")}</tr>`).join("")}</tbody></table><p style="white-space:pre-wrap;">${d.oe||"—"}</p><h2>10. Discussion</h2><div style="white-space:pre-wrap;">${d.ds||"—"}</div><p style="margin-top:36px;">________________________________</p><p><b>${d.cv.drName||"[PRACTITIONER NAME]"}</b></p><p>${d.cv.quals||"[QUALIFICATIONS]"}</p><p style="font-size:9pt;border-top:1px solid #ccc;padding-top:8px;margin-top:14px;">VALIDITY: This report is valid for 2 years from date of first consultation.</p>`;};
+  async function aiSuggestDiagnosis() {
+    const mc = Object.entries(data.md || {}).map(([k,v]) => k + ": " + v).join("\n");
+    const k = "dg"; setBusy(p => ({...p, [k]:1}));
+    const res = await callAI(
+      "You are a senior orthopaedic medico-legal expert. Generate a numbered diagnosis list with sub-bullet functional outcomes based on these clinical findings.",
+      "Gait: " + (data.gn ? data.gn.gait : "") + "\nMSK Findings:\n" + mc
+    );
+    if (res) set("dg", res);
+    setBusy(p => { const n = {...p}; delete n[k]; return n; });
+  }
 
-  const expW=()=>{const m=`MIME-Version: 1.0\nContent-Type: multipart/related; boundary="NP"\n\n------NP\nContent-Type: text/html; charset="utf-8"\n\n<html><head><meta charset='utf-8'/><style>body{font-family:'Times New Roman',serif;font-size:11pt;margin:1in;}h1{font-size:14pt;text-align:center;text-transform:uppercase;}h2{font-size:12pt;text-decoration:underline;}h3{font-size:11pt;font-weight:700;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #999;padding:4pt;}th{background:#eee;}p{margin:4pt 0;}</style></head><body>${buildRpt()}</body></html>\n\n------NP--`;const b=new Blob([m],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=`${data?.cv?.name||"Patient"}_MEDLEGAL.doc`;a.click();};
+  async function aiDraftDiscussion() {
+    const k = "ds"; setBusy(p => ({...p, [k]:1}));
+    const ctx = [
+      "PATIENT: " + (data.cv ? data.cv.name : "") + ", Mechanism: " + (data.cv ? data.cv.mech : "") + ", DOI: " + (data.cv ? data.cv.doi : ""),
+      "HOSPITAL SUMMARY: " + Object.entries(data.hs || {}).filter(([,v])=>v).map(([k,v])=>k+": "+v).join(". "),
+      "INJURIES: " + (data.inj || ""),
+      "CLINICAL FINDINGS: " + Object.entries(data.md || {}).map(([k,v])=>k+": "+v).join(". "),
+      "DIAGNOSIS: " + (data.dg || "")
+    ].join("\n");
+    const res = await callAI(
+      "You are a senior orthopaedic medico-legal expert writing a Discussion section for a South African RAF medico-legal report. Write 6 to 8 paragraphs covering: mechanism of injury, injuries sustained, hospital management, clinical findings, long-term impairment and functional loss, Narrative Test criterion 5.1 qualification, and prognosis.",
+      ctx
+    );
+    if (res) set("ds", res);
+    setBusy(p => { const n = {...p}; delete n[k]; return n; });
+  }
 
-  if(!data)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"var(--mt)"}}>Loading report…</div>;
+  function buildReport() {
+    const d = data || newReport();
+    const cv = d.cv || {};
+    const rows = [
+      ["Patient Name", cv.name], ["ID / Refugee Ref", cv.idRef], ["Gender", cv.gender],
+      ["Date of Birth", cv.dob], ["Age", cv.age], ["Address", cv.address], ["Contact", cv.contact],
+      ["Date of Injury", cv.doi], ["Mechanism", cv.mech], ["Pre-Accident Occupation", cv.preOcc],
+      ["Post-Accident Occupation", cv.postOcc], ["Date of Examination", cv.doe],
+      ["Place of Examination", cv.poe], ["Instructing Attorney", cv.atty], ["Attorney Contact", cv.attyCon]
+    ];
+    return (
+      '<div style="text-align:center;padding:10px;border:1px dashed #bbb;margin-bottom:14px;color:#999;font-size:9pt;">[PRACTICE LOGO]</div>' +
+      '<h1>MEDICO-LEGAL REPORT</h1>' +
+      '<p><b>Our Ref:</b> ' + (cv.ourRef||"—") + '&nbsp;&nbsp;<b>Attorney Ref:</b> ' + (cv.attRef||"—") + '</p>' +
+      '<table><tbody>' + rows.map(([k,v]) => '<tr><td style="font-weight:700;width:200px;">' + k + ':</td><td>' + (v||"—") + '</td></tr>').join("") + '</tbody></table>' +
+      '<h2>1. Documents Perused</h2><ol>' + (d.docs||[]).map(x => '<li>' + x + '</li>').join("") + '</ol>' +
+      '<h2>2. Occupational and Medical History</h2>' +
+      '<h3>2.1 Occupational History</h3>' +
+      '<p>Highest grade: ' + (d.occ ? d.occ.grade||"—" : "—") + '</p>' +
+      '<p>Tertiary: ' + (d.occ ? d.occ.tert||"None" : "None") + '</p>' +
+      '<p>' + (d.occ ? d.occ.pre||"—" : "—") + '</p>' +
+      '<p>' + (d.occ ? d.occ.post||"—" : "—") + '</p>' +
+      '<h3>2.2 Past Medical and Surgical History</h3>' +
+      '<p><b>Injuries:</b> ' + (d.pmhx ? d.pmhx.inj : "—") + '</p>' +
+      '<p><b>Surgery:</b> ' + (d.pmhx ? d.pmhx.sx : "—") + '</p>' +
+      '<p><b>Medical:</b> ' + (d.pmhx ? d.pmhx.med : "—") + '</p>' +
+      '<p><b>Medication:</b> ' + (d.pmhx ? d.pmhx.meds : "—") + '</p>' +
+      '<h2>3. Summary of Hospital Records</h2>' +
+      HT.map(t => d.hs && d.hs[t] ? '<h3>' + t + '</h3><p style="white-space:pre-wrap;">' + d.hs[t] + '</p>' : "").join("") +
+      '<h2>4. Injuries Sustained</h2><div style="white-space:pre-wrap;">' + (d.inj||"—") + '</div>' +
+      '<h2>5. Current Complaints</h2>' +
+      '<h3>Pre-Accident</h3><p>' + (d.cp ? d.cp.pre||"—" : "—") + '</p>' +
+      '<h3>Current Complaints</h3><p style="white-space:pre-wrap;">' + (d.cp ? d.cp.cur||"—" : "—") + '</p>' +
+      '<h2>6. Clinical Evaluation</h2>' +
+      '<h3>6.1 General Examination</h3>' +
+      '<p><b>Gait:</b> ' + (d.gn ? d.gn.gait||"—" : "—") + '</p>' +
+      '<p><b>Impression:</b> ' + (d.gn ? d.gn.imp||"—" : "—") + '</p>' +
+      '<p><b>Assistive Devices:</b> ' + (d.gn ? d.gn.dev||"—" : "—") + '</p>' +
+      '<p><b>Language:</b> ' + (d.gn ? d.gn.lang||"—" : "—") + '</p>' +
+      '<p><b>Dexterity:</b> ' + (d.gn ? d.gn.dex||"—" : "—") + '</p>' +
+      '<h3>6.2 MSK Examination</h3>' +
+      Object.entries(d.md || {}).filter(([,v])=>v).map(([k,v]) => { const [rg,pr] = k.split("::"); return '<p><b>' + rg + ' — ' + pr + ':</b> ' + v + '</p>'; }).join("") +
+      '<h3>6.3 Evidence of Injury</h3>' +
+      '<p><b>Scarring:</b> ' + (d.sc||"—") + '</p>' +
+      '<p style="white-space:pre-wrap;"><b>Radiology:</b> ' + (d.xr||"—") + '</p>' +
+      '<h2>7. Diagnosis</h2><div style="white-space:pre-wrap;">' + (d.dg||"—") + '</div>' +
+      '<h2>8. Further Management</h2>' +
+      '<h3>8.1 Orthopaedic Treatment</h3><div style="white-space:pre-wrap;">' + (d.tx||"—") + '</div>' +
+      '<h3>8.2 Referrals</h3><div style="white-space:pre-wrap;">' + (d.rf||"—") + '</div>' +
+      '<h3>8.3 Burden of Treatment</h3><p>Side effects from NSAIDs and analgesics include allergic reactions, peptic ulcer disease, heartburn, gastritis, kidney and liver damage, excessive bleeding, heart problems, and toxicity. Careful monitoring is essential.</p>' +
+      '<h3>8.4 Additional Expenses</h3><p>Specialist consultation rates, transportation costs and medical inflation to be determined by the relevant practitioners.</p>' +
+      '<h2>9. Disability and Impairment</h2>' +
+      '<table><thead><tr><th>Basic ADL</th>' + ADLO.map(o => '<th style="text-align:center;">' + o + '</th>').join("") + '</tr></thead><tbody>' +
+      ADLB.map(a => '<tr><td>' + a + '</td>' + ADLO.map(o => '<td style="text-align:center;">' + ((d.ab && d.ab[a]||"None")===o ? "x" : "") + '</td>').join("") + '</tr>').join("") +
+      '</tbody></table>' +
+      '<table style="margin-top:8px;"><thead><tr><th>Advanced ADL</th>' + ADLO.map(o => '<th style="text-align:center;">' + o + '</th>').join("") + '</tr></thead><tbody>' +
+      ADLA.map(a => '<tr><td>' + a + '</td>' + ADLO.map(o => '<td style="text-align:center;">' + ((d.aa && d.aa[a]||"None")===o ? "x" : "") + '</td>').join("") + '</tr>').join("") +
+      '</tbody></table>' +
+      '<h3>9.2 Occupational Effects and Limitations</h3><p style="white-space:pre-wrap;">' + (d.oe||"—") + '</p>' +
+      '<h2>10. Discussion</h2><div style="white-space:pre-wrap;">' + (d.ds||"—") + '</div>' +
+      '<p style="margin-top:40px;">________________________________</p>' +
+      '<p><b>' + (cv.drName||"[PRACTITIONER NAME]") + '</b></p>' +
+      '<p>' + (cv.quals||"[QUALIFICATIONS]") + '</p>' +
+      '<p style="font-size:9pt;border-top:1px solid #ccc;padding-top:8px;margin-top:16px;"><b>VALIDITY:</b> This report is valid for 2 (two) years from the date of first consultation.</p>'
+    );
+  }
 
-  const isRec=micState==="recording";
-  const curDraft=sec===3?hsDraft:(drafts[sec]||"");
-  const secLabel={0:"Cover Page",1:"Documents",2:"Occ & Medical Hx",3:"Hospital Records",4:"Injuries",5:"Complaints",6:"Clinical Eval",7:"Diagnosis",8:"Treatment",9:"Disability",10:"Discussion"};
-  const hasSR=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
-  const[msk,setMsk]=useState(null);
-  const reg=MSK_REGIONS.find(r=>r.name===msk);
+  function exportDoc() {
+    const html = '<html><head><meta charset="utf-8"/><style>body{font-family:Times New Roman,serif;font-size:11pt;margin:1in;}h1{font-size:14pt;text-align:center;text-transform:uppercase;}h2{font-size:12pt;text-decoration:underline;margin-top:14pt;}h3{font-weight:700;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #999;padding:4pt;}th{background:#eee;}p{margin:4pt 0;}</style></head><body>' + buildReport() + '</body></html>';
+    const b = new Blob([html], {type:"application/msword"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = ((data && data.cv && data.cv.name) || "Patient") + "_MEDLEGAL.doc";
+    a.click();
+  }
 
-  const DZ=({sid,ph})=>{
-    const d=sid===3?hsDraft:(drafts[sid]||"");
-    const isLive=isRec&&secRef.current===sid;
-    return(
-      <div className="card hl">
-        <div className="ct" style={{marginBottom:6}}><span className="bx">🎙</span> Dictate {secLabel[sid]}</div>
-        {micState==="idle"&&<p style={{fontSize:11,color:"var(--gd)"}}>↓ Enable microphone first using the button below.</p>}
-        {micState!=="idle"&&<>
-          <p style={{fontSize:10,color:"var(--mt)",marginBottom:8}}>Press <strong style={{color:"var(--ac2)"}}>🎙 Dictate</strong> below → speak → press <strong style={{color:"var(--dg)"}}>⏹ Stop</strong></p>
-          <textarea className={isLive?"live":""} rows={isLive?4:Math.max(3,Math.ceil(((d||"").length)/80))} value={isLive?liveText:d} onChange={e=>sid===3?setHsDraft(e.target.value):setDraft(sid,e.target.value)} placeholder={isLive?"🔴 Listening… speak now":ph}/>
-          {d&&!isLive&&(
-            <div className="parse-bar">
-              <span className="pn">✓ {d.length} chars captured</span>
-              {sid!==3&&sid!==6&&<button className="btn bp" style={{fontSize:10}} onClick={()=>applyDraft(sid)}>Apply to fields ›</button>}
-              {sid===3&&<button className="btn bpu" style={{fontSize:10}} disabled={!!ail.hosp} onClick={parseHosp}>{ail.hosp?"Parsing…":"✦ AI Parse into sub-sections"}</button>}
-              <button className="btn bs" style={{fontSize:10,padding:"4px 8px"}} onClick={()=>sid===3?setHsDraft(""):setDraft(sid,"")}>✕ Clear</button>
-            </div>
-          )}
-        </>}
+  if (!data) return <div className="center" style={{color:"#5e6882"}}>Loading report...</div>;
+
+  const isRec    = micState === "recording";
+  const isProc   = micState === "processing";
+  const hasSR    = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const hasGUM   = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  const anyBusy  = Object.keys(busy).length > 0;
+  const curDraft = sec === 3 ? hosDraft : sec === 6 ? ch6Draft : "";
+  const reg      = MSK_REGIONS.find(r => r.name === mskSel);
+
+  // Dictation zone for sections that use a draft
+  function DictZone({sid, ph}) {
+    const draft = sid === 3 ? hosDraft : ch6Draft;
+    const setDraft = sid === 3 ? setHosDraft : setCh6Draft;
+    const isLive = isRec && secRef.current === sid;
+    return (
+      <div className="card card-accent">
+        <div className="card-title"><span className="badge b-teal">DICTATE</span>{SLAB[sid]}</div>
+        {micState === "idle" && (
+          <p style={{fontSize:11,color:"#d4a44c"}}>Enable the microphone first using the button at the bottom of the screen.</p>
+        )}
+        {micState !== "idle" && (
+          <>
+            <p style={{fontSize:10,color:"#5e6882",marginBottom:8}}>
+              Press <b style={{color:"#5b8ef5"}}>Dictate</b> below, speak, then press <b style={{color:"#e05555"}}>Stop</b>.
+            </p>
+            <textarea
+              className={isLive ? "rec" : ""}
+              rows={isLive ? 4 : Math.max(3, Math.ceil((draft.length || 0) / 80))}
+              value={isLive ? liveText : draft}
+              onChange={e => setDraft(e.target.value)}
+              placeholder={isLive ? "Listening... speak now" : ph}
+            />
+            {draft && !isLive && (
+              <div className="parse-bar">
+                <span className="parse-note">{draft.length} characters — choose how to apply:</span>
+                {sid === 3 && (
+                  <button className="btn btn-pu" style={{fontSize:10}} disabled={!!busy.hosp} onClick={aiParseHospital}>
+                    {busy.hosp ? "Parsing..." : "AI Parse into sub-sections"}
+                  </button>
+                )}
+                {sid === 6 && (
+                  <>
+                    <button className="btn btn-pu" style={{fontSize:10}} disabled={!!busy.gen} onClick={aiParseGeneral}>
+                      {busy.gen ? "..." : "General Exam"}
+                    </button>
+                    {MSK_REGIONS.map(r => (
+                      <button key={r.name} className="btn btn-pu" style={{fontSize:10}} disabled={!!busy["msk"+r.name]} onClick={()=>aiParseMSK(r.name)}>
+                        {busy["msk"+r.name] ? "..." : r.name}
+                      </button>
+                    ))}
+                  </>
+                )}
+                <button className="btn btn-ghost" style={{fontSize:10,padding:"4px 8px"}} onClick={()=>setDraft("")}>Clear</button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
-  };
+  }
 
-  const renderSec=()=>{
-    const d=data;
-    switch(sec){
-      case 0:return(
-        <div><CH n="00" t="Cover Page & Demographics"/>
-          {micState==="idle"&&(
-            <div className="card warn"><div className="ct"><span className="bxg">⚠ MIC</span> Enable Microphone for Dictation</div>
-              <p style={{fontSize:11,color:"var(--mt)",marginBottom:12}}>Click below to enable your microphone. Your browser will ask for permission.</p>
-              {!hasSR&&<p style={{fontSize:11,color:"var(--dg)",marginBottom:10}}>Please use Chrome or Edge for dictation.</p>}
-              <button className="btn bp" onClick={requestMic} disabled={!hasSR}>🎙 Enable Microphone</button>
+  function renderSection() {
+    const d = data;
+    switch (sec) {
+      case 0: return (
+        <div>
+          <CH n="00" t="Cover Page and Demographics"/>
+          {micState === "idle" && (
+            <div className="card card-yellow">
+              <div className="card-title"><span className="badge b-gold">MIC</span>Enable Microphone</div>
+              <p style={{fontSize:11,color:"#5e6882",marginBottom:12}}>Click below to allow microphone access for dictation.</p>
+              {(!hasSR || !hasGUM) && <p style={{fontSize:11,color:"#e05555",marginBottom:10}}>Please use Chrome or Edge browser.</p>}
+              <button className="btn btn-teal" onClick={requestMic} disabled={!hasSR || !hasGUM}>Enable Microphone</button>
             </div>
           )}
-          {micState==="ready"&&<div className="card good"><div className="ct"><span className="bx">✓ MIC READY</span></div><p style={{fontSize:11,color:"var(--ac)"}}>Microphone active. Use 🎙 Dictate at the bottom of the screen on any section.</p></div>}
-          {micState==="error"&&<div className="card bad"><div className="ct"><span className="bxr">✕ MIC ERROR</span></div><p style={{fontSize:11,color:"var(--dg)",marginBottom:10}}>{micMsg}</p><button className="btn bp" onClick={requestMic}>↻ Try Again</button></div>}
-          <div className="card"><div className="ct"><span className="bx">FORM</span> Patient & Case Details</div>
-            <div className="g2">
-              {[["ourRef","Our Reference"],["attRef","Attorney Reference"],["name","Patient Full Name"],["idRef","Refugee/ID Reference"],["age","Current Age"],["contact","Contact Number"],["mech","Mechanism of Injury"],["preOcc","Pre-Accident Occupation"],["postOcc","Post-Accident Occupation"],["poe","Place of Examination"],["atty","Instructing Attorney"],["attyCon","Attorney Contact"],["drName","Practitioner Name"],["quals","Qualifications"]].map(([k,l])=>(
-                <F key={k} label={l} ch={<input value={d.cv[k]||""} onChange={e=>upd(`cv.${k}`,e.target.value)}/>}/>
-              ))}
-              <F label="Gender" ch={<select value={d.cv.gender} onChange={e=>upd("cv.gender",e.target.value)}><option>Male</option><option>Female</option><option>Other</option></select>}/>
-              <F label="DOB" ch={<input type="date" value={d.cv.dob||""} onChange={e=>upd("cv.dob",e.target.value)}/>}/>
-              <F label="Date of Injury" ch={<input type="date" value={d.cv.doi||""} onChange={e=>upd("cv.doi",e.target.value)}/>}/>
-              <F label="Date of Examination" ch={<input type="date" value={d.cv.doe||""} onChange={e=>upd("cv.doe",e.target.value)}/>}/>
+          {micState === "requesting" && (
+            <div className="card card-yellow"><div className="card-title">Requesting microphone access...</div></div>
+          )}
+          {micState === "ready" && (
+            <div className="card card-green">
+              <div className="card-title"><span className="badge b-teal">READY</span>Microphone Active</div>
+              <p style={{fontSize:11,color:"#10d9b0"}}>Microphone is active. Use the Dictate button at the bottom on any section.</p>
             </div>
-            <F label="Residential Address" ch={<textarea rows={2} value={d.cv.address||""} onChange={e=>upd("cv.address",e.target.value)}/>}/>
+          )}
+          {micState === "error" && (
+            <div className="card card-red">
+              <div className="card-title"><span className="badge b-red">ERROR</span>Microphone Issue</div>
+              <p style={{fontSize:11,color:"#e05555",marginBottom:10}}>{micMsg}</p>
+              <button className="btn btn-teal" onClick={requestMic}>Try Again</button>
+            </div>
+          )}
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">FORM</span>Patient and Case Details</div>
+            <div className="g2">
+              {[["ourRef","Our Reference"],["attRef","Attorney Reference"],["name","Patient Full Name"],["idRef","Refugee / ID Reference"],["age","Current Age"],["contact","Contact Number"],["mech","Mechanism of Injury"],["preOcc","Pre-Accident Occupation"],["postOcc","Post-Accident Occupation"],["poe","Place of Examination"],["atty","Instructing Attorney"],["attyCon","Attorney Contact"],["drName","Practitioner Name"],["quals","Qualifications"]].map(([k,l]) => (
+                <F key={k} label={l}><input value={d.cv[k]||""} onChange={e=>set("cv."+k, e.target.value)}/></F>
+              ))}
+              <F label="Gender">
+                <select value={d.cv.gender||"Male"} onChange={e=>set("cv.gender", e.target.value)}>
+                  <option>Male</option><option>Female</option><option>Other</option>
+                </select>
+              </F>
+              <F label="Date of Birth"><input type="date" value={d.cv.dob||""} onChange={e=>set("cv.dob", e.target.value)}/></F>
+              <F label="Date of Injury"><input type="date" value={d.cv.doi||""} onChange={e=>set("cv.doi", e.target.value)}/></F>
+              <F label="Date of Examination"><input type="date" value={d.cv.doe||""} onChange={e=>set("cv.doe", e.target.value)}/></F>
+            </div>
+            <F label="Residential Address"><textarea rows={2} value={d.cv.address||""} onChange={e=>set("cv.address", e.target.value)}/></F>
           </div>
         </div>
       );
-      case 1:return(<div><CH n="01" t="Documents Perused"/><DZ sid={1} ph="Speak document names…"/><div className="card"><div className="ct"><span className="bx">LIST</span></div>{(d.docs||[]).map((x,i)=><div key={i} className="docr"><span className="docn">{String(i+1).padStart(2,"0")}</span><span style={{flex:1}}>{x}</span><button className="btn bdr" style={{padding:"2px 6px",fontSize:9}} onClick={()=>{upd("docs",(d.docs||[]).filter((_,j)=>j!==i));}}>✕</button></div>)}<div style={{display:"flex",gap:6,marginTop:8}}><input value={nd} onChange={e=>setNd(e.target.value)} placeholder="Type a document name…" onKeyDown={e=>e.key==="Enter"&&nd.trim()&&(upd("docs",[...(d.docs||[]),nd.trim()]),setNd(""))}/><button className="btn bp" onClick={()=>nd.trim()&&(upd("docs",[...(d.docs||[]),nd.trim()]),setNd(""))}>Add</button></div></div></div>);
-      case 2:return(<div><CH n="02" t="Occupational & Medical History"/><DZ sid={2} ph="Speak the patient's work history…"/><div className="card"><div className="ct"><span className="bx">2.1</span> Occupational History</div><div className="g2"><F label="Highest Grade" ch={<input value={d.occ.grade||""} onChange={e=>upd("occ.grade",e.target.value)}/>}/><F label="Tertiary" ch={<input value={d.occ.tert||""} onChange={e=>upd("occ.tert",e.target.value)} placeholder="None"/>}/></div><F label="Pre-Accident" ch={<textarea rows={3} value={d.occ.pre||""} onChange={e=>upd("occ.pre",e.target.value)}/>}/><F label="Post-Accident" ch={<textarea rows={3} value={d.occ.post||""} onChange={e=>upd("occ.post",e.target.value)}/>}/></div><div className="card"><div className="ct"><span className="bx">2.2</span> Past Medical & Surgical Hx</div><div className="g2">{[["inj","Injuries"],["sx","Surgery"],["med","Medical"],["meds","Medication"]].map(([k,l])=><F key={k} label={l} ch={<input value={d.pmhx[k]||""} onChange={e=>upd(`pmhx.${k}`,e.target.value)} placeholder="None reported."/>}/>)}</div></div></div>);
-      case 3:return(<div><CH n="03" t="Summary of Hospital Records"/><DZ sid={3} ph="Dictate the full hospital narrative in one go — mechanism, EMS, transfer, admission, investigations, diagnosis, surgery, discharge, follow-up. AI will sort it into sub-sections."/><div className="card"><div className="ct"><span className="bx">SUB-SECTIONS</span></div>{HOSPITAL_TARGETS.map(t=><div key={t} style={{marginBottom:8}}><label>{t} {d.hs[t]&&<span style={{color:"var(--ac)",fontSize:8}}>✓</span>}</label><textarea rows={2} value={d.hs[t]||""} onChange={e=>upd(`hs.${t}`,e.target.value)} placeholder={`${t}…`}/></div>)}</div></div>);
-      case 4:return(<div><CH n="04" t="Injuries Sustained"/><DZ sid={4} ph="Dictate injuries — fractures, dislocations, lacerations…"/><div className="card"><div className="ct"><span className="bx bxg">AI</span> Auto-Extract from Ch. 3</div><button className="btn bg" onClick={aiExtract} disabled={!!ail.inj} style={{marginBottom:10}}>✨ {ail.inj?"Extracting…":"Auto-Extract"}</button><textarea rows={10} value={d.inj||""} onChange={e=>upd("inj",e.target.value)} placeholder="• Injuries…"/></div></div>);
-      case 5:return(<div><CH n="05" t="Current Complaints"/><DZ sid={5} ph="Dictate complaints — pain location, severity 0-10, aggravating/relieving factors…"/><div className="card"><div className="ct"><span className="bx">5.1</span> Pre-Accident</div><textarea rows={3} value={d.cp.pre||""} onChange={e=>upd("cp.pre",e.target.value)} placeholder="No prior history…"/></div><div className="card"><div className="ct"><span className="bx">5.2</span> Current Complaints</div><textarea rows={7} value={d.cp.cur||""} onChange={e=>upd("cp.cur",e.target.value)}/></div></div>);
-      case 6:return(
-        <div><CH n="06" t="Clinical Evaluation"/>
-          <div className="card hl">
-            <div className="ct" style={{marginBottom:6}}><span className="bx">🎙</span> Dictate Full Examination</div>
-            <p style={{fontSize:10,color:"var(--mt)",marginBottom:8}}>Dictate the whole exam, then use <strong style={{color:"var(--pu)"}}>AI Parse</strong> to fill fields.</p>
-            <textarea className={isRec&&secRef.current===6?"live":""} rows={isRec&&secRef.current===6?4:Math.max(3,Math.ceil(((drafts[6]||"").length)/80))} value={isRec&&secRef.current===6?liveText:(drafts[6]||"")} onChange={e=>setDraft(6,e.target.value)} placeholder="Gait was antalgic… on inspection of the right foot, swelling and bony deformity…"/>
-            {drafts[6]&&!(isRec&&secRef.current===6)&&(<div className="parse-bar"><span className="pn">✓ Select region to parse:</span><button className="btn bpu" style={{fontSize:10}} disabled={!!ail.gen} onClick={parseGen}>{ail.gen?"…":"✦ General"}</button>{MSK_REGIONS.map(r=><button key={r.name} className="btn bpu" style={{fontSize:10}} disabled={!!ail["msk"+r.name]} onClick={()=>parseMSK(r.name)}>{ail["msk"+r.name]?"…":`✦ ${r.name}`}</button>)}<button className="btn bs" style={{fontSize:10,padding:"4px 8px"}} onClick={()=>setDraft(6,"")}>✕</button></div>)}
+
+      case 1: return (
+        <div>
+          <CH n="01" t="Documents Perused"/>
+          <DictZone sid={1} ph="Speak document names..."/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">LIST</span>Documents</div>
+            {(d.docs||[]).map((x,i) => (
+              <div key={i} className="docrow">
+                <span className="doc-n">{String(i+1).padStart(2,"0")}</span>
+                <span style={{flex:1}}>{x}</span>
+                <button className="btn btn-red" style={{padding:"2px 7px",fontSize:9}} onClick={()=>set("docs",(d.docs||[]).filter((_,j)=>j!==i))}>x</button>
+              </div>
+            ))}
+            <div style={{display:"flex",gap:6,marginTop:8}}>
+              <input value={newDoc} onChange={e=>setNewDoc(e.target.value)} placeholder="Type a document name..." onKeyDown={e=>{if(e.key==="Enter"&&newDoc.trim()){set("docs",[...(d.docs||[]),newDoc.trim()]);setNewDoc("");}}}/>
+              <button className="btn btn-teal" onClick={()=>{if(newDoc.trim()){set("docs",[...(d.docs||[]),newDoc.trim()]);setNewDoc("");}}}>Add</button>
+            </div>
           </div>
-          <div className="card"><div className="ct"><span className="bx">6.1</span> General</div><div className="g2">{[["gait","Gait"],["imp","Impression"],["dev","Assistive Devices"],["lang","Language"],["dex","Dexterity"]].map(([k,l])=><F key={k} label={l} ch={<input value={d.gn[k]||""} onChange={e=>upd(`gn.${k}`,e.target.value)}/>}/>)}</div></div>
-          <div className="card"><div className="ct"><span className="bx">6.2</span> MSK Examination</div>
-            <div className="chips">{MSK_REGIONS.map(r=>{const f=r.prompts.some(p=>d.md[`${r.name}::${p}`]);return<div key={r.name} className={`chip ${msk===r.name?"on":""}`} style={f?{borderColor:"var(--ac)"}:{}} onClick={()=>setMsk(r.name)}>{r.name}{f?" ✓":""}</div>;})}</div>
-            {reg&&reg.prompts.map(p=>{const k=`${msk}::${p}`;return<div key={p} className={`mskp ${d.md[k]?"filled":""}`}><h4>{p}</h4><textarea rows={2} style={{marginTop:3}} value={d.md[k]||""} onChange={e=>upd(`md.${k}`,e.target.value)} placeholder="Findings…"/></div>;})}
-            {!reg&&<p style={{color:"var(--mt)",fontSize:11,fontStyle:"italic",padding:8}}>Select a region above.</p>}
-          </div>
-          <div className="card"><div className="ct"><span className="bx">6.3</span> Evidence</div><F label="Scarring & Disfigurement" ch={<textarea rows={3} value={d.sc||""} onChange={e=>upd("sc",e.target.value)}/>}/><F label="Radiology Report" ch={<textarea rows={5} value={d.xr||""} onChange={e=>upd("xr",e.target.value)} placeholder="Bones: …&#10;Soft tissue: …"/>}/></div>
         </div>
       );
-      case 7:return(<div><CH n="07" t="Diagnosis"/><DZ sid={7} ph="Dictate diagnoses…"/><div className="card"><div className="ct"><span className="bx bxg">AI</span> Suggest from Exam</div><button className="btn bg" onClick={aiDiag} disabled={!!ail.dg} style={{marginBottom:10}}>✨ {ail.dg?"Analysing…":"AI Diagnoses"}</button><textarea rows={12} value={d.dg||""} onChange={e=>upd("dg",e.target.value)}/></div></div>);
-      case 8:return(<div><CH n="08" t="Further Treatment"/><DZ sid={8} ph="Dictate treatment plan…"/><div className="card"><div className="ct"><span className="bx">8.1</span> Treatment</div><textarea rows={8} value={d.tx||""} onChange={e=>upd("tx",e.target.value)}/></div><div className="card"><div className="ct"><span className="bx">8.2</span> Referrals</div><textarea rows={4} value={d.rf||""} onChange={e=>upd("rf",e.target.value)}/></div><div className="card"><div className="ct"><span className="bx bxg">8.3–8.4</span> Standard Paragraphs</div><div className="aib">Side effects from NSAIDs include allergic reactions, peptic ulcer, gastritis, kidney/liver damage, and toxicity. Specialist rates and transportation to be determined by relevant practitioners.</div></div></div>);
-      case 9:return(<div><CH n="09" t="Disability & Impairment"/><DZ sid={9} ph="Dictate occupational effects and limitations…"/>{[["Basic ADL",ADL_BASIC,d.ab,(k,v)=>upd(`ab.${k}`,v)],["Advanced ADL",ADL_ADV,d.aa,(k,v)=>upd(`aa.${k}`,v)]].map(([title,items,dat,setter])=><div key={title} className="card"><div className="ct"><span className="bx">ADL</span> {title}</div><div style={{overflowX:"auto"}}><table className="adlt"><thead><tr><th style={{minWidth:120}}>Activity</th>{ADL_OPTS.map(o=><th key={o} style={{textAlign:"center",minWidth:36}}>{o}</th>)}</tr></thead><tbody>{items.map(a=><tr key={a}><td>{a}</td>{ADL_OPTS.map(o=><td key={o} style={{textAlign:"center"}}><input type="radio" name={`${title}_${a}`} value={o} checked={(dat[a]||"None")===o} onChange={()=>setter(a,o)} style={{accentColor:"var(--ac)",cursor:"pointer"}}/></td>)}</tr>)}</tbody></table></div></div>)}<div className="card"><div className="ct"><span className="bx">9.2</span> Occupational Effects</div><textarea rows={8} value={d.oe||""} onChange={e=>upd("oe",e.target.value)}/></div><div className="card"><div className="ct"><span className="bx bxg">9.3 & 9.5</span> Narrative Test & WPI</div><div className="aib">Manual completion required — AMA Guides® 6th Edition and RAF4 criteria.</div></div></div>);
-      case 10:return(<div><CH n="10" t="Discussion"/><DZ sid={10} ph="Dictate discussion — causation, prognosis, Narrative Test 5.1…"/><div className="card"><div className="ct"><span className="bx bxg">AI</span> Discussion Draft</div><button className="btn bg" onClick={aiDisc} disabled={!!ail.ds} style={{marginBottom:10}}>✨ {ail.ds?"Drafting…":"AI Draft"}</button><textarea rows={14} value={d.ds||""} onChange={e=>upd("ds",e.target.value)}/></div></div>);
-      default:return null;
+
+      case 2: return (
+        <div>
+          <CH n="02" t="Occupational and Medical History"/>
+          <DictZone sid={2} ph="Speak the patient work history, pre and post accident occupation details..."/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">2.1</span>Occupational History</div>
+            <div className="g2">
+              <F label="Highest Grade"><input value={d.occ.grade||""} onChange={e=>set("occ.grade",e.target.value)}/></F>
+              <F label="Tertiary Education"><input value={d.occ.tert||""} onChange={e=>set("occ.tert",e.target.value)} placeholder="None"/></F>
+            </div>
+            <F label="Pre-Accident Occupation"><textarea rows={3} value={d.occ.pre||""} onChange={e=>set("occ.pre",e.target.value)}/></F>
+            <F label="Post-Accident Occupation"><textarea rows={3} value={d.occ.post||""} onChange={e=>set("occ.post",e.target.value)}/></F>
+          </div>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">2.2</span>Past Medical and Surgical History</div>
+            <div className="g2">
+              {[["inj","Previous Injuries"],["sx","Surgical History"],["med","Medical History"],["meds","Chronic Medication"]].map(([k,l]) => (
+                <F key={k} label={l}><input value={d.pmhx[k]||""} onChange={e=>set("pmhx."+k,e.target.value)} placeholder="None reported."/></F>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+
+      case 3: return (
+        <div>
+          <CH n="03" t="Summary of Hospital Records"/>
+          <DictZone sid={3} ph="Dictate the full hospital narrative in one go — EMS, transfer, admission, investigations, surgery, discharge, follow-up. AI will sort it into sub-sections."/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">FIELDS</span>Sub-Sections</div>
+            {HT.map(t => (
+              <div key={t} style={{marginBottom:8}}>
+                <label>{t} {d.hs && d.hs[t] && <span style={{color:"#10d9b0"}}>✓</span>}</label>
+                <textarea rows={2} value={(d.hs && d.hs[t]) || ""} onChange={e=>set("hs."+t, e.target.value)} placeholder={t + "..."}/>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+      case 4: return (
+        <div>
+          <CH n="04" t="Injuries Sustained"/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-gold">AI</span>Auto-Extract or Dictate</div>
+            <p style={{fontSize:10,color:"#5e6882",marginBottom:10}}>Dictate injuries using the button below, or auto-extract from Chapter 3.</p>
+            <button className="btn btn-gold" onClick={aiExtractInjuries} disabled={!!busy.inj} style={{marginBottom:12}}>
+              {busy.inj ? "Extracting..." : "Auto-Extract from Hospital Records"}
+            </button>
+            <textarea rows={10} value={d.inj||""} onChange={e=>set("inj",e.target.value)} placeholder="Injuries will appear here after dictation or extraction..."/>
+          </div>
+        </div>
+      );
+
+      case 5: return (
+        <div>
+          <CH n="05" t="Current Complaints"/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">5.1</span>Pre-Accident Status</div>
+            <textarea rows={3} value={d.cp ? d.cp.pre||"" : ""} onChange={e=>set("cp.pre",e.target.value)} placeholder="No prior history of injury or symptoms..."/>
+          </div>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">5.2</span>Current Complaints</div>
+            <p style={{fontSize:10,color:"#5e6882",marginBottom:8}}>Dictate using the button below — text will appear here automatically.</p>
+            <textarea rows={8} value={d.cp ? d.cp.cur||"" : ""} onChange={e=>set("cp.cur",e.target.value)} placeholder="Complaints will appear here after dictation..."/>
+          </div>
+        </div>
+      );
+
+      case 6: return (
+        <div>
+          <CH n="06" t="Clinical Evaluation"/>
+          <DictZone sid={6} ph="Dictate the full examination — gait, general impression, MSK findings per region. Then use AI Parse to distribute into the fields below."/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">6.1</span>General Examination</div>
+            <div className="g2">
+              {[["gait","Gait"],["imp","General Impression"],["dev","Assistive Devices"],["lang","Home Language"],["dex","Dexterity"]].map(([k,l]) => (
+                <F key={k} label={l}><input value={d.gn ? d.gn[k]||"" : ""} onChange={e=>set("gn."+k,e.target.value)}/></F>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">6.2</span>MSK Examination</div>
+            <div className="chips">
+              {MSK_REGIONS.map(r => {
+                const hasData = r.prompts.some(p => d.md && d.md[r.name + "::" + p]);
+                return (
+                  <div key={r.name} className={"chip" + (mskSel===r.name?" on":"") + (hasData?" has":"")} onClick={()=>setMskSel(r.name)}>
+                    {r.name}{hasData ? " ✓" : ""}
+                  </div>
+                );
+              })}
+            </div>
+            {reg && reg.prompts.map(p => {
+              const key = mskSel + "::" + p;
+              return (
+                <div key={p} className={"mskp" + (d.md && d.md[key] ? " has" : "")}>
+                  <h4>{p}</h4>
+                  <textarea rows={2} style={{marginTop:3}} value={(d.md && d.md[key]) || ""} onChange={e=>set("md."+key, e.target.value)} placeholder="Findings..."/>
+                </div>
+              );
+            })}
+            {!reg && <p style={{color:"#5e6882",fontSize:11,fontStyle:"italic",padding:8}}>Select a region above to view and edit findings.</p>}
+          </div>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">6.3</span>Evidence of Injury</div>
+            <F label="Scarring and Disfigurement"><textarea rows={3} value={d.sc||""} onChange={e=>set("sc",e.target.value)}/></F>
+            <F label="Radiology Report"><textarea rows={5} value={d.xr||""} onChange={e=>set("xr",e.target.value)} placeholder="Bones: ..."/></F>
+          </div>
+        </div>
+      );
+
+      case 7: return (
+        <div>
+          <CH n="07" t="Diagnosis"/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-gold">AI</span>Diagnosis</div>
+            <p style={{fontSize:10,color:"#5e6882",marginBottom:10}}>Dictate diagnoses using the button below, or let AI suggest from Chapter 6 findings.</p>
+            <button className="btn btn-gold" onClick={aiSuggestDiagnosis} disabled={!!busy.dg} style={{marginBottom:12}}>
+              {busy.dg ? "Analysing..." : "AI Suggest Diagnoses"}
+            </button>
+            <textarea rows={12} value={d.dg||""} onChange={e=>set("dg",e.target.value)} placeholder="Diagnoses will appear here..."/>
+          </div>
+        </div>
+      );
+
+      case 8: return (
+        <div>
+          <CH n="08" t="Further Management"/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">8.1</span>Orthopaedic Treatment</div>
+            <p style={{fontSize:10,color:"#5e6882",marginBottom:8}}>Dictate using the button below — text will appear here automatically.</p>
+            <textarea rows={8} value={d.tx||""} onChange={e=>set("tx",e.target.value)} placeholder="Treatment plan will appear here after dictation..."/>
+          </div>
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">8.2</span>Referrals</div>
+            <textarea rows={4} value={d.rf||""} onChange={e=>set("rf",e.target.value)}/>
+          </div>
+          <div className="card">
+            <div className="card-title"><span className="badge b-gold">8.3 – 8.4</span>Standard Paragraphs</div>
+            <div className="std-box">Side effects from NSAIDs and analgesics include allergic reactions, peptic ulcer disease, heartburn, gastritis, kidney and liver damage, excessive bleeding, heart problems, and toxicity. Careful monitoring is essential as one can become dependent on these drugs or suffer harmful side effects. Additionally, the burden of cost, drug dependence, regional availability of medication, and compliance with treatment could become a stressor in the patient life. Other specialist consultation rates, transportation costs and medical inflation rates to be determined by the relevant practitioners.</div>
+          </div>
+        </div>
+      );
+
+      case 9: return (
+        <div>
+          <CH n="09" t="Disability and Impairment"/>
+          {[["Basic ADL", ADLB, d.ab || {}, (k,v)=>set("ab."+k,v)], ["Advanced ADL", ADLA, d.aa || {}, (k,v)=>set("aa."+k,v)]].map(([title, items, dat, setter]) => (
+            <div key={title} className="card">
+              <div className="card-title"><span className="badge b-teal">ADL</span>{title}</div>
+              <div style={{overflowX:"auto"}}>
+                <table className="adlt">
+                  <thead><tr><th style={{minWidth:130}}>Activity</th>{ADLO.map(o=><th key={o} style={{textAlign:"center",minWidth:38}}>{o}</th>)}</tr></thead>
+                  <tbody>
+                    {items.map(a => (
+                      <tr key={a}>
+                        <td>{a}</td>
+                        {ADLO.map(o => (
+                          <td key={o} style={{textAlign:"center"}}>
+                            <input type="radio" name={title+"_"+a} value={o} checked={(dat[a]||"None")===o} onChange={()=>setter(a,o)} style={{accentColor:"#10d9b0",cursor:"pointer"}}/>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+          <div className="card">
+            <div className="card-title"><span className="badge b-teal">9.2</span>Occupational Effects and Limitations</div>
+            <p style={{fontSize:10,color:"#5e6882",marginBottom:8}}>Dictate using the button below — text will appear here automatically.</p>
+            <textarea rows={8} value={d.oe||""} onChange={e=>set("oe",e.target.value)} placeholder="Occupational effects will appear here after dictation..."/>
+          </div>
+          <div className="card">
+            <div className="card-title"><span className="badge b-gold">9.3 and 9.5</span>Narrative Test and WPI</div>
+            <div className="std-box">Manual completion required using the AMA Guides 6th Edition and RAF4 Serious Injury Assessment criteria.</div>
+          </div>
+        </div>
+      );
+
+      case 10: return (
+        <div>
+          <CH n="10" t="Discussion"/>
+          <div className="card">
+            <div className="card-title"><span className="badge b-gold">AI</span>Discussion</div>
+            <p style={{fontSize:10,color:"#5e6882",marginBottom:10}}>Dictate your discussion, or let AI draft it from all chapters.</p>
+            <button className="btn btn-gold" onClick={aiDraftDiscussion} disabled={!!busy.ds} style={{marginBottom:12}}>
+              {busy.ds ? "Drafting..." : "AI Draft Discussion"}
+            </button>
+            <textarea rows={14} value={d.ds||""} onChange={e=>set("ds",e.target.value)} placeholder="Discussion will appear here after dictation or AI draft..."/>
+          </div>
+        </div>
+      );
+
+      default: return null;
     }
-  };
+  }
 
-  const aiAny=Object.keys(ail).length>0;
+  const micLabel = isRec ? liveText || "Listening... speak now" : isProc ? "Processing..." : micMsg || (micState==="ready" ? (curDraft ? "Draft ready — see parse options above" : "Press Dictate to begin") : "Enable microphone below");
 
-  return(
-    <div className="app">
-      <nav className={`sb ${sb2?"":"off"}`}>
-        <div className="sbb"><div className="logo">▸ MEDISYNC</div><h1>MedLegal Engine</h1><div style={{fontSize:8,color:"var(--mt)",marginTop:2}}>Orthopaedic Reports</div></div>
-        {NAV.map(s=><div key={s.id} className={`ni ${sec===s.id?"on":""}`} onClick={()=>setSec(s.id)}><span className="nn">{s.n}</span><span>{s.l}</span></div>)}
-        <div style={{flex:1}}/>
-        <div style={{padding:"10px 12px",borderTop:"1px solid var(--bd)",display:"flex",flexDirection:"column",gap:6}}>
-          <button className="btn bg" style={{justifyContent:"center",fontSize:10}} onClick={()=>setPv(true)}>👁 Preview</button>
-          <button className="btn bs" style={{justifyContent:"center",fontSize:10}} onClick={onBack}>← Reports</button>
+  return (
+    <div className="editor">
+      <nav className={"sidebar" + (sbOpen ? "" : " closed")}>
+        <div className="sb-head">
+          <div className="sb-logo">MEDISYNC</div>
+          <div className="sb-title">MedLegal Engine</div>
+          <div className="sb-sub">Orthopaedic Reports</div>
+        </div>
+        {NAVS.map(s => (
+          <div key={s.id} className={"nav-item" + (sec===s.id?" on":"")} onClick={()=>setSec(s.id)}>
+            <span className="nav-n">{s.n}</span><span>{s.l}</span>
+          </div>
+        ))}
+        <div className="sb-foot">
+          <button className="btn btn-gold" style={{justifyContent:"center",fontSize:10}} onClick={()=>setShowPv(true)}>Preview Report</button>
+          <button className="btn btn-ghost" style={{justifyContent:"center",fontSize:10}} onClick={onBack}>Back to Reports</button>
         </div>
       </nav>
-      <div className="wrap">
-        <div className="hdr">
+
+      <div className="main">
+        <div className="top-bar">
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <button className="btn bs" style={{padding:"4px 7px",fontSize:13}} onClick={()=>setSb2(p=>!p)}>☰</button>
+            <button className="btn btn-ghost" style={{padding:"4px 8px"}} onClick={()=>setSbOpen(p=>!p)}>&#9776;</button>
             <div>
-              <div style={{fontSize:12,fontWeight:700}}>{data?.cv?.name||<span style={{color:"var(--mt)",fontSize:11,fontWeight:400}}>New Report</span>}</div>
-              {data?.cv?.doi&&<div style={{fontSize:8,color:"var(--mt)"}}>{data.cv.mech} · {data.cv.doi}</div>}
+              <div style={{fontSize:12,fontWeight:700,color:"#dde2f0"}}>{(data.cv && data.cv.name) || <span style={{color:"#5e6882",fontSize:11,fontWeight:400}}>New Report — fill in Cover Page</span>}</div>
+              {data.cv && data.cv.doi && <div style={{fontSize:8,color:"#5e6882"}}>{data.cv.mech} &middot; {data.cv.doi}</div>}
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:7}}>
-            {aiAny&&<span style={{fontSize:9,color:"var(--gd)",background:"rgba(212,164,76,.1)",padding:"2px 7px",borderRadius:7}}>⚡ AI</span>}
-            <div className={`syn ${syn}`}/><span style={{fontSize:9,color:"var(--mt)"}}>{syn==="ing"?"Saving…":"Saved"}</span>
-            <button className="btn bs" style={{fontSize:11,padding:"3px 7px"}} onClick={()=>sec>0&&setSec(p=>p-1)}>‹</button>
-            <button className="btn bs" style={{fontSize:11,padding:"3px 7px"}} onClick={()=>sec<10&&setSec(p=>p+1)}>›</button>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {anyBusy && <span style={{fontSize:9,color:"#d4a44c",background:"rgba(212,164,76,.1)",padding:"2px 8px",borderRadius:6}}>AI working...</span>}
+            <div className={"save-dot " + (saving ? "dot-saving" : "dot-saved")}/>
+            <span style={{fontSize:9,color:"#5e6882"}}>{saving ? "Saving..." : "Saved"}</span>
+            <button className="btn btn-ghost" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>sec>0&&setSec(p=>p-1)}>&#8249;</button>
+            <button className="btn btn-ghost" style={{fontSize:11,padding:"3px 8px"}} onClick={()=>sec<10&&setSec(p=>p+1)}>&#8250;</button>
           </div>
         </div>
-        <div className="content">{renderSec()}</div>
-        <div className="dbar">
-          {micState==="idle"&&<button className="dbtn idle" onClick={requestMic} disabled={!hasSR}>🎙 Enable Mic</button>}
-          {micState==="requesting"&&<button className="dbtn busy">⏳ Requesting…</button>}
-          {(micState==="ready"||micState==="processing")&&<button className="dbtn idle" onClick={toggleRec}>{micState==="processing"?<span className="blink">⚡</span>:"🎙"} Dictate</button>}
-          {micState==="recording"&&<button className="dbtn rec" onClick={toggleRec}><span style={{display:"inline-block",width:9,height:9,borderRadius:2,background:"#fff"}}/> Stop</button>}
-          {micState==="error"&&<button className="dbtn idle" onClick={requestMic}>↻ Retry Mic</button>}
-          <div className="dinfo">
-            <div className="dsec">{secLabel[sec]}</div>
-            <div className="dtxt" style={{color:isRec?"var(--dg)":micState==="error"?"var(--dg)":curDraft?"var(--ac)":"var(--mt)"}}>
-              {isRec?<span className="blink">🔴 {liveText||"Listening…"}</span>:micState==="processing"?<span className="blink">⚡ Processing…</span>:micState==="error"?micMsg:micState==="idle"?"↑ Enable mic to dictate":curDraft?`Draft ready (${curDraft.length} chars)`:"Press 🎙 Dictate to begin"}
+
+        <div className="page">{renderSection()}</div>
+
+        <div className="bot-bar">
+          {micState === "idle" && <button className="dbtn dbtn-idle" onClick={requestMic} disabled={!hasSR||!hasGUM}>Enable Mic</button>}
+          {micState === "requesting" && <button className="dbtn dbtn-wait">Requesting...</button>}
+          {(micState === "ready" || micState === "processing") && <button className="dbtn dbtn-idle" onClick={toggleRec} disabled={isProc}>{isProc ? "..." : "Dictate"}</button>}
+          {micState === "recording" && <button className="dbtn dbtn-rec" onClick={toggleRec}>Stop</button>}
+          {micState === "error" && <button className="dbtn dbtn-idle" onClick={requestMic}>Retry Mic</button>}
+          <div className="d-info">
+            <div className="d-sec">{SLAB[sec]}</div>
+            <div className="d-txt" style={{color: isRec ? "#e05555" : micState==="error" ? "#e05555" : curDraft ? "#10d9b0" : "#5e6882"}}>
+              {isRec ? <span className="pulse">{micLabel}</span> : micLabel}
             </div>
           </div>
-          <button className="btn bg" style={{fontSize:10,padding:"5px 11px",whiteSpace:"nowrap"}} onClick={()=>setPv(true)}>👁 Preview</button>
-          <button className="btn bg" style={{fontSize:10,padding:"5px 11px",whiteSpace:"nowrap"}} onClick={expW}>📄 .doc</button>
+          <button className="btn btn-gold" style={{fontSize:10,padding:"5px 12px",whiteSpace:"nowrap"}} onClick={()=>setShowPv(true)}>Preview</button>
+          <button className="btn btn-gold" style={{fontSize:10,padding:"5px 12px",whiteSpace:"nowrap"}} onClick={exportDoc}>.doc</button>
         </div>
       </div>
-      <div className={`pv ${pv?"open":""}`}>
-        <div className="pvh"><div style={{fontSize:13,fontWeight:700,color:"#333"}}>Preview — {data?.cv?.name||"Patient"}</div><button className="btn bs" style={{color:"#333",background:"#ddd",border:"1px solid #bbb",fontSize:10}} onClick={()=>setPv(false)}>✕</button></div>
-        <div className="pvd" dangerouslySetInnerHTML={{__html:buildRpt()}}/>
-        <div className="pva">
-          <button className="btn bp" onClick={()=>window.print()}>🖨 Print</button>
-          <button className="btn bg" onClick={expW}>📄 Export .doc</button>
+
+      {showPv && (
+        <div className="pv">
+          <div className="pv-bar">
+            <div style={{fontSize:13,fontWeight:700,color:"#333"}}>Preview — {(data.cv && data.cv.name) || "Patient"}</div>
+            <button className="btn btn-ghost" style={{color:"#333",background:"#ddd",border:"1px solid #bbb",fontSize:10}} onClick={()=>setShowPv(false)}>Close</button>
+          </div>
+          <div className="pv-doc" dangerouslySetInnerHTML={{__html: buildReport()}}/>
+          <div className="pv-act">
+            <button className="btn btn-teal" onClick={()=>window.print()}>Print / PDF</button>
+            <button className="btn btn-gold" onClick={exportDoc}>Export .doc</button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-// ── ROOT APP ────────────────────────────────────────────────────
-function App(){
-  const[user,setUser]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[view,setView]=useState("dash"); // dash | editor
-  const[activeReport,setActiveReport]=useState(null);
+// ── ROOT ──────────────────────────────────────────────────────────
+function App() {
+  const [user,     setUser]     = useState(undefined);
+  const [view,     setView]     = useState("dash");
+  const [activeId, setActiveId] = useState(null);
 
-  useEffect(()=>{
-    sb.auth.getSession().then(({data:{session}})=>{setUser(session?.user||null);setLoading(false);});
-    const{data:{subscription}}=sb.auth.onAuthStateChange((_,session)=>{setUser(session?.user||null);});
-    return()=>subscription.unsubscribe();
-  },[]);
+  useEffect(() => {
+    supa.auth.getSession().then(({data:{session}}) => {
+      setUser(session ? session.user : null);
+    });
+    const {data:{subscription}} = supa.auth.onAuthStateChange((_, session) => {
+      setUser(session ? session.user : null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const logout=async()=>{await sb.auth.signOut();setUser(null);setView("dash");setActiveReport(null);};
-
-  if(loading)return<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"var(--mt)",background:"var(--bg)"}}>Loading…</div>;
-  if(!user)return<AuthScreen onAuth={setUser}/>;
-  if(view==="editor")return<ReportEditor user={user} reportId={activeReport} onBack={()=>setView("dash")}/>;
-  return<Dashboard user={user} onOpen={id=>{setActiveReport(id);setView("editor");}} onNew={()=>{setActiveReport("new");setView("editor");}} onLogout={logout}/>;
+  if (user === undefined) return <div className="center" style={{color:"#5e6882"}}>Loading...</div>;
+  if (!user) return <Auth onAuth={u => { setUser(u); setView("dash"); }}/>;
+  if (view === "editor") return <Editor user={user} reportId={activeId} onBack={()=>setView("dash")}/>;
+  return (
+    <Dashboard
+      user={user}
+      onOpen={id => { setActiveId(id); setView("editor"); }}
+      onNew={() => { setActiveId("new"); setView("editor"); }}
+      onLogout={async () => { await supa.auth.signOut(); setUser(null); setView("dash"); }}
+    />
+  );
 }
 
-const root=ReactDOM.createRoot(document.getElementById("root"));
-root.render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
 </body>
 </html>
