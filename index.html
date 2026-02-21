@@ -1,917 +1,998 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Plus, FileText, Mic, Camera, Send, ArrowLeft, Loader2, CheckCircle2,
-  AlertCircle, Clock, User, Activity, ChevronRight, ClipboardList,
-  Edit3, Save, MicOff, RefreshCw, Stethoscope, Brain, Syringe,
-  FileSearch, Accessibility, X, Upload, Paperclip, ChevronLeft,
-  ImageIcon, Sparkles, Printer, Download, UserPlus, LayoutGrid,
-  Menu, Wand2, Lightbulb, Copy, Trash2, Eye, ArrowRight, Hash,
-  Zap, Shield, BookOpen, Search, BarChart3
+  FileText, Mic, Loader2, CheckCircle2, Clock, ChevronRight,
+  MicOff, Stethoscope, X, ChevronLeft, Sparkles, Printer,
+  Download, UserPlus, Table as TableIcon, Menu, Wand2, Lightbulb, Copy
 } from 'lucide-react';
 
-// ═══════════════════════════════════════════════════
-// CONSTANTS & CONFIGURATION
-// ═══════════════════════════════════════════════════
+// =============================================================================
+// CONFIGURATION — fill these in before deploying
+// =============================================================================
+const ANTHROPIC_API_KEY = "YOUR_ANTHROPIC_API_KEY_HERE"; // sk-ant-...
 
-const STORAGE_KEY = 'medisync_ortho_reports';
-const STORAGE_ACTIVE = 'medisync_ortho_active';
+// Supabase — leave both blank to use localStorage only (works offline, no setup)
+const SUPABASE_URL  = "";
+const SUPABASE_ANON = "";
+// =============================================================================
 
-const ORTHO_CHAPTERS = [
-  { id: 0, title: "Cover Page / Demographics", short: "Demographics", type: "form", icon: "user" },
-  { id: 1, title: "Chapter 1: Documents Perused", short: "Documents", type: "dictation", icon: "file" },
-  { id: 2, title: "Chapter 2: Occupational & Medical Hx", short: "History", type: "dictation", icon: "clipboard" },
-  {
-    id: 3, title: "Chapter 3: Summary of Hospital Records", short: "Hospital Records", type: "guided", icon: "building",
-    steps: [
-      "Mechanism and date of accident",
-      "EMS assessment on scene (presentation, complaints, GCS, suspected Dx)",
-      "Transfer to hospital (name, mode of transport)",
-      "Date of presentation and department",
-      "Complaints and findings on initial assessment",
-      "Immediate investigations/treatment rendered",
-      "Diagnosis",
-      "Admission, transfer, formal diagnosis",
-      "Definitive management and treatment (with dates)",
-      "Post-operative treatment and rehabilitation",
-      "Discharge, assistive devices, step-down treatment",
-      "Follow-up and review"
-    ]
+// Storage layer — auto-selects Supabase or localStorage
+let _supabase = null;
+if (SUPABASE_URL && SUPABASE_ANON && typeof window !== "undefined" && window.supabase) {
+  _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+}
+
+const DB = {
+  async load() {
+    if (_supabase) {
+      const { data, error } = await _supabase
+        .from("reports").select("*").order("created_at", { ascending: false });
+      if (error) { console.error("Supabase load:", error); return []; }
+      return data || [];
+    }
+    try { return JSON.parse(localStorage.getItem("medisync_reports") || "[]"); }
+    catch { return []; }
   },
-  { id: 4, title: "Chapter 4: Injuries Sustained", short: "Injuries", type: "auto", icon: "alert" },
-  { id: 5, title: "Chapter 5: Current Complaints", short: "Complaints", type: "dictation", icon: "message" },
-  { id: 6, title: "Chapter 6: Clinical Evaluation", short: "Clinical Exam", type: "msk_exam", icon: "stethoscope" },
-  { id: 7, title: "Chapter 7: Diagnosis", short: "Diagnosis", type: "dictation", icon: "brain" },
-  { id: 8, title: "Chapter 8: Further Treatment", short: "Treatment", type: "dictation", icon: "syringe" },
-  { id: 9, title: "Chapter 9: Disability & Impairment", short: "Disability", type: "disability", icon: "accessibility" },
-  { id: 10, title: "Chapter 10: Discussion", short: "Discussion", type: "dictation", icon: "book" }
+  async save(report) {
+    if (_supabase) {
+      const { error } = await _supabase.from("reports").upsert(report, { onConflict: "id" });
+      if (error) console.error("Supabase save:", error);
+      return;
+    }
+    try {
+      const all = JSON.parse(localStorage.getItem("medisync_reports") || "[]");
+      const idx = all.findIndex(r => r.id === report.id);
+      if (idx >= 0) all[idx] = report; else all.unshift(report);
+      localStorage.setItem("medisync_reports", JSON.stringify(all));
+    } catch (e) { console.error("localStorage save:", e); }
+  },
+  async create(data) {
+    const id = "rpt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+    const report = { ...data, id };
+    await DB.save(report);
+    return report;
+  },
+  async remove(id) {
+    if (_supabase) {
+      await _supabase.from("reports").delete().eq("id", id);
+      return;
+    }
+    try {
+      const all = JSON.parse(localStorage.getItem("medisync_reports") || "[]");
+      localStorage.setItem("medisync_reports", JSON.stringify(all.filter(r => r.id !== id)));
+    } catch (e) { console.error("localStorage delete:", e); }
+  }
+};
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+const ORTHO_CHAPTERS = [
+  { id: 0,  title: "Cover Page / Demographics",             type: "form"      },
+  { id: 1,  title: "Chapter 1: Documents Perused",          type: "dictation" },
+  { id: 2,  title: "Chapter 2: Occupational & Medical Hx",  type: "dictation" },
+  { id: 3,  title: "Chapter 3: Summary of Hospital Records", type: "guided",
+    steps: ["Mechanism and date of accident","EMS assessment on scene",
+      "Transfer to hospital","Presentation to hospital","Initial assessment",
+      "Investigations/Treatment","Diagnosis","Admission/Transfer",
+      "Definitive Management","Post-op Treatment/Rehab",
+      "Discharge/Assistive devices","Follow-up and review"] },
+  { id: 4,  title: "Chapter 4: Injuries Sustained",         type: "auto"      },
+  { id: 5,  title: "Chapter 5: Current Complaints",         type: "dictation" },
+  { id: 6,  title: "Chapter 6: Clinical Evaluation",        type: "msk_exam"  },
+  { id: 7,  title: "Chapter 7: Diagnosis",                  type: "dictation" },
+  { id: 8,  title: "Chapter 8: Further Treatment",          type: "dictation" },
+  { id: 9,  title: "Chapter 9: Disability & Impairment",    type: "disability"},
+  { id: 10, title: "Chapter 10: Discussion",                type: "dictation" }
 ];
 
 const MSK_REGIONS = [
-  { name: "Cervical Spine", prompts: ["Inspection", "Palpation", "ROM", "Neurology", "Spurling's Test", "Distraction Test"] },
-  { name: "Thoracic Spine", prompts: ["Inspection", "Palpation", "ROM", "Neurology", "Percussion"] },
-  { name: "Lumbar Spine", prompts: ["Inspection", "Palpation", "ROM", "Neurology", "SLR Test", "Slump Test"] },
-  { name: "Shoulder", prompts: ["Inspection", "Palpation", "Range of Motion", "Power, Sensation, Reflexes", "Neer Hawkins Test", "Job's Test", "Speed's Test", "Apprehension Test"] },
-  { name: "Elbow", prompts: ["Inspection", "Palpation", "Range of Motion", "Stability", "Neurovascular"] },
-  { name: "Wrist/Hand", prompts: ["Inspection", "Palpation", "Range of Motion", "Grip Strength", "Sensation", "Tinel's Test", "Phalen's Test"] },
-  { name: "Hip", prompts: ["Gait", "Inspection", "Palpation", "ROM", "Leg Length", "FABER Test", "Thomas Test"] },
-  { name: "Knee", prompts: ["Gait", "Inspection", "Palpation", "ROM", "Stability", "Lachman Test", "McMurray", "Anterior Drawer"] },
-  { name: "Ankle/Foot", prompts: ["Inspection", "Palpation", "ROM", "Power", "Sensation", "Thompson Test", "Anterior Drawer"] }
-];
-
-const GENERAL_EXAM_PROMPTS = [
-  "Gait",
-  "General impression",
-  "Assistive devices",
-  "Home language",
-  "Dexterity"
+  { name: "Cervical Spine", prompts: ["Inspection","Palpation","ROM","Neurology","Spurling's Test","Distraction Test"] },
+  { name: "Lumbar Spine",   prompts: ["Inspection","Palpation","ROM","Neurology","SLR Test","Slump Test"] },
+  { name: "Shoulder",       prompts: ["Inspection","Palpation","Range of Motion","Power, Sensation, Reflexes","Neer Hawkins Test","Job's Test"] },
+  { name: "Elbow",          prompts: ["Inspection","Palpation","Range of Motion","Stability","Neurovascular"] },
+  { name: "Wrist/Hand",     prompts: ["Inspection","Palpation","Grip Strength","Sensation"] },
+  { name: "Hip",            prompts: ["Gait","Palpation","ROM","Leg Length","FABER Test"] },
+  { name: "Knee",           prompts: ["Gait","Stability","Palpation","ROM","Lachman Test","McMurray"] },
+  { name: "Ankle/Foot",     prompts: ["Inspection","Palpation","ROM","Sensation","Thompson Test"] }
 ];
 
 const ADL_BASIC = [
-  "Bowel control", "Bladder control", "Grooming", "Toileting", "Feeding",
-  "Move from chair to bed", "Indoor mobility", "Dressing", "Stairs", "Bathing"
+  "Bowel control","Bladder control","Grooming","Toileting","Feeding",
+  "Move from chair to bed","Indoor mobility","Dressing","Stairs","Bathing"
 ];
-
 const ADL_ADVANCED = [
-  "Driving a car", "Sexual function", "Medical care", "Money management",
-  "Writing and communication", "Travelling", "Shopping", "Cooking", "Housework",
-  "Moderate activities: moving, pushing", "Vigorous activities: sport, heavy lifting"
+  "Driving a car","Sexual function","Medical care","Money management",
+  "Writing and communication","Travelling","Shopping","Cooking","Housework",
+  "Moderate activities: moving, pushing","Vigorous activities: sport, heavy lifting"
 ];
+const ADL_LABELS = ["N/A","None","Mild","Moderate","Severe"];
 
-const ADL_LABELS = ["N/A", "None", "Mild", "Moderate", "Severe"];
-
-const CHAPTER_ICONS = {
-  user: User, file: FileText, clipboard: ClipboardList, building: Activity,
-  alert: AlertCircle, message: Edit3, stethoscope: Stethoscope, brain: Brain,
-  syringe: Syringe, accessibility: Accessibility, book: BookOpen
-};
-
-// ═══════════════════════════════════════════════════
-// STORAGE HELPERS (localStorage persistence)
-// ═══════════════════════════════════════════════════
-
-function loadReports() {
-  try {
-    const raw = window.localStorage?.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function saveReports(reports) {
-  try { window.localStorage?.setItem(STORAGE_KEY, JSON.stringify(reports)); } catch {}
-}
-
-function saveActiveReport(report) {
-  try { window.localStorage?.setItem(STORAGE_ACTIVE, JSON.stringify(report)); } catch {}
-}
-
-function loadActiveReport() {
-  try {
-    const raw = window.localStorage?.getItem(STORAGE_ACTIVE);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
-
-// HTML escape for export
+// =============================================================================
+// HELPERS
+// =============================================================================
 function esc(s) {
   return String(s || "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// ═══════════════════════════════════════════════════
-// AI PROCESSING (Anthropic API via built-in)
-// ═══════════════════════════════════════════════════
-
-async function callAI(systemPrompt, userPrompt) {
+async function callAI(systemPrompt, userContent) {
+  if (!ANTHROPIC_API_KEY || ANTHROPIC_API_KEY === "YOUR_ANTHROPIC_API_KEY_HERE") {
+    console.warn("No Anthropic API key configured — AI features disabled.");
+    return null;
+  }
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
+        max_tokens: 2048,
         system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }]
+        messages: [{ role: "user", content: userContent }]
       })
     });
-    const data = await response.json();
-    const text = data.content?.filter(b => b.type === "text").map(b => b.text).join("\n") || "";
-    return text.trim();
-  } catch (err) {
-    console.error("AI call failed:", err);
-    return null;
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    return data.content?.find(b => b.type === "text")?.text?.trim() || null;
+  } catch (e) {
+    console.error("AI call failed:", e);
+    throw e;
   }
 }
 
-// ═══════════════════════════════════════════════════
+// =============================================================================
 // SUB-COMPONENTS
-// ═══════════════════════════════════════════════════
-
-function SidebarNav({ currentChapter, setCurrentChapter, chapterData, onClose }) {
-  const getCompletionStatus = (id) => {
-    const ch = chapterData?.find(c => c.id === id);
-    if (!ch) return 'empty';
-    const content = typeof ch.content === 'string' ? ch.content.trim() : '';
-    return content.length > 20 ? 'complete' : content.length > 0 ? 'partial' : 'empty';
-  };
-
-  return (
-    <div className="w-72 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col h-full border-r border-slate-800/50">
-      <div className="p-5 border-b border-slate-800/50">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
-            <Stethoscope className="w-4 h-4 text-sky-400" />
-          </div>
-          <div>
-            <div className="text-white text-xs font-bold tracking-wide">MediSync Ortho</div>
-            <div className="text-slate-500 text-[9px] font-semibold tracking-wider uppercase">Report Builder</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3 space-y-0.5" style={{ scrollbarWidth: 'thin', scrollbarColor: '#334155 transparent' }}>
-        {ORTHO_CHAPTERS.map((c) => {
-          const active = currentChapter === c.id;
-          const status = getCompletionStatus(c.id);
-          const Icon = CHAPTER_ICONS[c.icon] || FileText;
-          return (
-            <button
-              key={c.id}
-              onClick={() => { setCurrentChapter(c.id); onClose?.(); }}
-              className={`w-full text-left p-3 rounded-xl transition-all duration-200 flex items-center gap-3 group relative ${
-                active
-                  ? 'bg-sky-500/15 text-sky-300 shadow-lg shadow-sky-500/5'
-                  : 'text-slate-500 hover:bg-white/[0.03] hover:text-slate-300'
-              }`}
-            >
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-                active ? 'bg-sky-500/25 text-sky-300' : 'bg-slate-800/60 text-slate-600 group-hover:text-slate-400'
-              }`}>
-                <Icon className="w-3.5 h-3.5" />
-              </div>
-              <span className="text-[11px] font-semibold truncate flex-1">{c.short}</span>
-              <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors ${
-                status === 'complete' ? 'bg-emerald-500' : status === 'partial' ? 'bg-amber-500' : 'bg-slate-700'
-              }`} />
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="p-4 border-t border-slate-800/50">
-        <div className="flex items-center gap-2 text-[9px] text-slate-600 font-medium">
-          <Shield className="w-3 h-3" />
-          <span>RAF Medico-Legal Compliant</span>
-        </div>
-      </div>
+// =============================================================================
+const Sidebar = ({ currentChapter, setCurrentChapter, setShowMobileMenu, setFocusedPrompt }) => (
+  <div className="w-80 bg-slate-900 border-r border-white/5 flex flex-col h-full">
+    <div className="p-6 border-b border-white/5">
+      <h2 className="text-white font-black text-xs tracking-widest uppercase mb-1">MedLegal Workspace</h2>
+      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-tight">Report Navigation</p>
     </div>
-  );
-}
-
-function ADLTable({ title, items, type, adlData, onUpdate }) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className="bg-slate-900 px-5 py-4 flex items-center gap-2">
-        <BarChart3 className="w-4 h-4 text-sky-400" />
-        <span className="text-white text-xs font-bold tracking-wide">{title}</span>
-      </div>
-      <div className="grid grid-cols-7 bg-slate-50 px-4 py-2.5 border-b border-slate-100">
-        <div className="col-span-2 text-[9px] font-bold text-slate-500 uppercase tracking-wider">Activity</div>
-        {ADL_LABELS.map(l => (
-          <div key={l} className="text-center text-[9px] font-bold text-slate-500 uppercase tracking-wider">{l}</div>
-        ))}
-      </div>
-      {items.map(act => {
-        const val = adlData?.[act] ?? -1;
-        return (
-          <div key={act} className="grid grid-cols-7 px-4 py-3 border-b border-slate-50 items-center hover:bg-sky-50/30 transition-colors">
-            <div className="col-span-2 text-xs font-medium text-slate-700">{act}</div>
-            {ADL_LABELS.map((label, i) => (
-              <div key={i} className="flex justify-center">
-                <input
-                  type="radio"
-                  name={`adl-${type}-${act}`}
-                  checked={val === i}
-                  onChange={() => onUpdate(act, i)}
-                  className="w-4 h-4 text-sky-600 cursor-pointer accent-sky-600"
-                />
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ContentEditor({ value, onChange, placeholder, focusedPrompt }) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-[380px]">
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-100 flex-wrap">
-        <Edit3 className="w-3.5 h-3.5 text-slate-400" />
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Content Editor</span>
-        {focusedPrompt && (
-          <span className="bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider">
-            Focus: {focusedPrompt}
+    <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      {ORTHO_CHAPTERS.map((c, i) => (
+        <button key={i}
+          onClick={() => { setCurrentChapter(i); setShowMobileMenu(false); setFocusedPrompt(null); }}
+          className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 ${
+            currentChapter === i ? "bg-blue-600 text-white shadow-xl" : "text-slate-500 hover:bg-white/5"
+          }`}
+        >
+          <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+            currentChapter === i ? "bg-white/20" : "bg-slate-800"
+          }`}>{i + 1}</div>
+          <span className="text-[11px] font-black uppercase truncate">
+            {c.title.split(": ")[1] || c.title}
           </span>
-        )}
-      </div>
-      <textarea
-        className="flex-1 w-full px-6 py-4 text-sm leading-relaxed text-slate-800 outline-none resize-none bg-transparent min-h-[320px]"
-        placeholder={placeholder || "Dictate or type content here..."}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+        </button>
+      ))}
     </div>
-  );
-}
+  </div>
+);
 
-function Notification({ notification }) {
-  if (!notification.show) return null;
-  const colors = {
-    error: 'bg-red-900/95 text-red-200 border-red-700/50',
-    info: 'bg-slate-900/95 text-sky-300 border-sky-700/50',
-    success: 'bg-slate-900/95 text-emerald-300 border-emerald-700/50'
-  };
-  return (
-    <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] pointer-events-none" style={{ animation: 'slideDown 0.3s ease-out' }}>
-      <div className={`px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2.5 border text-xs font-semibold ${colors[notification.type] || colors.success}`}>
-        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-        {notification.message}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════
-// FINAL REPORT PREVIEW
-// ═══════════════════════════════════════════════════
-
-const FinalReportPreview = React.forwardRef(({ reportData }, ref) => {
-  const ch = (id) => {
-    const c = reportData?.chapters?.find(ch => ch.id === id);
-    return typeof c?.content === 'string' ? c.content : '';
-  };
-
-  const adlTable = (title, items, type) => (
-    <div className="mb-4">
-      <div className="font-bold text-xs mb-1 uppercase">{title}</div>
-      <table className="w-full text-[10px] border-collapse border border-slate-300">
-        <thead>
-          <tr className="bg-slate-100">
-            <th className="text-left p-1.5 border border-slate-300 font-bold w-40">Activity</th>
-            {ADL_LABELS.map(l => <th key={l} className="p-1.5 border border-slate-300 font-bold text-center w-16">{l}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {items.map(act => {
-            const val = reportData?.adl?.[type]?.[act] ?? -1;
-            return (
-              <tr key={act}>
-                <td className="p-1.5 border border-slate-300">{act}</td>
-                {ADL_LABELS.map((l, i) => (
-                  <td key={l} className="p-1.5 border border-slate-300 text-center font-bold text-sky-600">{val === i ? "\u2713" : ""}</td>
-                ))}
-              </tr>
-            );
+const ADLRow = React.memo(({ act, type, adlData, setReportData }) => (
+  <div className="grid grid-cols-6 p-4 border-b border-slate-100 items-center hover:bg-slate-50/50 transition-colors">
+    <div className="col-span-2 text-xs font-bold text-slate-700">{act}</div>
+    {ADL_LABELS.map((label, val) => (
+      <div key={val} className="flex justify-center">
+        <input
+          type="radio"
+          name={`${type}-${act}`}
+          checked={(adlData?.[act] ?? -1) === val}
+          onChange={() => setReportData(prev => {
+            if (!prev) return prev;
+            return { ...prev, adl: { ...prev.adl, [type]: { ...(prev.adl?.[type] || {}), [act]: val } } };
           })}
-        </tbody>
-      </table>
-    </div>
-  );
+          className="w-4 h-4 text-blue-600 cursor-pointer"
+        />
+      </div>
+    ))}
+  </div>
+));
 
+const FinalReportLayout = React.forwardRef(({ reportData }, ref) => {
+  const chContent = (id) => {
+    const raw = reportData?.chapters?.find(c => c.id === id)?.content;
+    return typeof raw === "string" ? raw : (raw ? JSON.stringify(raw, null, 2) : "No information entered.");
+  };
   return (
-    <div ref={ref} className="bg-white p-12 max-w-3xl mx-auto shadow-2xl min-h-screen font-serif text-slate-900 text-[11pt] leading-relaxed print:shadow-none print:p-0">
+    <div ref={ref} className="bg-white p-16 max-w-4xl mx-auto shadow-2xl min-h-screen text-[11pt] leading-relaxed font-serif text-slate-900 print:shadow-none print:p-0">
       {/* Header */}
-      <div className="flex justify-between items-start border-b-2 border-slate-900 pb-3 mb-6">
-        <div className="text-2xl font-black italic text-slate-300 tracking-tighter uppercase">[Practice Logo]</div>
+      <div className="flex justify-between border-b-2 border-slate-900 pb-4 mb-8">
+        <div className="text-4xl font-black italic text-slate-300 tracking-tighter uppercase leading-none">[PRACTICE LOGO]</div>
         <div className="text-right">
-          <div className="text-base font-bold uppercase">{reportData?.drName || "[Practitioner Name]"}</div>
-          <div className="text-[10px] italic">{reportData?.quals || "[Qualifications]"}</div>
-          <div className="text-[9px] text-slate-500 mt-0.5">[Address] &bull; [Contact Details]</div>
+          <div className="text-xl font-bold uppercase text-slate-900 leading-tight">{reportData?.drName || "[PRACTITIONER NAME]"}</div>
+          <div className="text-xs italic underline">{reportData?.quals || "[QUALIFICATIONS]"}</div>
+          <div className="text-[9pt] text-slate-500 mt-1 uppercase tracking-tighter">[ADDRESS] &bull; [CONTACT DETAILS]</div>
         </div>
       </div>
-
-      <h1 className="text-center text-sm font-bold underline uppercase mb-6 tracking-wider">Medico-Legal Report</h1>
-
-      {/* Demographics Table */}
-      <table className="w-full mb-6 text-[10.5pt]">
+      <h1 className="text-center text-lg font-bold underline mb-8 uppercase">Medico-Legal Report</h1>
+      {/* Demographics table */}
+      <table className="w-full mb-8 border-b border-slate-100 pb-4 text-[10.5pt]">
         <tbody>
           {[
-            ["Our Reference", reportData?.ref],
-            ["Attorney Reference", reportData?.attyRef],
-            ["Patient's Full Name", reportData?.patientName],
-            ["ID / Refugee Ref Number", reportData?.idNumber],
-            ["Gender", reportData?.gender],
-            ["Date of Birth", reportData?.dob],
-            ["Current Age", reportData?.age],
-            ["Residential Address", reportData?.address],
-            ["Contact Numbers", reportData?.contact],
-            ["Date of Injury", reportData?.doi],
-            ["Mechanism of Injury", reportData?.mechanism],
-            ["Pre-Accident Occupation", reportData?.preOcc],
+            ["Our Reference",            reportData?.ref],
+            ["Patient's Full Name",     reportData?.patientName],
+            ["Gender",                   reportData?.gender],
+            ["Date of Birth",            reportData?.dob],
+            ["Date of Injury",           reportData?.doi],
+            ["Mechanism of Injury",      reportData?.moi],
+            ["Date of Examination",      reportData?.doe],
+            ["Place of Examination",     reportData?.poe],
+            ["Pre-Accident Occupation",  reportData?.preOcc],
             ["Post-Accident Occupation", reportData?.postOcc],
-            ["Date of Examination", reportData?.doe],
-            ["Place of Examination", reportData?.poe],
-            ["Instructing Attorney", reportData?.atty],
-            ["Attorney Contact Details", reportData?.attyCon],
-          ].map(([k, v]) => v ? (
+            ["Instructing Attorney",     reportData?.atty],
+            ["Attorney Contact",         reportData?.attyCon],
+          ].map(([k, v]) => (
             <tr key={k}>
-              <td className="font-bold pr-4 py-0.5 w-52 align-top text-left">{k}:</td>
-              <td className={k === "Patient's Full Name" ? "font-bold uppercase" : ""}>{v || "---"}</td>
+              <td className="font-bold pr-4 py-0.5 w-52 align-top">{k}:</td>
+              <td className={k === "Patient's Full Name" ? "font-bold uppercase underline" : ""}>{v || "---"}</td>
             </tr>
-          ) : null)}
+          ))}
         </tbody>
       </table>
-
-      {/* Chapter Contents */}
-      {ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => {
-        const content = ch(c.id);
-        if (c.id === 9) {
-          return (
-            <div key={c.id} className="mb-5 break-inside-avoid">
-              <h2 className="font-bold uppercase mb-2 border-b border-slate-300 pb-1 text-[11pt]">{c.title}</h2>
-              <div className="pl-2">
-                {adlTable("9.1 Basic Activities of Daily Living", ADL_BASIC, "basic")}
-                {adlTable("9.1 Advanced Activities of Daily Living", ADL_ADVANCED, "advanced")}
-                {content && (
-                  <div className="mt-3">
-                    <div className="font-bold text-xs mb-1">9.2 Occupational Effects and Limitations</div>
-                    <div className="whitespace-pre-wrap text-[10.5pt]">{content}</div>
-                  </div>
-                )}
-              </div>
+      {/* Chapters */}
+      {ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => (
+        <div key={c.id} className="mb-6 break-inside-avoid">
+          <h2 className="font-bold uppercase mb-2 border-b border-slate-200 pb-1 text-[11pt]">{c.title}</h2>
+          {c.id === 9 ? (
+            <div className="pl-4">
+              {[["Basic ADL", ADL_BASIC, "basic"], ["Advanced ADL", ADL_ADVANCED, "advanced"]].map(([title, items, type]) => (
+                <div key={type} className="mb-4">
+                  <div className="font-bold text-[10pt] mb-1">{title}</div>
+                  <table className="w-full text-[9.5pt] border-collapse border border-slate-200">
+                    <thead>
+                      <tr className="bg-slate-50">
+                        <th className="text-left p-1 border border-slate-200 font-bold w-48">Activity</th>
+                        {ADL_LABELS.map(l => <th key={l} className="p-1 border border-slate-200 font-bold text-center w-16">{l}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map(act => {
+                        const val = reportData?.adl?.[type]?.[act] ?? -1;
+                        return (
+                          <tr key={act}>
+                            <td className="p-1 border border-slate-200">{act}</td>
+                            {ADL_LABELS.map((l, i) => (
+                              <td key={l} className="p-1 border border-slate-200 text-center font-bold text-blue-700">{val === i ? "x" : ""}</td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+              {chContent(9) && chContent(9) !== "No information entered." && (
+                <div className="whitespace-pre-wrap mt-3 text-[10.5pt]">{chContent(9)}</div>
+              )}
             </div>
-          );
-        }
-        return (
-          <div key={c.id} className="mb-5 break-inside-avoid">
-            <h2 className="font-bold uppercase mb-2 border-b border-slate-300 pb-1 text-[11pt]">{c.title}</h2>
-            <div className="whitespace-pre-wrap pl-2 text-[10.5pt] leading-6">
-              {content || "No information entered."}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Signature Block */}
-      <div className="mt-16 pt-8 border-t border-slate-300 text-center break-inside-avoid">
-        <div className="mb-2">_________________________</div>
-        <div className="font-bold text-sm mt-1">{reportData?.drName || "[Practitioner Name]"}</div>
-        <div className="text-xs italic uppercase tracking-widest">{reportData?.quals || "[Designation / Specialty]"}</div>
-        <p className="text-[9pt] text-slate-500 mt-6 max-w-md mx-auto">
-          VALIDITY: This report will remain valid to be used in a court of law for a period of 2 (two) years from the date of the first consultation.
+          ) : (
+            <div className="whitespace-pre-wrap pl-4 leading-6">{chContent(c.id)}</div>
+          )}
+        </div>
+      ))}
+      {/* Signature */}
+      <div className="mt-20 pt-10 border-t border-slate-200 text-center break-inside-avoid">
+        <div className="font-bold mb-2">_________________________</div>
+        <div className="font-bold text-[13pt] mt-1">{reportData?.drName || "[PRACTITIONER NAME]"}</div>
+        <div className="text-xs italic uppercase tracking-widest">{reportData?.quals || "[QUALIFICATIONS]"}</div>
+        <p className="text-[9pt] text-slate-500 mt-6 max-w-xl mx-auto">
+          VALIDITY: This report remains valid for use in a court of law for 2 (two) years from the date of first consultation.
+          If this matter has not been finalised within 2 (two) years, an updated Medico-Legal Report will be required.
         </p>
       </div>
     </div>
   );
 });
 
-
-// ═══════════════════════════════════════════════════
-// MAIN APPLICATION COMPONENT
-// ═══════════════════════════════════════════════════
-
-export default function MediSyncOrtho() {
-  // --- STATE ---
-  const [view, setView] = useState('dashboard');
+// =============================================================================
+// MAIN APP
+// =============================================================================
+export default function App() {
+  const [view,           setView]           = useState("dashboard");
   const [currentChapter, setCurrentChapter] = useState(0);
-  const [activeRegion, setActiveRegion] = useState(null);
-  const [focusedPrompt, setFocusedPrompt] = useState(null);
-  const [reports, setReports] = useState([]);
-  const [reportData, setReportData] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [activeRegion,   setActiveRegion]   = useState(null);
+  const [focusedPrompt,  setFocusedPrompt]  = useState(null);
+  const [reports,        setReports]        = useState([]);
+  const [reportData,     setReportData]     = useState(null);
+  const [isProcessing,   setIsProcessing]   = useState(false);
+  const [isRecording,    setIsRecording]    = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
+  const [isSyncing,      setIsSyncing]      = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [notification, setNotification] = useState({ show: false, message: '', type: 'info' });
-  const [searchTerm, setSearchTerm] = useState('');
+  const [notif,          setNotif]          = useState(null);
+  const [confirmDelete,  setConfirmDelete]  = useState(null); // report id pending delete
 
-  // --- REFS ---
   const isRecordingRef = useRef(false);
-  const accumulatedTranscriptRef = useRef("");
+  const accTranscript  = useRef("");
   const recognitionRef = useRef(null);
-  const reportRef = useRef(null);
-  const currentChapterRef = useRef(currentChapter);
-  const focusedPromptRef = useRef(focusedPrompt);
-  const activeRegionRef = useRef(activeRegion);
+  const reportRef      = useRef(null);
+  const chapterRef     = useRef(0);
+  const focusedRef     = useRef(null);
 
-  useEffect(() => { currentChapterRef.current = currentChapter; }, [currentChapter]);
-  useEffect(() => { focusedPromptRef.current = focusedPrompt; }, [focusedPrompt]);
-  useEffect(() => { activeRegionRef.current = activeRegion; }, [activeRegion]);
+  useEffect(() => { chapterRef.current = currentChapter; }, [currentChapter]);
+  useEffect(() => { focusedRef.current = focusedPrompt;  }, [focusedPrompt]);
 
-  // --- LOAD REPORTS FROM STORAGE ---
+  // Load reports on mount
   useEffect(() => {
-    setReports(loadReports());
+    DB.load().then(data => setReports(data.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))));
   }, []);
 
-  // --- AUTO-SAVE DEBOUNCED ---
+  // Debounced auto-save
   useEffect(() => {
-    if (!reportData || !reportData.id) return;
-    const timer = setTimeout(() => {
-      const all = loadReports();
-      const idx = all.findIndex(r => r.id === reportData.id);
-      if (idx >= 0) all[idx] = reportData;
-      else all.unshift(reportData);
-      saveReports(all);
-      saveActiveReport(reportData);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [reportData]);
+    if (!reportData?.id || isProcessing) return;
+    const t = setTimeout(async () => {
+      setIsSyncing(true);
+      await DB.save(reportData);
+      const all = await DB.load();
+      setReports(all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+      setIsSyncing(false);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [reportData, isProcessing]);
 
-  // --- NOTIFICATIONS ---
-  const notify = useCallback((message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 2500);
-  }, []);
+  // Page title
+  useEffect(() => {
+    document.title = reportData?.patientName
+      ? `${reportData.patientName.toUpperCase()} — MediSync`
+      : "MediSync MedLegal";
+  }, [reportData?.patientName]);
 
-  // --- CONTENT HELPERS ---
-  const getChapterContent = useCallback((id) => {
-    const c = reportData?.chapters?.find(ch => ch.id === id);
-    return typeof c?.content === 'string' ? c.content : '';
-  }, [reportData]);
+  function notify(msg, type = "success") {
+    setNotif({ msg, type });
+    setTimeout(() => setNotif(null), 3500);
+  }
 
-  const setChapterContent = useCallback((id, valOrFn) => {
+  // Chapter content helpers
+  function getContent(id) {
+    const raw = reportData?.chapters?.find(c => c.id === id)?.content;
+    return typeof raw === "string" ? raw : (raw ? JSON.stringify(raw, null, 2) : "");
+  }
+  function setContent(id, valOrFn) {
     setReportData(prev => {
       if (!prev) return prev;
       return {
         ...prev,
         chapters: prev.chapters.map(ch => {
           if (ch.id !== id) return ch;
-          const next = typeof valOrFn === 'function' ? valOrFn(ch.content || "") : valOrFn;
+          const next = typeof valOrFn === "function" ? valOrFn(ch.content || "") : valOrFn;
           return { ...ch, content: next };
         })
       };
     });
-  }, []);
+  }
 
-  const setField = useCallback((key, val) => {
-    setReportData(prev => prev ? { ...prev, [key]: val } : prev);
-  }, []);
-
-  const setADL = useCallback((type, act, val) => {
-    setReportData(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        adl: {
-          ...prev.adl,
-          [type]: { ...(prev.adl?.[type] || {}), [act]: val }
-        }
-      };
-    });
-  }, []);
-
-  // --- REPORT LIFECYCLE ---
-  const startNewReport = useCallback(() => {
-    const newReport = {
-      id: generateId(),
-      patientName: "",
-      ref: `RGML/REF/${new Date().getFullYear()}/`,
-      attyRef: "",
-      doi: "", dob: "", doe: "", gender: "Male",
-      age: "", address: "", contact: "", idNumber: "",
-      mechanism: "Motor Vehicle Accident",
-      poe: "RG Medlegal Rooms, Kings Court Centre, Walmer Heights, Gqeberha, 6070",
-      preOcc: "", postOcc: "",
-      atty: "", attyCon: "", drName: "", quals: "",
-      createdAt: Date.now(),
-      status: 'draft',
-      chapters: ORTHO_CHAPTERS.map(c => ({ id: c.id, content: "" })),
-      adl: { basic: {}, advanced: {} }
-    };
-    setReportData(newReport);
-    setCurrentChapter(0);
-    setView('workflow');
-    const all = loadReports();
-    all.unshift(newReport);
-    saveReports(all);
-    setReports(all);
-    notify("New case created", "info");
-  }, [notify]);
-
-  const openReport = useCallback((r) => {
-    setReportData(r);
-    setView('workflow');
-    setCurrentChapter(0);
-    setActiveRegion(null);
-    setFocusedPrompt(null);
-  }, []);
-
-  const deleteReport = useCallback((id, e) => {
-    e.stopPropagation();
-    const all = loadReports().filter(r => r.id !== id);
-    saveReports(all);
-    setReports(all);
-    notify("Report deleted");
-  }, [notify]);
-
-  // --- AI HANDLERS ---
-  const processDictation = useCallback(async (transcript, chapterId, prompt, region) => {
+  // ── AI handlers ──────────────────────────────────────────────────────────────
+  async function processDictation(transcript, chapterId, prompt) {
     setIsProcessing(true);
-    const chapterTitle = ORTHO_CHAPTERS[chapterId]?.title || "";
-    const result = await callAI(
-      "You are a medical scribe. Correct ONLY spelling, grammar, and punctuation. Do NOT change clinical facts, measurements, values, or observations. Return ONLY the corrected text with no preamble.",
-      `Context: "${chapterTitle}" ${prompt ? `(Section: ${prompt})` : ''} ${region ? `(Region: ${region})` : ''}\n\nRaw dictation:\n"${transcript}"`
-    );
+    const title = ORTHO_CHAPTERS[chapterId]?.title || "";
+    try {
+      const corrected = await callAI(
+        "You are a South African medical scribe. Correct ONLY spelling, grammar, and punctuation. " +
+        "Do NOT alter clinical facts, measurements, observations, or medical terminology. " +
+        "Return ONLY the corrected text — no preamble, no markdown, no explanations.",
+        `Chapter: "${title}"${prompt ? ` | Section: ${prompt}` : ""}
 
-    if (result) {
-      const regionLabel = region ? `${region} — ` : '';
-      const prefix = prompt ? `[${regionLabel}${prompt.toUpperCase()}]: ` : (region ? `[${region.toUpperCase()}]: ` : '');
+Transcript:
+${transcript}`
+      );
+      const text = (corrected || transcript).trim();
+      const heading = prompt ? `[${prompt.toUpperCase()}]: ` : "";
+      setContent(chapterId, prev => {
+        const ex = (prev || "").trim();
+        const sep = ex ? (prompt ? "
 
-      setChapterContent(chapterId, prev => {
-        const existing = (prev || "").trim();
-        const entry = `${prefix}${result}`;
-        return existing ? `${existing}\n\n${entry}` : entry;
+" : "
+") : "";
+        return ex ? `${ex}${sep}${heading}${text}` : `${heading}${text}`;
       });
-      notify("Transcription synced");
+      notify("Dictation synced ✓");
+    } catch (e) {
+      notify("AI unavailable — raw transcript saved.", "error");
+      const heading = prompt ? `[${prompt.toUpperCase()}]: ` : "";
+      setContent(chapterId, prev => {
+        const ex = (prev || "").trim();
+        const sep = ex ? "
+" : "";
+        return ex ? `${ex}${sep}${heading}${transcript.trim()}` : `${heading}${transcript.trim()}`;
+      });
     }
     setIsProcessing(false);
-  }, [setChapterContent, notify]);
+  }
 
-  const handleAutoExtract = useCallback(async () => {
-    const ch3 = getChapterContent(3);
+  async function handleAutoExtract() {
+    const ch3 = getContent(3);
     if (!ch3.trim()) { notify("Complete Chapter 3 first", "error"); return; }
     setIsProcessing(true);
-    const result = await callAI(
-      "You are an Orthopaedic Medico-Legal Specialist. Extract all injuries from hospital records into a clean numbered list. Be precise and clinical. Return only the list.",
-      ch3
-    );
-    if (result) {
-      setChapterContent(4, result);
-      notify("Injuries extracted");
-    }
+    try {
+      const result = await callAI(
+        "You are an orthopaedic medico-legal specialist. Extract ALL injuries from the provided hospital records. " +
+        "Format as a numbered list. Each distinct injury on its own line. Be precise and clinical. " +
+        "Return ONLY the list — no preamble.",
+        ch3
+      );
+      if (result) { setContent(4, result); notify("Injuries extracted ✓"); }
+    } catch (e) { notify("AI request failed", "error"); }
     setIsProcessing(false);
-  }, [getChapterContent, setChapterContent, notify]);
+  }
 
-  const handleDiagnosisAssistant = useCallback(async () => {
-    const ch6 = getChapterContent(6);
+  async function handleDiagnosisAssistant() {
+    const ch6 = getContent(6);
     if (!ch6.trim()) { notify("Complete Chapter 6 first", "error"); return; }
     setIsProcessing(true);
-    const result = await callAI(
-      "You are an Orthopaedic Medico-Legal Specialist. Based on physical exam findings, suggest formal numbered clinical diagnoses with sub-points for functional outcomes. Use the format from South African RAF medico-legal reports.",
-      `Clinical Examination Findings:\n${ch6}\n\nHospital Records:\n${getChapterContent(3)}`
-    );
-    if (result) {
-      setChapterContent(7, result);
-      notify("Diagnoses suggested");
-    }
+    try {
+      const result = await callAI(
+        "You are an orthopaedic medico-legal specialist writing a South African RAF4 report. " +
+        "Based on the clinical examination findings, write a formal numbered diagnosis list. " +
+        "Include sub-points describing functional outcomes and impairments. " +
+        "Use precise clinical terminology appropriate for court use. Return ONLY the list.",
+        ch6
+      );
+      if (result) { setContent(7, result); notify("Diagnoses suggested ✓"); }
+    } catch (e) { notify("AI request failed", "error"); }
     setIsProcessing(false);
-  }, [getChapterContent, setChapterContent, notify]);
+  }
 
-  const handleSmartDiscussion = useCallback(async () => {
+  async function handleSmartDiscussion() {
     setIsProcessing(true);
-    const context = [
-      `Patient: ${reportData?.patientName || "Unknown"}`,
-      `Date of Injury: ${reportData?.doi || "Unknown"}`,
-      `Mechanism: ${reportData?.mechanism || "Unknown"}`,
-      `Hospital Records:\n${getChapterContent(3)}`,
-      `Injuries:\n${getChapterContent(4)}`,
-      `Current Complaints:\n${getChapterContent(5)}`,
-      `Clinical Examination:\n${getChapterContent(6)}`,
-      `Diagnosis:\n${getChapterContent(7)}`,
-      `Further Treatment:\n${getChapterContent(8)}`
-    ].join("\n\n---\n\n");
+    try {
+      const context = [
+        `Patient: ${reportData?.patientName || "Unknown"}, DOI: ${reportData?.doi || "Unknown"}`,
+        `Occupation: ${reportData?.preOcc || "Unknown"}`,
+        `Hospital Records:
+${getContent(3)}`,
+        `Injuries:
+${getContent(4)}`,
+        `Current Complaints:
+${getContent(5)}`,
+        `Clinical Examination:
+${getContent(6)}`,
+        `Diagnosis:
+${getContent(7)}`,
+        `Further Treatment:
+${getContent(8)}`
+      ].join("
 
-    const result = await callAI(
-      "You are an Orthopaedic Medico-Legal Specialist writing a Discussion section for a South African RAF medico-legal report. Write 5-8 numbered professional paragraphs. Reference the Narrative Test criteria 5.1 (Serious long-term impairment or loss of body function). Include WPI assessment reference. Be authoritative and formal.",
-      context
-    );
-    if (result) {
-      setChapterContent(10, result);
-      notify("Discussion drafted");
-    }
+");
+      const result = await callAI(
+        "You are a senior orthopaedic surgeon writing a South African Road Accident Fund (RAF) medico-legal report. " +
+        "Write a formal Discussion section (6-8 paragraphs) covering: mechanism of injury, acute management, " +
+        "clinical findings and their significance, long-term functional impairment, " +
+        "qualification under Narrative Test criterion 5.1 (serious long-term impairment or loss of body function), " +
+        "effect on occupation and ADLs, prognosis, and life expectancy. " +
+        "Use authoritative clinical and medicolegal language appropriate for court. Return ONLY the discussion text.",
+        context
+      );
+      if (result) { setContent(10, result); notify("Discussion drafted ✓"); }
+    } catch (e) { notify("AI request failed", "error"); }
     setIsProcessing(false);
-  }, [reportData, getChapterContent, setChapterContent, notify]);
+  }
 
-  // --- VOICE RECORDING ---
-  const toggleVoice = useCallback(() => {
+  // ── Voice dictation ──────────────────────────────────────────────────────────
+  function toggleVoice() {
     if (isRecordingRef.current) {
       isRecordingRef.current = false;
       setIsRecording(false);
       recognitionRef.current?.stop();
-    } else {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) { notify("Speech recognition requires Chrome or Edge", "error"); return; }
-
-      const rec = new SR();
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.lang = "en-ZA";
-
-      rec.onresult = (e) => {
-        let finalText = "";
-        for (let i = e.resultIndex; i < e.results.length; ++i) {
-          if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
-        }
-        if (finalText) accumulatedTranscriptRef.current += finalText;
-        setLiveTranscript(accumulatedTranscriptRef.current);
-      };
-
-      rec.onerror = (e) => {
-        isRecordingRef.current = false;
-        setIsRecording(false);
-        const msgs = {
-          "not-allowed": "Microphone blocked — allow access in browser settings",
-          "no-speech": "No speech detected. Try again.",
-          "network": "Network error with speech service",
-          "audio-capture": "No microphone found"
-        };
-        notify(msgs[e.error] || `Mic error: ${e.error}`, "error");
-      };
-
-      rec.onend = () => {
-        if (isRecordingRef.current) {
-          try { rec.start(); } catch {}
-          return;
-        }
-        const text = accumulatedTranscriptRef.current.trim();
-        accumulatedTranscriptRef.current = "";
-        setLiveTranscript("");
-        setIsRecording(false);
-
-        if (text) {
-          processDictation(
-            text,
-            currentChapterRef.current,
-            focusedPromptRef.current,
-            activeRegionRef.current?.name
-          );
-        }
-      };
-
-      accumulatedTranscriptRef.current = "";
-      setLiveTranscript("");
-      isRecordingRef.current = true;
-      setIsRecording(true);
-      recognitionRef.current = rec;
-
-      try { rec.start(); } catch (e) {
-        isRecordingRef.current = false;
-        setIsRecording(false);
-        notify("Could not start microphone: " + e.message, "error");
-      }
+      return;
     }
-  }, [notify, processDictation]);
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { notify("Speech recognition requires Chrome or Edge", "error"); return; }
 
-  // --- EXPORT ---
-  const downloadAsWord = useCallback(() => {
-    if (!reportData) return;
-    const filename = `${(reportData.patientName || 'REPORT').replace(/\s+/g, '_').toUpperCase()}_MLR.doc`;
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-ZA";
 
-    const buildAdlHtml = (title, items, type) => {
-      const rows = items.map(act => {
-        const val = reportData?.adl?.[type]?.[act] ?? -1;
-        return `<tr><td style="padding:3px 6px;border:1px solid #ccc">${esc(act)}</td>` +
-          ADL_LABELS.map((l, i) => `<td style="text-align:center;border:1px solid #ccc;padding:3px">${val === i ? "\u2713" : ""}</td>`).join("") +
-          `</tr>`;
-      }).join("");
-      return `<p style="font-weight:bold;margin:12pt 0 4pt">${esc(title)}</p>
-        <table border="1" cellpadding="3" style="border-collapse:collapse;width:100%;font-size:10pt">
-        <thead><tr style="background:#f0f0f0"><th style="text-align:left;padding:3px 6px">Activity</th>${ADL_LABELS.map(l => `<th style="padding:3px">${l}</th>`).join("")}</tr></thead>
-        <tbody>${rows}</tbody></table>`;
+    rec.onresult = (e) => {
+      let final = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
+      }
+      if (final) accTranscript.current += final;
+      setLiveTranscript(accTranscript.current);
     };
 
-    const chaptersHtml = ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => {
-      const content = getChapterContent(c.id) || "Pending entry.";
-      if (c.id === 9) {
-        return `<h2 style="font-size:11pt;text-transform:uppercase;border-bottom:1px solid #ccc;padding-bottom:4pt;margin-top:18pt">${esc(c.title)}</h2>
-          ${buildAdlHtml("9.1 Basic Activities of Daily Living", ADL_BASIC, "basic")}
-          ${buildAdlHtml("9.1 Advanced Activities of Daily Living", ADL_ADVANCED, "advanced")}
-          <p style="font-weight:bold;margin:12pt 0 4pt">9.2 Occupational Effects and Limitations</p>
-          <div style="white-space:pre-wrap;margin-left:12pt">${esc(content)}</div>`;
-      }
-      return `<h2 style="font-size:11pt;text-transform:uppercase;border-bottom:1px solid #ccc;padding-bottom:4pt;margin-top:18pt">${esc(c.title)}</h2>
-        <div style="white-space:pre-wrap;margin-left:12pt">${esc(content)}</div>`;
-    }).join("\n");
+    rec.onerror = (e) => {
+      isRecordingRef.current = false;
+      setIsRecording(false);
+      const msgs = {
+        "not-allowed":    "Mic blocked — allow microphone access in browser settings",
+        "no-speech":      "No speech detected — speak closer to the mic",
+        "network":        "Network error with speech service",
+        "audio-capture":  "No microphone found"
+      };
+      notify(msgs[e.error] || `Mic error: ${e.error}`, "error");
+    };
 
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="utf-8"><title>Medico-Legal Report</title>
-<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
-<style>body{font-family:'Times New Roman',serif;font-size:11pt;color:#000;line-height:1.6;margin:72pt 72pt 72pt 72pt}h1{text-align:center;text-decoration:underline;font-size:13pt;text-transform:uppercase;margin-bottom:18pt}h2{font-weight:bold;font-size:11pt}table{font-family:'Times New Roman',serif}</style>
-</head><body>
-<table style="width:100%;border-bottom:2pt solid #000;margin-bottom:24pt"><tr>
-<td style="font-size:20pt;font-weight:bold;font-style:italic;color:#999">[PRACTICE LOGO]</td>
-<td style="text-align:right;font-size:10pt"><b>${esc(reportData.drName || "[PRACTITIONER NAME]")}</b><br><i>${esc(reportData.quals || "[QUALIFICATIONS]")}</i><br><small>[ADDRESS] &bull; [CONTACT]</small></td>
-</tr></table>
-<h1>MEDICO-LEGAL REPORT</h1>
-<table style="width:100%;margin-bottom:24pt;font-size:11pt"><tbody>
-${[
-  ["Our Reference", reportData.ref], ["Attorney Reference", reportData.attyRef],
-  ["Patient's Full Name", reportData.patientName], ["ID / Refugee Ref", reportData.idNumber],
-  ["Gender", reportData.gender], ["Date of Birth", reportData.dob],
-  ["Current Age", reportData.age], ["Residential Address", reportData.address],
-  ["Contact Numbers", reportData.contact], ["Date of Injury", reportData.doi],
-  ["Mechanism of Injury", reportData.mechanism],
-  ["Pre-Accident Occupation", reportData.preOcc], ["Post-Accident Occupation", reportData.postOcc],
-  ["Date of Examination", reportData.doe], ["Place of Examination", reportData.poe],
-  ["Instructing Attorney", reportData.atty], ["Attorney Contact Details", reportData.attyCon],
-].filter(([,v]) => v).map(([k,v]) => `<tr><td style="font-weight:bold;width:40%;padding:2pt 6pt;vertical-align:top">${esc(k)}:</td><td style="padding:2pt 6pt">${k === "Patient's Full Name" ? `<b><u>${esc(v)}</u></b>` : esc(v)}</td></tr>`).join("\n")}
-</tbody></table>
-${chaptersHtml}
-<div style="margin-top:60pt;text-align:center;border-top:1pt solid #ccc;padding-top:24pt">
-<br><div>_________________________</div>
-<div style="font-weight:bold;font-size:12pt;margin-top:4pt">${esc(reportData.drName || "[PRACTITIONER NAME]")}</div>
-<div style="font-style:italic">${esc(reportData.quals || "[DESIGNATION / SPECIALTY]")}</div>
-<p style="font-size:9pt;color:#666;margin-top:18pt;max-width:400px;margin-left:auto;margin-right:auto">VALIDITY: This report will remain valid to be used in a court of law for a period of 2 (two) years from the date of the first consultation.</p>
-</div></body></html>`;
+    rec.onend = () => {
+      if (isRecordingRef.current) { try { rec.start(); } catch(e) {} return; }
+      const text = accTranscript.current.trim();
+      accTranscript.current = "";
+      setLiveTranscript("");
+      setIsRecording(false);
+      if (text) processDictation(text, chapterRef.current, focusedRef.current);
+    };
 
-    const blob = new Blob([html], { type: 'application/msword;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    notify(`Exported: ${filename}`);
-  }, [reportData, getChapterContent, notify]);
+    accTranscript.current = "";
+    setLiveTranscript("");
+    isRecordingRef.current = true;
+    setIsRecording(true);
+    recognitionRef.current = rec;
+    try { rec.start(); }
+    catch (e) {
+      isRecordingRef.current = false;
+      setIsRecording(false);
+      notify("Could not start mic: " + e.message, "error");
+    }
+  }
 
-  const copyToClipboard = useCallback(() => {
+  // ── Start new report ─────────────────────────────────────────────────────────
+  async function startNewReport() {
+    setIsProcessing(true);
+    const report = await DB.create({
+      patientName: "", ref: `RGML/REF/${new Date().getFullYear()}/`,
+      doi: "", dob: "", doe: "", moi: "Motor Vehicle Accident", gender: "Male",
+      poe: "RG Medlegal Rooms, Kings Court Centre, Walmer Heights, Gqeberha",
+      preOcc: "", postOcc: "", atty: "", attyCon: "", drName: "", quals: "",
+      createdAt: Date.now(),
+      chapters: ORTHO_CHAPTERS.map(c => ({ id: c.id, content: "" })),
+      adl: { basic: {}, advanced: {} }
+    });
+    setReportData(report);
+    setCurrentChapter(0);
+    setView("ortho-workflow");
+    setIsProcessing(false);
+  }
+
+  // ── Delete report ────────────────────────────────────────────────────────────
+  async function deleteReport(id) {
+    await DB.remove(id);
+    const all = await DB.load();
+    setReports(all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+    setConfirmDelete(null);
+    notify("Report deleted.");
+  }
+
+  // ── Export: copy HTML to clipboard ──────────────────────────────────────────
+  function copyToClipboard() {
     if (!reportRef.current) return;
-    const el = document.createElement('div');
+    const el = document.createElement("div");
     el.innerHTML = reportRef.current.innerHTML;
-    el.style.position = 'fixed';
-    el.style.left = '-9999px';
+    el.style.cssText = "position:fixed;left:-9999px;top:0";
     document.body.appendChild(el);
     const range = document.createRange();
     range.selectNodeContents(el);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    try {
-      document.execCommand('copy');
-      notify("Copied! Paste into Word.");
-    } catch {
-      notify("Copy failed", "error");
-    }
+    try { document.execCommand("copy"); notify("Copied! Paste into Word."); }
+    catch (e) { notify("Copy failed. Use Print to PDF.", "error"); }
     document.body.removeChild(el);
-  }, [notify]);
+  }
 
-  // --- FILTERED REPORTS ---
-  const filteredReports = useMemo(() => {
-    if (!searchTerm) return reports;
-    const s = searchTerm.toLowerCase();
-    return reports.filter(r =>
-      (r.patientName || '').toLowerCase().includes(s) ||
-      (r.ref || '').toLowerCase().includes(s)
-    );
-  }, [reports, searchTerm]);
+  // ── Export: download .doc ────────────────────────────────────────────────────
+  function downloadAsWord() {
+    const patName = esc(reportData?.patientName || "PATIENT").replace(/\s+/g, "_").toUpperCase();
 
-  const currentChapterDef = ORTHO_CHAPTERS[currentChapter];
+    function adlHtml(title, items, type) {
+      const rows = items.map(act => {
+        const val = reportData?.adl?.[type]?.[act] ?? -1;
+        return `<tr><td style="width:220px;padding:3pt 6pt">${esc(act)}</td>` +
+          ADL_LABELS.map((l, i) => `<td style="text-align:center;padding:3pt 6pt">${val === i ? "x" : ""}</td>`).join("") +
+          `</tr>`;
+      }).join("");
+      return `<p style="font-weight:bold;margin:10pt 0 3pt">${title}</p>
+<table border="1" cellpadding="3" style="border-collapse:collapse;width:100%;font-size:10pt">
+<thead><tr style="background:#f5f5f5"><th style="text-align:left;padding:3pt 6pt">Activity</th>${ADL_LABELS.map(l => `<th style="padding:3pt 6pt">${l}</th>`).join("")}</tr></thead>
+<tbody>${rows}</tbody></table>`;
+    }
 
-  // ═══════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════
+    const chaptersHtml = ORTHO_CHAPTERS.filter(c => c.id > 0).map(c => {
+      const body = getContent(c.id) || "Pending entry.";
+      if (c.id === 9) {
+        return `<p class="chap-t">${esc(c.title)}</p>
+<div class="chap-c">
+${adlHtml("Basic Activities of Daily Living", ADL_BASIC, "basic")}
+${adlHtml("Advanced Activities of Daily Living", ADL_ADVANCED, "advanced")}
+${body !== "Pending entry." ? `<p style="white-space:pre-wrap;margin-top:10pt">${esc(body)}</p>` : ""}
+</div>`;
+      }
+      return `<p class="chap-t">${esc(c.title)}</p><div class="chap-c">${esc(body)}</div>`;
+    }).join("
+");
 
-  return (
-    <div className="min-h-screen bg-slate-100 flex flex-col relative overflow-hidden" style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}>
-      <style>{`
-        @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
-        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 70% { box-shadow: 0 0 0 12px rgba(239,68,68,0); } }
-        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
-        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-        .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-      `}</style>
+    const mhtml = `MIME-Version: 1.0
+Content-Type: multipart/related; boundary="MEDISYNC_BOUNDARY"
 
-      {/* HEADER */}
-      <header className="bg-slate-950 text-white px-4 py-3 flex justify-between items-center z-[60] border-b border-slate-800/50">
-        <div className="flex items-center gap-3">
-          {view === 'workflow' && (
-            <button onClick={() => setShowMobileMenu(true)} className="lg:hidden p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors">
-              <Menu className="w-4 h-4" />
-            </button>
-          )}
-          <div className="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
-            <Stethoscope className="w-4 h-4 text-sky-400" />
+--MEDISYNC_BOUNDARY
+Content-Type: text/html; charset="utf-8"
+Content-Location: report.html
+
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Medico-Legal Report</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->
+<style>
+body{font-family:"Times New Roman",serif;font-size:11pt;color:#000;line-height:1.5;margin:2.5cm}
+h1{text-align:center;text-decoration:underline;font-size:14pt;text-transform:uppercase;margin:0 0 22pt}
+.hdr-table{width:100%;border-bottom:2pt solid #000;margin-bottom:28pt}
+.meta-t{width:100%;border-bottom:1pt solid #ccc;margin-bottom:22pt}
+.meta-t td{padding:2pt 6pt;vertical-align:top;font-size:11pt}
+.lbl{font-weight:bold;width:38%}
+.chap-t{font-weight:bold;text-decoration:underline;text-transform:uppercase;margin:18pt 0 6pt;font-size:11pt;display:block}
+.chap-c{margin-left:14pt;white-space:pre-wrap;margin-bottom:18pt;font-size:11pt}
+.sig{margin-top:80pt;text-align:center}
+</style></head>
+<body>
+<table class="hdr-table"><tr>
+  <td style="font-size:22pt;font-weight:bold;font-style:italic;color:#bbb">[PRACTICE LOGO]</td>
+  <td style="text-align:right;font-size:10pt">
+    <b>${esc(reportData?.drName || "[PRACTITIONER NAME]")}</b><br>
+    <i>${esc(reportData?.quals || "[QUALIFICATIONS]")}</i><br>
+    <small>[ADDRESS] &bull; [CONTACT]</small>
+  </td>
+</tr></table>
+<h1>MEDICO-LEGAL REPORT</h1>
+<table class="meta-t"><tbody>
+<tr><td class="lbl">Our Reference:</td><td>${esc(reportData?.ref)}</td></tr>
+<tr><td class="lbl">Patient's Full Name:</td><td><b><u>${esc(reportData?.patientName)}</u></b></td></tr>
+<tr><td class="lbl">Gender:</td><td>${esc(reportData?.gender)}</td></tr>
+<tr><td class="lbl">Date of Birth:</td><td>${esc(reportData?.dob)}</td></tr>
+<tr><td class="lbl">Date of Injury:</td><td>${esc(reportData?.doi)}</td></tr>
+<tr><td class="lbl">Mechanism of Injury:</td><td>${esc(reportData?.moi)}</td></tr>
+<tr><td class="lbl">Date of Examination:</td><td>${esc(reportData?.doe)}</td></tr>
+<tr><td class="lbl">Place of Examination:</td><td>${esc(reportData?.poe)}</td></tr>
+<tr><td class="lbl">Pre-Accident Occupation:</td><td>${esc(reportData?.preOcc)}</td></tr>
+<tr><td class="lbl">Post-Accident Occupation:</td><td>${esc(reportData?.postOcc)}</td></tr>
+<tr><td class="lbl">Instructing Attorney:</td><td>${esc(reportData?.atty)}</td></tr>
+<tr><td class="lbl">Attorney Contact:</td><td>${esc(reportData?.attyCon)}</td></tr>
+</tbody></table>
+${chaptersHtml}
+<div class="sig">
+  <br><br>
+  <div>_________________________</div>
+  <div><b>${esc(reportData?.drName || "[PRACTITIONER NAME]")}</b></div>
+  <div><i>${esc(reportData?.quals || "[QUALIFICATIONS]")}</i></div>
+  <p style="font-size:9pt;color:#666;margin-top:14pt;max-width:400px;margin-left:auto;margin-right:auto">
+    VALIDITY: This report remains valid for use in a court of law for 2 (two) years from the date of first consultation.
+    If this matter has not been finalised within 2 (two) years, an updated report will be required.
+  </p>
+</div>
+</body></html>
+--MEDISYNC_BOUNDARY--`;
+
+    const blob = new Blob([mhtml], { type: "application/msword;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `${patName}_MEDLEGAL.doc`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify(`Exported: ${patName}_MEDLEGAL.doc`);
+  }
+
+  // ── Chapter content renderer ─────────────────────────────────────────────────
+  function renderContent() {
+    const ch = ORTHO_CHAPTERS[currentChapter];
+
+    // 0: Cover / Demographics
+    if (currentChapter === 0) {
+      const fields = [
+        { key: "ref",     label: "Our Reference" },
+        { key: "doi",     label: "Date of Injury",          type: "date" },
+        { key: "dob",     label: "Date of Birth",           type: "date" },
+        { key: "moi",     label: "Mechanism of Injury" },
+        { key: "doe",     label: "Date of Examination",     type: "date" },
+        { key: "poe",     label: "Place of Examination" },
+        { key: "preOcc",  label: "Pre-Accident Occupation" },
+        { key: "postOcc", label: "Post-Accident Occupation" },
+        { key: "atty",    label: "Instructing Attorney" },
+        { key: "attyCon", label: "Attorney Contact" },
+        { key: "drName",  label: "Practitioner Name" },
+        { key: "quals",   label: "Qualifications / Title" },
+      ];
+      return (
+        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Patient Full Name</label>
+            <input type="text"
+              className="w-full bg-slate-50 border-0 rounded-xl p-4 font-black uppercase text-xl text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="SURNAME FIRSTNAME"
+              value={reportData?.patientName || ""}
+              onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, patientName: v })); }}
+            />
           </div>
-          <div>
-            <div className="text-sm font-bold tracking-tight">MediSync <span className="text-sky-400">Ortho</span></div>
-            <div className="text-[9px] text-slate-500 font-medium tracking-wider">MEDICO-LEGAL REPORT ENGINE</div>
+          {fields.map(f => (
+            <div key={f.key} className="flex flex-col gap-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{f.label}</label>
+              <input type={f.type || "text"}
+                className="bg-slate-50 border-0 rounded-xl p-3 font-medium focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                value={reportData?.[f.key] || ""}
+                onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, [f.key]: v })); }}
+              />
+            </div>
+          ))}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Gender</label>
+            <select className="bg-slate-50 border-0 rounded-xl p-3 font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+              value={reportData?.gender || "Male"}
+              onChange={e => { const v = e.target.value; setReportData(prev => ({ ...prev, gender: v })); }}>
+              <option>Male</option><option>Female</option><option>Other</option>
+            </select>
           </div>
         </div>
-        <div className="flex gap-2 items-center">
-          {view === 'workflow' && (
-            <button onClick={() => setView('preview')} className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 transition-colors">
-              <Eye className="w-3.5 h-3.5" /> Preview
+      );
+    }
+
+    // 9: Disability / ADL
+    if (currentChapter === 9) {
+      return (
+        <div className="space-y-8">
+          {[["Basic Activities of Daily Living", ADL_BASIC, "basic"],
+            ["Advanced Activities of Daily Living", ADL_ADVANCED, "advanced"]
+          ].map(([title, items, type]) => (
+            <div key={type} className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+              <div className="bg-slate-900 p-5 text-white text-xs font-black uppercase flex items-center gap-2">
+                <TableIcon className="w-4 h-4 text-blue-400" /> {title}
+              </div>
+              <div className="grid grid-cols-6 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase text-slate-400 border-b border-slate-100">
+                <div className="col-span-2">Activity</div>
+                {ADL_LABELS.map(l => <div key={l} className="text-center">{l}</div>)}
+              </div>
+              {items.map(a => (
+                <ADLRow key={a} act={a} type={type}
+                  adlData={reportData?.adl?.[type]}
+                  setReportData={setReportData}
+                />
+              ))}
+            </div>
+          ))}
+          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+              9.2 Occupational Effects &amp; Limitations
+            </div>
+            <textarea
+              className="w-full min-h-[220px] text-base leading-relaxed font-medium text-slate-800 outline-none resize-none bg-transparent"
+              placeholder="Dictate or type occupational effects and limitations..."
+              value={getContent(9)}
+              onChange={e => setContent(9, e.target.value)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // All dictation chapters
+    return (
+      <div className="space-y-4">
+        {/* Ch3: sub-section selector */}
+        {ch.id === 3 && (
+          <div className="bg-slate-900 p-7 rounded-[2rem] border border-white/5">
+            <div className="flex items-center gap-3 mb-5 text-slate-400">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Select sub-section then dictate</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {ch.steps.map(step => (
+                <button key={step}
+                  onClick={() => { setFocusedPrompt(step); notify(`Focus: ${step}`, "info"); }}
+                  className={`text-left p-3 rounded-xl border text-[10px] font-black uppercase transition-all flex items-center justify-between ${
+                    focusedPrompt === step
+                      ? "bg-blue-600 border-blue-500 text-white shadow-lg"
+                      : "bg-white/5 border-white/10 text-slate-500 hover:bg-white/10"
+                  }`}>
+                  {step}
+                  {focusedPrompt === step && <CheckCircle2 className="w-3 h-3 text-white flex-shrink-0" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Ch6: MSK region + exam prompt selector */}
+        {ch.type === "msk_exam" && (
+          <div className="bg-slate-900 p-7 rounded-[2rem] border border-white/5">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Select Region to Examine</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+              {MSK_REGIONS.map(reg => (
+                <button key={reg.name}
+                  onClick={() => { setActiveRegion(reg); setFocusedPrompt(null); }}
+                  className={`p-3 rounded-xl border text-[10px] font-black uppercase transition-all ${
+                    activeRegion?.name === reg.name
+                      ? "bg-blue-600 border-blue-500 text-white shadow-lg"
+                      : "bg-white/5 border-white/10 text-slate-500 hover:bg-white/10"
+                  }`}>{reg.name}</button>
+              ))}
+            </div>
+            {activeRegion && (
+              <div className="pt-5 border-t border-white/10">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                  {activeRegion.name} — Examination Prompts
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {activeRegion.prompts.map(p => (
+                    <button key={p}
+                      onClick={() => { setFocusedPrompt(p); notify(`${activeRegion.name} — ${p}`, "info"); }}
+                      className={`p-2.5 rounded-xl border text-[9px] font-black uppercase transition-all ${
+                        focusedPrompt === p
+                          ? "bg-purple-600 border-purple-500 text-white shadow-lg"
+                          : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                      }`}>{p}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI assist panel */}
+        {(ch.id === 4 || ch.id === 7 || ch.id === 10) && (
+          <div className="bg-amber-50 border border-amber-200 p-5 rounded-[1.5rem] flex items-center gap-3 flex-wrap">
+            <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">AI Assist</span>
+            {ch.id === 4  && <button onClick={handleAutoExtract}       disabled={isProcessing} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 disabled:opacity-40 hover:bg-blue-700 transition-colors"><Sparkles className="w-4 h-4"/> Auto-Extract from Ch.3</button>}
+            {ch.id === 7  && <button onClick={handleDiagnosisAssistant} disabled={isProcessing} className="bg-purple-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 disabled:opacity-40 hover:bg-purple-700 transition-colors"><Lightbulb className="w-4 h-4"/> Suggest Diagnoses</button>}
+            {ch.id === 10 && <button onClick={handleSmartDiscussion}    disabled={isProcessing} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 disabled:opacity-40 hover:bg-indigo-700 transition-colors"><Wand2 className="w-4 h-4"/> Draft Discussion</button>}
+          </div>
+        )}
+
+        {/* Text area */}
+        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200 min-h-[400px] flex flex-col">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100 flex-shrink-0 flex-wrap">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Content</span>
+            {focusedPrompt && (
+              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
+                {focusedPrompt}
+                <button onClick={() => setFocusedPrompt(null)} className="ml-1 opacity-50 hover:opacity-100">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+          <textarea
+            className="flex-1 w-full text-base leading-relaxed font-medium text-slate-800 outline-none resize-none bg-transparent min-h-[320px]"
+            placeholder={`Dictate or type content for ${ch.title}...`}
+            value={getContent(ch.id)}
+            onChange={e => setContent(ch.id, e.target.value)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // =============================================================================
+  // RENDER
+  // =============================================================================
+  return (
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 overflow-hidden">
+
+      {/* ── Header ── */}
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-xl sticky top-0 z-[60]">
+        <div className="flex items-center gap-3">
+          {view === "ortho-workflow" && (
+            <button onClick={() => setShowMobileMenu(true)} className="lg:hidden p-2 bg-slate-800 rounded-lg">
+              <Menu className="w-5 h-5" />
             </button>
           )}
-          {view !== 'dashboard' && (
-            <button onClick={() => { setView('dashboard'); setReports(loadReports()); }} className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-colors">
-              Dashboard
+          <div className="bg-blue-600 p-2 rounded-xl shadow-lg"><Stethoscope className="w-5 h-5" /></div>
+          <div>
+            <h1 className="text-sm font-black tracking-tighter uppercase leading-none">
+              MediSync <span className="text-blue-400">Ortho</span>
+            </h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? "bg-amber-400 animate-pulse" : "bg-green-500"}`} />
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                {isSyncing ? "Saving..." : _supabase ? "Supabase" : "Local Storage"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {view === "ortho-workflow" && (
+            <button onClick={() => setView("final-preview")}
+              className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 shadow-lg active:scale-95 transition-all">
+              <FileText className="w-4 h-4" /> Preview
+            </button>
+          )}
+          {view !== "dashboard" && (
+            <button onClick={() => { setView("dashboard"); setReportData(null); }}
+              className="bg-slate-800 text-slate-400 px-4 py-2 rounded-xl text-[10px] font-black hover:bg-slate-700 transition-colors uppercase">
+              Exit
             </button>
           )}
         </div>
       </header>
 
-      <Notification notification={notification} />
+      {/* ── Toast notification ── */}
+      {notif && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
+          <div className={`px-5 py-3 rounded-full shadow-2xl flex items-center gap-3 text-sm font-bold ${
+            notif.type === "error" ? "bg-red-900 text-red-200" :
+            notif.type === "info"  ? "bg-slate-700 text-blue-200" :
+                                     "bg-slate-900 text-green-300"
+          }`}>
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            {notif.msg}
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete confirmation modal ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6">
+          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-slate-100 max-w-sm w-full">
+            <h3 className="text-lg font-black uppercase tracking-tight text-slate-900 mb-2">Delete Report?</h3>
+            <p className="text-slate-500 text-sm mb-8">This cannot be undone.</p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => setConfirmDelete(null)}
+                className="px-6 py-3 rounded-2xl bg-slate-100 text-slate-700 font-black text-sm uppercase hover:bg-slate-200 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => deleteReport(confirmDelete)}
+                className="px-6 py-3 rounded-2xl bg-red-600 text-white font-black text-sm uppercase hover:bg-red-700 transition-colors">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 flex overflow-hidden">
 
-        {/* ═══════ DASHBOARD ═══════ */}
-        {view === 'dashboard' && (
-          <div className="flex-1 overflow-y-auto p-6 lg:p-10">
-            <div className="max-w-5xl mx-auto">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
-                <div className="text-left">
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-tight">Case Reports</h2>
-                  <p className="text-slate-500 text-sm mt-1">Orthopaedic Medico-Legal Workflow</p>
+        {/* ════════════ DASHBOARD ════════════ */}
+        {view === "dashboard" && (
+          <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+                <div>
+                  <h2 className="text-4xl font-black text-slate-900 mb-2 tracking-tighter uppercase">Legal Reports</h2>
+                  <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Orthopaedic Medico-Legal Workflow</p>
                 </div>
-                <button onClick={startNewReport} className="bg-sky-600 hover:bg-sky-500 text-white px-6 py-3.5 rounded-2xl shadow-lg shadow-sky-600/20 font-bold text-xs uppercase flex items-center gap-2 transition-all active:scale-[0.97]">
-                  <Plus className="w-4 h-4" /> New Case
+                <button onClick={startNewReport} disabled={isProcessing}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl shadow-xl font-black text-xs tracking-widest uppercase flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+                  <UserPlus className="w-5 h-5" /> Start New Case
                 </button>
               </div>
-
-              {reports.length > 3 && (
-                <div className="relative mb-6">
-                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by patient name or reference..."
-                    className="w-full pl-11 pr-4 py-3 bg-white rounded-2xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              )}
-
-              {filteredReports.length === 0 ? (
-                <div className="text-center py-20 text-slate-400">
-                  <Stethoscope className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                  <p className="font-bold text-sm">{searchTerm ? 'No matching reports' : 'No reports yet'}</p>
-                  <p className="text-xs mt-1">{searchTerm ? 'Try a different search term' : 'Click "New Case" to begin'}</p>
+              {reports.length === 0 ? (
+                <div className="text-center py-24 text-slate-400">
+                  <Stethoscope className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p className="font-black uppercase tracking-widest text-sm">No reports yet</p>
+                  <p className="text-xs mt-1">Click "Start New Case" to begin</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredReports.map(r => (
-                    <div
-                      key={r.id}
-                      onClick={() => openReport(r)}
-                      className="bg-white p-6 rounded-2xl border border-slate-100 hover:shadow-xl hover:border-sky-200 transition-all cursor-pointer group flex flex-col active:scale-[0.98]"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="text-[9px] font-bold text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full uppercase tracking-wide">
-                          #{String(r.id).slice(0, 6)}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {reports.map(r => (
+                    <div key={r.id}
+                      className="bg-white p-7 rounded-[2rem] border border-slate-100 hover:shadow-2xl transition-all cursor-pointer group flex flex-col active:scale-[0.98] relative"
+                      onClick={() => { setReportData(r); setView("ortho-workflow"); setCurrentChapter(0); }}>
+                      {/* Delete button */}
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDelete(r.id); }}
+                        className="absolute top-5 right-5 w-7 h-7 rounded-full bg-slate-100 hover:bg-red-100 hover:text-red-600 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="flex justify-between items-start mb-5">
+                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">
+                          CASE #{String(r.id).slice(-6).toUpperCase()}
                         </span>
-                        <button
-                          onClick={(e) => deleteReport(r.id, e)}
-                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <Clock className="w-4 h-4 text-slate-300" />
                       </div>
-                      <h3 className="text-base font-bold text-slate-900 mb-1 leading-tight uppercase truncate text-left">
-                        {r.patientName || "Untitled Patient"}
+                      <h3 className="text-xl font-black text-slate-900 mb-1 leading-tight uppercase truncate">
+                        {r.patientName || "UNTITLED PATIENT"}
                       </h3>
-                      <div className="text-slate-400 text-[10px] font-semibold mt-0.5 text-left truncate">{r.ref || "No reference"}</div>
-                      <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                        <span>{r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-ZA') : 'N/A'}</span>
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform text-sky-400 opacity-0 group-hover:opacity-100" />
+                      <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                        {r.ref || "NO REFERENCE"}
+                      </div>
+                      <div className="mt-auto pt-5 border-t border-slate-50 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <span>{r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-ZA") : "N/A"}</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
                   ))}
@@ -921,359 +1002,121 @@ ${chaptersHtml}
           </div>
         )}
 
-        {/* ═══════ PREVIEW ═══════ */}
-        {view === 'preview' && (
-          <div className="flex-1 bg-slate-200 overflow-y-auto p-6 lg:p-10 relative">
-            <FinalReportPreview ref={reportRef} reportData={reportData} />
-            <div className="fixed bottom-8 right-8 flex flex-col items-center gap-2.5 z-[50]">
-              <button onClick={() => setView('workflow')} className="bg-slate-700 hover:bg-slate-600 text-white p-3.5 rounded-full shadow-xl transition-all" title="Back to Editor">
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <button onClick={copyToClipboard} className="bg-purple-600 hover:bg-purple-500 text-white p-3.5 rounded-full shadow-xl transition-all" title="Copy for Word">
-                <Copy className="w-5 h-5" />
-              </button>
-              <button onClick={downloadAsWord} className="bg-sky-600 hover:bg-sky-500 text-white p-3.5 rounded-full shadow-xl transition-all" title="Export .doc">
-                <Download className="w-5 h-5" />
-              </button>
-              <button onClick={() => window.print()} className="bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-full shadow-xl transition-all" title="Print">
-                <Printer className="w-5 h-5" />
-              </button>
+        {/* ════════════ FINAL PREVIEW ════════════ */}
+        {view === "final-preview" && (
+          <div className="flex-1 bg-slate-200 overflow-y-auto p-8 lg:p-12 relative">
+            <button onClick={() => setView("ortho-workflow")}
+              className="fixed left-6 top-20 bg-white p-4 rounded-2xl shadow-xl hover:bg-slate-50 active:scale-95 transition-all flex flex-col items-center gap-1 text-blue-600 font-black uppercase text-[9px] z-[50]">
+              <ChevronLeft className="w-5 h-5" /> Back
+            </button>
+            <FinalReportLayout ref={reportRef} reportData={reportData} />
+            {/* FABs */}
+            <div className="fixed bottom-10 right-10 flex flex-col gap-3 z-[50]">
+              {[
+                { icon: <Copy className="w-6 h-6" />,     bg: "bg-purple-600", action: copyToClipboard,    tip: "Copy for Word" },
+                { icon: <Download className="w-6 h-6" />, bg: "bg-blue-600",   action: downloadAsWord,     tip: "Export .doc" },
+                { icon: <Printer className="w-6 h-6" />,  bg: "bg-slate-900",  action: () => window.print(), tip: "Print / PDF" },
+              ].map(({ icon, bg, action, tip }) => (
+                <div key={tip} className="group flex items-center gap-3 justify-end">
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-full whitespace-nowrap shadow-xl">
+                    {tip}
+                  </span>
+                  <button onClick={action} className={`${bg} text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all`}>
+                    {icon}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* ═══════ WORKFLOW ═══════ */}
-        {view === 'workflow' && (
+        {/* ════════════ EDITOR ════════════ */}
+        {view === "ortho-workflow" && (
           <>
-            {/* Desktop Sidebar */}
+            {/* Sidebar desktop */}
             <aside className="hidden lg:flex flex-shrink-0">
-              <SidebarNav
-                currentChapter={currentChapter}
-                setCurrentChapter={setCurrentChapter}
-                chapterData={reportData?.chapters}
-                onClose={() => setShowMobileMenu(false)}
-              />
+              <Sidebar currentChapter={currentChapter} setCurrentChapter={setCurrentChapter}
+                setShowMobileMenu={setShowMobileMenu} setFocusedPrompt={setFocusedPrompt} />
             </aside>
 
-            {/* Mobile Sidebar Overlay */}
+            {/* Sidebar mobile */}
             {showMobileMenu && (
-              <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex lg:hidden">
-                <SidebarNav
-                  currentChapter={currentChapter}
-                  setCurrentChapter={setCurrentChapter}
-                  chapterData={reportData?.chapters}
-                  onClose={() => setShowMobileMenu(false)}
-                />
-                <button onClick={() => setShowMobileMenu(false)} className="flex-1" />
+              <div className="fixed inset-0 z-[100] bg-slate-900/70 backdrop-blur-sm flex lg:hidden">
+                <div className="w-80 h-full">
+                  <Sidebar currentChapter={currentChapter} setCurrentChapter={setCurrentChapter}
+                    setShowMobileMenu={setShowMobileMenu} setFocusedPrompt={setFocusedPrompt} />
+                </div>
+                <button onClick={() => setShowMobileMenu(false)} className="flex-1 flex items-start justify-end p-6">
+                  <X className="w-7 h-7 text-white" />
+                </button>
               </div>
             )}
 
-            {/* Main Content Area */}
+            {/* Main editor */}
             <div className="flex-1 overflow-y-auto bg-slate-50 relative">
-              <div className="max-w-3xl mx-auto p-5 lg:p-8 pb-44 text-left">
-
-                {/* Chapter Header */}
-                <div className="mb-6">
-                  <div className="text-sky-600 text-[10px] font-bold uppercase tracking-widest mb-1">
-                    Step {currentChapter + 1} of {ORTHO_CHAPTERS.length}
+              <div className="max-w-4xl mx-auto p-6 lg:p-10 pb-52">
+                {/* Chapter header */}
+                <div className="mb-8">
+                  <div className="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] mb-2">
+                    Chapter {currentChapter + 1} of {ORTHO_CHAPTERS.length}
                   </div>
-                  <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
-                    {currentChapterDef.title}
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase leading-tight">
+                    {ORTHO_CHAPTERS[currentChapter].title}
                   </h2>
                 </div>
+                {renderContent()}
+              </div>
 
-                <div className="space-y-5">
-
-                  {/* ─── CHAPTER 0: DEMOGRAPHICS FORM ─── */}
-                  {currentChapter === 0 && (
-                    <div className="bg-white p-6 lg:p-8 rounded-2xl border border-slate-200 shadow-sm">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Patient Full Name</label>
-                          <input
-                            type="text"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold uppercase text-lg text-sky-900 focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
-                            placeholder="PATIENT NAME"
-                            value={reportData?.patientName || ""}
-                            onChange={e => setField('patientName', e.target.value)}
-                          />
-                        </div>
-
-                        {[
-                          { key: "ref", label: "Our Reference" },
-                          { key: "attyRef", label: "Attorney Reference" },
-                          { key: "idNumber", label: "ID / Refugee Ref Number" },
-                          { key: "dob", label: "Date of Birth", type: "date" },
-                          { key: "age", label: "Current Age" },
-                          { key: "address", label: "Residential Address" },
-                          { key: "contact", label: "Contact Numbers" },
-                          { key: "doi", label: "Date of Injury", type: "date" },
-                          { key: "mechanism", label: "Mechanism of Injury" },
-                          { key: "doe", label: "Date of Examination", type: "date" },
-                          { key: "poe", label: "Place of Examination" },
-                          { key: "preOcc", label: "Pre-Accident Occupation" },
-                          { key: "postOcc", label: "Post-Accident Occupation" },
-                          { key: "atty", label: "Instructing Attorney" },
-                          { key: "attyCon", label: "Attorney Contact Details" },
-                          { key: "drName", label: "Practitioner Name" },
-                          { key: "quals", label: "Qualifications (e.g. FC Ortho SA)" },
-                        ].map(field => (
-                          <div key={field.key} className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{field.label}</label>
-                            <input
-                              type={field.type || "text"}
-                              className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-sky-500 focus:border-transparent outline-none"
-                              value={reportData?.[field.key] || ""}
-                              onChange={e => setField(field.key, e.target.value)}
-                            />
-                          </div>
-                        ))}
-
-                        <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gender</label>
-                          <select
-                            className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium focus:ring-2 focus:ring-sky-500 outline-none"
-                            value={reportData?.gender || "Male"}
-                            onChange={e => setField('gender', e.target.value)}
-                          >
-                            <option>Male</option><option>Female</option><option>Other</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ─── CHAPTER 3: GUIDED HOSPITAL RECORDS ─── */}
-                  {currentChapter === 3 && (
-                    <div className="bg-slate-900 p-5 rounded-2xl border border-slate-700/50">
-                      <div className="flex items-center gap-2.5 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select sub-section, then dictate</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                        {currentChapterDef.steps.map((step, i) => (
-                          <button
-                            key={step}
-                            onClick={() => { setFocusedPrompt(step); notify(`Focus: ${step}`, 'info'); }}
-                            className={`text-left p-3 rounded-xl border text-[10px] font-semibold transition-all flex items-center gap-2 ${
-                              focusedPrompt === step
-                                ? 'bg-sky-600 border-sky-500 text-white shadow-lg'
-                                : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300'
-                            }`}
-                          >
-                            <span className="w-5 h-5 rounded flex items-center justify-center bg-white/10 text-[9px] font-bold flex-shrink-0">
-                              {String.fromCharCode(97 + i)}
-                            </span>
-                            <span className="truncate">{step}</span>
-                            {focusedPrompt === step && <CheckCircle2 className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ─── CHAPTER 6: MSK EXAMINATION ─── */}
-                  {currentChapterDef.type === "msk_exam" && (
-                    <div className="space-y-4">
-                      {/* General Examination Section */}
-                      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-700/50">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">6.1 General Examination</div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-                          {GENERAL_EXAM_PROMPTS.map(p => (
-                            <button
-                              key={p}
-                              onClick={() => { setActiveRegion(null); setFocusedPrompt(p); notify(`General: ${p}`, 'info'); }}
-                              className={`p-2.5 rounded-xl border text-[10px] font-semibold transition-all ${
-                                !activeRegion && focusedPrompt === p
-                                  ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg'
-                                  : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
-                              }`}
-                            >
-                              {p}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* MSK Region Selection */}
-                      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-700/50">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">6.2 Musculoskeletal Examination — Select Region</div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 mb-4">
-                          {MSK_REGIONS.map(reg => (
-                            <button
-                              key={reg.name}
-                              onClick={() => { setActiveRegion(reg); setFocusedPrompt(null); }}
-                              className={`p-3 rounded-xl border text-[10px] font-bold transition-all ${
-                                activeRegion?.name === reg.name
-                                  ? 'bg-sky-600 border-sky-500 text-white shadow-lg'
-                                  : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300'
-                              }`}
-                            >
-                              {reg.name}
-                            </button>
-                          ))}
-                        </div>
-
-                        {activeRegion && (
-                          <div className="pt-4 border-t border-white/10">
-                            <div className="text-[10px] font-bold text-sky-400 uppercase tracking-wider mb-2.5">
-                              {activeRegion.name} — Examination Prompts
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-                              {activeRegion.prompts.map(p => (
-                                <button
-                                  key={p}
-                                  onClick={() => { setFocusedPrompt(p); notify(`${activeRegion.name} \u2014 ${p}`, 'info'); }}
-                                  className={`p-2.5 rounded-xl border text-[9px] font-bold uppercase transition-all ${
-                                    focusedPrompt === p
-                                      ? 'bg-purple-600 border-purple-500 text-white shadow-lg'
-                                      : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
-                                  }`}
-                                >
-                                  {p}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Evidence of Injury Section Prompt */}
-                      <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
-                        <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-1">6.3 Evidence of Injury &amp; Special Investigations</div>
-                        <p className="text-xs text-amber-600">Use the text editor below to document scarring, disfigurement, and radiological findings. Upload x-ray images and reports separately.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ─── CHAPTER 9: DISABILITY & IMPAIRMENT ─── */}
-                  {currentChapter === 9 && (
-                    <div className="space-y-5">
-                      <ADLTable
-                        title="9.1 Basic Activities of Daily Living"
-                        items={ADL_BASIC}
-                        type="basic"
-                        adlData={reportData?.adl?.basic}
-                        onUpdate={(act, val) => setADL('basic', act, val)}
-                      />
-                      <ADLTable
-                        title="9.1 Advanced Activities of Daily Living"
-                        items={ADL_ADVANCED}
-                        type="advanced"
-                        adlData={reportData?.adl?.advanced}
-                        onUpdate={(act, val) => setADL('advanced', act, val)}
-                      />
-                      <ContentEditor
-                        value={getChapterContent(9)}
-                        onChange={(val) => setChapterContent(9, val)}
-                        placeholder="Dictate or type 9.2 Occupational Effects & Limitations..."
-                        focusedPrompt={focusedPrompt}
-                      />
-                    </div>
-                  )}
-
-                  {/* ─── AI ASSIST BAR (Ch 4, 7, 10) ─── */}
-                  {(currentChapter === 4 || currentChapter === 7 || currentChapter === 10) && (
-                    <div className="bg-gradient-to-r from-sky-50 to-purple-50 border border-sky-200 p-4 rounded-2xl flex items-center gap-3 flex-wrap">
-                      <Zap className="w-4 h-4 text-sky-600" />
-                      <span className="text-[10px] font-bold text-sky-700 uppercase tracking-wider">AI Assist</span>
-                      {currentChapter === 4 && (
-                        <button onClick={handleAutoExtract} disabled={isProcessing} className="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 disabled:opacity-40 transition-colors">
-                          <Sparkles className="w-3.5 h-3.5" /> Extract Injuries from Ch.3
-                        </button>
-                      )}
-                      {currentChapter === 7 && (
-                        <button onClick={handleDiagnosisAssistant} disabled={isProcessing} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 disabled:opacity-40 transition-colors">
-                          <Lightbulb className="w-3.5 h-3.5" /> Suggest Diagnoses
-                        </button>
-                      )}
-                      {currentChapter === 10 && (
-                        <button onClick={handleSmartDiscussion} disabled={isProcessing} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase flex items-center gap-2 disabled:opacity-40 transition-colors">
-                          <Wand2 className="w-3.5 h-3.5" /> Draft Discussion
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ─── TEXT EDITOR (All dictation/guided chapters except form/disability) ─── */}
-                  {currentChapterDef.type !== "form" && currentChapter !== 9 && (
-                    <ContentEditor
-                      value={getChapterContent(currentChapter)}
-                      onChange={(val) => setChapterContent(currentChapter, val)}
-                      placeholder={`Dictate or type ${currentChapterDef.short} content...`}
-                      focusedPrompt={focusedPrompt}
-                    />
-                  )}
+              {/* ── Bottom dictation bar ── */}
+              <div className="fixed bottom-0 left-0 lg:left-80 right-0 bg-slate-50/95 backdrop-blur-xl border-t border-slate-200 z-[50] p-5">
+                <div className="max-w-3xl mx-auto flex items-center gap-3">
+                  <button onClick={() => setCurrentChapter(c => Math.max(0, c - 1))}
+                    className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm active:scale-95 hover:bg-slate-50 transition-all flex-shrink-0">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button onClick={isProcessing ? undefined : toggleVoice} disabled={isProcessing}
+                    className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-3xl font-black text-sm tracking-[0.2em] uppercase shadow-xl transition-all active:scale-[0.98] ${
+                      isProcessing  ? "bg-slate-400 text-white cursor-not-allowed opacity-50" :
+                      isRecording   ? "bg-red-500 text-white ring-4 ring-red-200 animate-pulse" :
+                                      "bg-slate-900 text-white hover:bg-black"
+                    }`}>
+                    {isProcessing
+                      ? <><Loader2 className="w-5 h-5 animate-spin"/> Processing...</>
+                      : isRecording
+                      ? <><MicOff className="w-5 h-5"/> Stop &amp; Sync</>
+                      : <><Mic className="w-5 h-5"/> Dictate Findings</>
+                    }
+                  </button>
+                  <button onClick={() => currentChapter < 10 ? setCurrentChapter(c => c + 1) : setView("final-preview")}
+                    className="p-4 rounded-2xl bg-blue-600 text-white shadow-xl active:scale-95 hover:bg-blue-700 transition-all flex-shrink-0">
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
                 </div>
-
-                {/* ─── BOTTOM NAVIGATION BAR ─── */}
-                <div className="fixed bottom-0 left-0 lg:left-72 right-0 p-4 bg-white/95 backdrop-blur-lg border-t border-slate-200 z-[50]">
-                  <div className="max-w-3xl mx-auto flex items-center gap-3">
-                    <button
-                      onClick={() => setCurrentChapter(c => Math.max(0, c - 1))}
-                      disabled={currentChapter === 0}
-                      className="p-3.5 rounded-2xl bg-slate-100 border border-slate-200 hover:bg-slate-200 active:scale-95 transition-all flex-shrink-0 disabled:opacity-30"
-                    >
-                      <ChevronLeft className="w-5 h-5 text-slate-600" />
-                    </button>
-
-                    <button
-                      onClick={isProcessing ? undefined : toggleVoice}
-                      disabled={isProcessing || currentChapterDef.type === 'form'}
-                      className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-xs uppercase tracking-wider shadow-lg transition-all active:scale-[0.98] disabled:opacity-40 ${
-                        isProcessing ? 'bg-slate-400 text-white cursor-not-allowed' :
-                        isRecording ? 'bg-red-500 text-white shadow-red-500/30' :
-                        'bg-slate-900 text-white hover:bg-slate-800'
-                      }`}
-                      style={isRecording ? { animation: 'pulse-ring 1.5s infinite' } : {}}
-                    >
-                      {isProcessing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> :
-                       isRecording ? <><MicOff className="w-4 h-4" /> Stop &amp; Sync</> :
-                       <><Mic className="w-4 h-4" /> Dictate</>}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (currentChapter < ORTHO_CHAPTERS.length - 1) {
-                          setCurrentChapter(c => c + 1);
-                          setFocusedPrompt(null);
-                          setActiveRegion(null);
-                        } else {
-                          setView('preview');
-                        }
-                      }}
-                      className="p-3.5 rounded-2xl bg-sky-600 text-white shadow-lg hover:bg-sky-500 active:scale-95 transition-all flex-shrink-0"
-                    >
-                      {currentChapter < ORTHO_CHAPTERS.length - 1 ? <ChevronRight className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
+                {isRecording && (
+                  <div className="mt-3 max-w-3xl mx-auto bg-white border border-red-100 rounded-2xl p-4 shadow-lg">
+                    <div className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1 flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                      Capturing Audio
+                      {focusedPrompt && <span className="text-blue-600 normal-case font-bold">— {focusedPrompt}</span>}
+                    </div>
+                    <div className="text-sm text-slate-700 italic truncate">
+                      {liveTranscript || "Listening..."}
+                    </div>
                   </div>
-
-                  {/* Live Transcript Display */}
-                  {isRecording && (
-                    <div className="mt-2.5 max-w-3xl mx-auto bg-red-50 border border-red-200 rounded-2xl p-3.5">
-                      <div className="text-[9px] font-bold text-red-500 uppercase tracking-wider mb-1 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                        Recording
-                        {focusedPrompt && <span className="text-sky-600">\u2014 {focusedPrompt}</span>}
-                        {activeRegion && <span className="text-purple-600">\u2014 {activeRegion.name}</span>}
-                      </div>
-                      <div className="text-xs text-slate-700 italic truncate">{liveTranscript || "Listening..."}</div>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           </>
         )}
       </main>
 
-      {/* Processing Overlay */}
+      {/* ── Processing overlay ── */}
       {isProcessing && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] flex items-center justify-center">
-          <div className="bg-white p-8 rounded-3xl shadow-2xl text-center border border-slate-100">
-            <Loader2 className="w-10 h-10 text-sky-600 animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-slate-900">Processing</h3>
-            <p className="text-slate-400 mt-1 text-xs">Synthesizing clinical data...</p>
+          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl text-center border border-slate-100">
+            <Loader2 className="w-14 h-14 text-blue-600 animate-spin mx-auto mb-6" />
+            <h3 className="text-xl font-black uppercase tracking-tighter text-slate-900">Synthesizing</h3>
+            <p className="text-slate-400 mt-1 font-bold text-[10px] tracking-widest uppercase">Processing clinical logic</p>
           </div>
         </div>
       )}
