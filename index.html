@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -425,6 +426,13 @@ textarea{resize:vertical;}
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
+// ── SUPABASE ──────────────────────────────────────────────────────────
+const SUPA_URL = "https://lwmghkbqdwvqcadhocxa.supabase.co";
+const SUPA_KEY = "sb_publishable_2vo76E53tWg9k3OHeT7DRA_AeVe0C6l";
+const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+
+
 // ── DATA ──────────────────────────────────────────────────────────────
 const CHAPTERS = [
   {id:0, title:"Cover / Demographics",       short:"Demographics",    icon:"👤"},
@@ -470,12 +478,6 @@ const ADL_BASIC = ["Bowel control","Bladder control","Grooming","Toileting","Fee
 const ADL_ADV   = ["Driving a car","Sexual function","Medical self-care","Money management","Writing & communication","Travelling","Shopping","Cooking","Housework","Moderate activities (pushing/lifting)","Vigorous activities (sport/heavy lifting)"];
 const ADL_OPTS_B = ["No Effect","Mild","Moderate","Severe"];
 const ADL_OPTS_A = ["N/A","No Effect","Mild","Moderate","Severe"];
-
-// ── STORAGE ───────────────────────────────────────────────────────────
-const DB = {
-  load(){ try{ return JSON.parse(localStorage.getItem("ms_ortho_v2")||"[]"); }catch{ return []; }},
-  save(all){ try{ localStorage.setItem("ms_ortho_v2",JSON.stringify(all)); }catch(e){} }
-};
 
 function newReport(){
   return {
@@ -1163,32 +1165,156 @@ function Preview({r,onBack}){
   );
 }
 
+
+// ── LOGIN SCREEN ──────────────────────────────────────────────────────
+function LoginScreen(){
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const [resetMode,setResetMode]=useState(false);
+  const [resetSent,setResetSent]=useState(false);
+
+  const handleLogin=async e=>{
+    e.preventDefault();setError("");setLoading(true);
+    const {error:err}=await supabase.auth.signInWithPassword({email,password});
+    if(err)setError(err.message);
+    setLoading(false);
+  };
+  const handleReset=async e=>{
+    e.preventDefault();setError("");setLoading(true);
+    const {error:err}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+    if(err)setError(err.message); else setResetSent(true);
+    setLoading(false);
+  };
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-mark">🔬</div>
+          <div><div className="login-logo-text">MediSync <span>Ortho</span></div><div style={{fontSize:11,color:"var(--text-muted)",letterSpacing:.5,textTransform:"uppercase"}}>Medico-Legal Engine</div></div>
+        </div>
+        {!resetMode ? (<>
+          <div className="login-title">Welcome back</div>
+          <div className="login-sub">Sign in to access your reports</div>
+          {error&&<div className="login-error">⚠ {error}</div>}
+          <form onSubmit={handleLogin}>
+            <div className="field"><label>Email Address</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="doctor@practice.co.za" required autoComplete="email"/></div>
+            <div className="field"><label>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password"/></div>
+            <div style={{textAlign:"right",marginTop:-12,marginBottom:16}}>
+              <span style={{fontSize:13,color:"var(--teal)",cursor:"pointer"}} onClick={()=>{setResetMode(true);setError("");}}>Forgot password?</span>
+            </div>
+            <button className="btn btn-primary" style={{width:"100%",justifyContent:"center"}} type="submit" disabled={loading}>
+              {loading?<><span className="spin"/>Signing in...</>:"Sign In →"}
+            </button>
+          </form>
+          <div style={{marginTop:20,padding:14,background:"#f8fafc",borderRadius:8,border:"1px solid var(--border)"}}>
+            <div style={{fontSize:12,fontWeight:600,color:"var(--text-muted)",marginBottom:4}}>NEW STAFF MEMBER?</div>
+            <div style={{fontSize:13,color:"var(--text-secondary)",lineHeight:1.5}}>Ask your administrator to invite you via <strong>Supabase → Authentication → Users → Invite user</strong>.</div>
+          </div>
+        </>) : (<>
+          <div className="login-title">Reset Password</div>
+          <div className="login-sub">Enter your email to receive a reset link</div>
+          {error&&<div className="login-error">⚠ {error}</div>}
+          {resetSent&&<div className="login-success">✓ Reset link sent — check your email inbox</div>}
+          {!resetSent&&<form onSubmit={handleReset}>
+            <div className="field"><label>Email Address</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="doctor@practice.co.za" required/></div>
+            <button className="btn btn-primary" style={{width:"100%",justifyContent:"center"}} type="submit" disabled={loading}>{loading?<><span className="spin"/>Sending...</>:"Send Reset Link"}</button>
+          </form>}
+          <div style={{textAlign:"center",marginTop:16}}><button className="btn btn-ghost" onClick={()=>{setResetMode(false);setResetSent(false);setError("");}}>← Back to Sign In</button></div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN APP ──────────────────────────────────────────────────────────
 function App(){
-  const [reports,setReports]=useState(()=>DB.load());
+  const [reports,setReports]=useState([]);
   const [activeId,setActiveId]=useState(null);
   const [chapter,setChapter]=useState(0);
   const [view,setView]=useState("list");
   const [sbOpen,setSbOpen]=useState(true);
   const [toast,setToast]=useState(null);
   const [saving,setSaving]=useState(false);
+  const [session,setSession]=useState(undefined);
+  const [loadingReports,setLoadingReports]=useState(false);
+  const [saveState,setSaveState]=useState('saved');
+  const saveTimerRef=useRef(null);
   const [apiKey,setApiKey]=useState(()=>localStorage.getItem("ms_apikey_v2")||"");
   const [showApiModal,setShowApiModal]=useState(false);
   const [query,setQuery]=useState("");
 
-  const activeReport=reports.find(r=>r.id===activeId);
+  const activeReport=reports.find(r=>(r._id||r._localId)===activeId);
 
+
+  // ── AUTH
   useEffect(()=>{
-    if(!reports.length)return;
-    setSaving(true); DB.save(reports);
-    const t=setTimeout(()=>setSaving(false),1000); return()=>clearTimeout(t);
-  },[reports]);
+    supabase.auth.getSession().then(({data:{session}})=>setSession(session));
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>setSession(session));
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  // ── LOAD REPORTS
+  useEffect(()=>{
+    if(!session)return;
+    setLoadingReports(true);
+    supabase.from("reports").select("*").order("updated_at",{ascending:false})
+      .then(({data,error})=>{
+        if(!error&&data)setReports(data.map(row=>({...row.data,_id:row.id,_updated:row.updated_at})));
+        setLoadingReports(false);
+      });
+  },[session]);
+
+  const signOut=async()=>{await supabase.auth.signOut();setReports([]);setActiveId(null);setView("list");};
+
+  const saveToDb=useCallback(async(reportData,dbId)=>{
+    if(!session)return;
+    setSaveState("saving");
+    const payload={user_id:session.user.id,data:{...reportData},updated_at:new Date().toISOString()};
+    const {error}=dbId
+      ? await supabase.from("reports").update(payload).eq("id",dbId)
+      : await supabase.from("reports").insert(payload);
+    setSaveState(error?"error":"saved");
+    if(error)console.error("Save error:",error);
+  },[session]);
+
+
+  // Cloud save is handled per-update via saveToDb
 
   const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
-  const updateReport=updater=>setReports(prev=>prev.map(r=>r.id===activeId?{...updater(r),updated:new Date().toISOString()}:r));
-  const createReport=()=>{const r=newReport();setReports(p=>[r,...p]);setActiveId(r.id);setChapter(0);setView("editor");};
-  const deleteReport=id=>{if(!confirm("Delete this report? This cannot be undone."))return;setReports(p=>p.filter(r=>r.id!==id));if(activeId===id){setActiveId(null);setView("list");}};
-  const openReport=id=>{setActiveId(id);setChapter(0);setView("editor");};
+  const updateReport=useCallback(updater=>{
+    setReports(prev=>prev.map(r=>{
+      if((r._id||r._localId)!==activeId)return r;
+      const updated={...updater(r),updated:new Date().toISOString()};
+      if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
+      saveTimerRef.current=setTimeout(()=>saveToDb(updated,updated._id),1500);
+      return updated;
+    }));
+  },[activeId,saveToDb]);
+  const createReport=async()=>{
+    const localId="local_"+Date.now();
+    const r={...newReport(),_localId:localId};
+    setReports(p=>[r,...p]);
+    setActiveId(localId);setChapter(0);setView("editor");
+    setSaveState("saving");
+    const {data,error}=await supabase.from("reports").insert({user_id:session.user.id,data:r,updated_at:new Date().toISOString()}).select().single();
+    if(!error&&data){
+      setReports(prev=>prev.map(rr=>rr._localId===localId?{...rr,_id:data.id}:rr));
+      setActiveId(data.id);
+    }
+    setSaveState(error?"error":"saved");
+  };
+  const deleteReport=async(id)=>{
+    if(!confirm("Delete this report? This cannot be undone."))return;
+    const rpt=reports.find(r=>(r._id||r._localId)===id);
+    if(rpt?._id)await supabase.from("reports").delete().eq("id",rpt._id);
+    setReports(p=>p.filter(r=>(r._id||r._localId)!==id));
+    if(activeId===id){setActiveId(null);setView("list");}
+    showToast("Report deleted");
+  };
+  const openReport=r=>{setActiveId(r._id||r._localId);setChapter(0);setView("editor");};
   const saveApiKey=key=>{localStorage.setItem("ms_apikey_v2",key);setApiKey(key);setShowApiModal(false);showToast(key?"API key saved ✓":"API key cleared");};
 
   const calcProgress=r=>{
@@ -1201,6 +1327,19 @@ function App(){
     const q=query.toLowerCase();
     return(r.patientName||"").toLowerCase().includes(q)||(r.ourRef||"").toLowerCase().includes(q)||(r.doi||"").includes(q);
   });
+
+  const userInitials=session?.user?.email?.slice(0,2).toUpperCase()||"??";
+
+  // Loading state
+  if(session===undefined) return (
+    <div className="loading-full">
+      <div className="spin" style={{width:32,height:32,borderWidth:3}}/>
+      <div style={{fontSize:14,color:"var(--text-muted)"}}>Loading MediSync Ortho...</div>
+    </div>
+  );
+
+  // Not logged in
+  if(!session) return <LoginScreen/>;
 
   const props={r:activeReport,setR:updateReport,apiKey};
   const chapterComponents=[<Ch0 {...props}/>,<Ch1 {...props}/>,<Ch2 {...props}/>,<Ch3 {...props}/>,<Ch4 {...props}/>,<Ch5 {...props}/>,<Ch6 {...props}/>,<Ch7 {...props}/>,<Ch8 {...props}/>,<Ch9 {...props}/>,<Ch10 {...props}/>];
@@ -1255,12 +1394,14 @@ function App(){
           </div>
         </div>
         <div className="topbar-spacer"/>
+        {session&&<div style={{fontSize:13,color:"var(--text-muted)"}}>{session.user.email}</div>}
         <button className="btn btn-secondary btn-sm" onClick={()=>setShowApiModal(true)}>
           {apiKey?<><span style={{color:"var(--green)"}}>✓</span> AI Enabled</>:"Set AI Key"}
         </button>
         <button className="btn btn-primary" onClick={createReport}>+ New Report</button>
       </header>
       <div style={{flex:1,overflow:"hidden",overflowY:"auto",padding:"32px",maxWidth:800,margin:"0 auto",width:"100%"}}>
+        {loadingReports?(<div style={{textAlign:'center',padding:60}}><div className='spin' style={{width:32,height:32,borderWidth:3}}/><div style={{marginTop:16,color:'var(--text-muted)'}}>Loading your reports...</div></div>):(<>
         {reports.length>0&&(
           <div className="search-wrap">
             <span className="search-icon">🔍</span>
@@ -1285,7 +1426,7 @@ function App(){
         {filtered.map(rpt=>{
           const prog=calcProgress(rpt);
           return (
-            <div key={rpt.id} className="report-card" onClick={()=>openReport(rpt.id)}>
+            <div key={rpt._id||rpt._localId} className="report-card" onClick={()=>openReport(rpt)}>
               <div className="report-icon">📄</div>
               <div className="report-meta">
                 <div className="report-name">{rpt.patientName||"Untitled Report"}</div>
@@ -1299,12 +1440,13 @@ function App(){
                   <div className="report-progress-label">{prog}%</div>
                 </div>
               </div>
-              <button className="btn btn-danger btn-sm" onClick={e=>{e.stopPropagation();deleteReport(rpt.id);}}>🗑 Delete</button>
+              <button className="btn btn-danger btn-sm" onClick={e=>{e.stopPropagation();deleteReport(rpt._id||rpt._localId);}}>🗑 Delete</button>
             </div>
           );
         })}
       </div>
-      {toast&&<div className="toast">{toast}</div>}
+      </>)}
+      {toast&&<div className='toast'>{toast}</div>}
     </div>
   );
 
@@ -1323,10 +1465,11 @@ function App(){
         </div>
         <div className="topbar-spacer"/>
         <div className="save-indicator">
-          <div className={`save-dot${saving?" saving":""}`}/>
-          {saving?"Saving…":"All saved"}
+          <div className={`save-dot${saveState==="saving"?" saving":saveState==="error"?" error":""}`}/>
+          {saveState==="saving"?"Saving to cloud…":saveState==="error"?"⚠ Save failed":"✓ Saved to cloud"}
         </div>
         <button className="btn btn-secondary btn-sm" onClick={()=>{setView("list");setActiveId(null);}}>← All Reports</button>
+        {session&&<div style={{fontSize:13,color:"var(--text-muted)"}}>{session.user.email}</div>}
         <button className="btn btn-secondary btn-sm" onClick={()=>setShowApiModal(true)}>
           {apiKey?<><span style={{color:"var(--green)"}}>✓</span> AI</>:"Set AI Key"}
         </button>
@@ -1358,6 +1501,14 @@ function App(){
                 {chapterDone(ch.id)&&<span className="nav-done">✓</span>}
               </button>
             ))}
+          </div>
+          <div className="sidebar-user">
+            <div className="user-avatar">{userInitials}</div>
+            <div className="user-info">
+              <div className="user-email">{session?.user?.email}</div>
+              <div className="user-role">Orthopaedic Surgeon</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{padding:"4px 8px",color:"rgba(255,255,255,.3)"}} onClick={signOut} title="Sign out">⏻</button>
           </div>
         </nav>
 
