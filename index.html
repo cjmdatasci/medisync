@@ -1009,10 +1009,7 @@ async function extractReportInfo(text,key){
     const r=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:800,messages:[{role:"user",content:`Extract from this medico-legal report text and return ONLY valid JSON (no markdown):
-{"drName":"","quals":"","drPractice":"","drAddress":"","drPhone":"","drEmail":"","attorney":"","attContact":"","attRef":"","ourRef":"","patientName":"","refNum":"","doi":""}
-
-Report:\n${text.slice(0,3500)}`}]})
+      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:800,messages:[{role:"user",content:'Extract from this medico-legal report text and return ONLY valid JSON (no markdown):\n{"drName":"","quals":"","drPractice":"","drAddress":"","drPhone":"","drEmail":"","attorney":"","attContact":"","attRef":"","ourRef":"","patientName":"","refNum":"","doi":""}\n\nReport:\n'+text.slice(0,3500)}]})
     });
     const d=await r.json();
     const raw=d?.content?.[0]?.text||"{}";
@@ -1478,27 +1475,8 @@ function Preview({r,onBack}){
   // Gen examination table
   const genRows=Object.entries(r.ch6genTable||{}).filter(([,v])=>v).map(([k,v])=>`<tr><td><strong>${k}</strong></td><td>${v}</td></tr>`).join("");
   // TOC
-  const toc=`<h2 style="margin:16px 0 8px;font-size:11.5pt">TABLE OF CONTENTS</h2>
-    <table style="width:100%;font-size:10pt"><tbody>
-    ${[["1","Documents Perused"],["2","Occupational and Medical History"],["3","Summary of Hospital Records"],["4","Injuries Sustained"],["5","Pre-Accident and Current Complaints"],["6","Clinical Evaluation"],["7","Diagnosis"],["8","Further Management"],["9","Disability and Impairment"],["10","Discussion"]]
-      .map(([n,t])=>`<tr><td style="border:none;padding:3px 8px 3px 0;width:36px;font-weight:700;color:#1558A0">${n}.</td><td style="border:none;padding:3px 0">${t}</td></tr>`).join("")}
-    </tbody></table><hr style="border:none;border-top:1px solid #ccc;margin:12px 0"/>`;
-  // Letterhead
-  const letterhead=`<div style="border-bottom:3px solid #1558A0;padding-bottom:14px;margin-bottom:18px;display:flex;align-items:flex-start;justify-content:space-between">
-    <div><div style="font-size:20pt;font-weight:800;color:#1558A0;letter-spacing:-0.5px;font-family:Arial,sans-serif">${r.drName||"[DOCTOR NAME]"}</div>
-    <div style="font-size:11pt;color:#596779">${r.quals||""}</div>
-    ${r.drPractice?`<div style="font-size:10pt;color:#596779;margin-top:6px">${r.drPractice}</div>`:""}
-    ${r.drAddress?`<div style="font-size:10pt;color:#596779">${r.drAddress}</div>`:""}
-    ${r.drPhone?`<div style="font-size:10pt;color:#596779">Tel: ${r.drPhone}</div>`:""}
-    ${r.drEmail?`<div style="font-size:10pt;color:#596779">Email: ${r.drEmail}</div>`:""}
-    ${r.drFax?`<div style="font-size:10pt;color:#596779">Fax: ${r.drFax}</div>`:""}
-    </div>
-    <div style="text-align:right">
-    <div style="font-size:11pt;font-weight:700;color:#1558A0">MEDICO-LEGAL ORTHOPAEDIC REPORT</div>
-    <div style="font-size:9pt;color:#8393A5;margin-top:4px">Our Ref: ${r.ourRef||""}</div>
-    <div style="font-size:9pt;color:#8393A5">Att Ref: ${r.attRef||""}</div>
-    <div style="font-size:9pt;color:#8393A5">Date: ${fmt(r.dateExam)||new Date().toLocaleDateString("en-ZA",{day:"2-digit",month:"long",year:"numeric"})}</div>
-    </div></div>`;
+  const toc=`<h2 style="margin:16px 0 8px;font-size:11.5pt">TABLE OF CONTENTS</h2><table style="width:100%;font-size:10pt"><tbody>${[["1","Documents Perused"],["2","Occupational and Medical History"],["3","Summary of Hospital Records"],["4","Injuries Sustained"],["5","Pre-Accident and Current Complaints"],["6","Clinical Evaluation"],["7","Diagnosis"],["8","Further Management"],["9","Disability and Impairment"],["10","Discussion"]].map(([n,t])=>`<tr><td style="border:none;padding:3px 8px 3px 0;width:36px;font-weight:700;color:#1558A0">${n}.</td><td style="border:none;padding:3px 0">${t}</td></tr>`).join("")}</tbody></table><hr style="border:none;border-top:1px solid #ccc;margin:12px 0"/>`;
+  const letterhead=`<div style="border-bottom:3px solid #1558A0;padding-bottom:14px;margin-bottom:18px;display:flex;align-items:flex-start;justify-content:space-between"><div><div style="font-size:20pt;font-weight:800;color:#1558A0;letter-spacing:-0.5px;font-family:Arial,sans-serif">${r.drName||"[DOCTOR NAME]"}</div><div style="font-size:11pt;color:#596779">${r.quals||""}</div>${r.drPractice?`<div style="font-size:10pt;color:#596779;margin-top:6px">${r.drPractice}</div>`:""}${r.drAddress?`<div style="font-size:10pt;color:#596779">${r.drAddress}</div>`:""}${r.drPhone?`<div style="font-size:10pt;color:#596779">Tel: ${r.drPhone}</div>`:""}${r.drEmail?`<div style="font-size:10pt;color:#596779">Email: ${r.drEmail}</div>`:""}${r.drFax?`<div style="font-size:10pt;color:#596779">Fax: ${r.drFax}</div>`:""}</div><div style="text-align:right"><div style="font-size:11pt;font-weight:700;color:#1558A0">MEDICO-LEGAL ORTHOPAEDIC REPORT</div><div style="font-size:9pt;color:#8393A5;margin-top:4px">Our Ref: ${r.ourRef||""}</div><div style="font-size:9pt;color:#8393A5">Att Ref: ${r.attRef||""}</div><div style="font-size:9pt;color:#8393A5">Date: ${fmt(r.dateExam)||new Date().toLocaleDateString("en-ZA",{day:"2-digit",month:"long",year:"numeric"})}</div></div></div>`;
   const html=`
     ${letterhead}
     <h1 style="text-align:center;font-size:15pt;margin:0 0 6px">MEDICO-LEGAL ORTHOPAEDIC REPORT</h1>
@@ -1888,13 +1866,6 @@ function App(){
   });
 
   const initials=(session?.user?.email||"??").slice(0,2).toUpperCase();
-  const props={r:activeReport,setR:updateReport,apiKey};
-  const chapters=[
-    <Ch0 {...props}/>,<Ch1 {...props}/>,<Ch2 {...props}/>,<Ch3 {...props}/>,
-    <Ch4 {...props}/>,<Ch5 {...props}/>,<Ch6 {...props}/>,<Ch7 {...props}/>,
-    <Ch8 {...props}/>,<Ch9 {...props}/>,<Ch10 {...props} onCompile={()=>setView("preview")}/>
-  ];
-
   // ── LOADING ──
   if(session===undefined)return(
     <div className="loading-full">
@@ -1903,6 +1874,13 @@ function App(){
     </div>
   );
   if(!session)return<LoginScreen/>;
+
+  const props={r:activeReport,setR:updateReport,apiKey};
+  const chapters=activeReport?[
+    <Ch0 {...props}/>,<Ch1 {...props}/>,<Ch2 {...props}/>,<Ch3 {...props}/>,
+    <Ch4 {...props}/>,<Ch5 {...props}/>,<Ch6 {...props}/>,<Ch7 {...props}/>,
+    <Ch8 {...props}/>,<Ch9 {...props}/>,<Ch10 {...props} onCompile={()=>setView("preview")}/>
+  ]:[];
 
   // ── PREVIEW ──
   if(view==="preview"&&activeReport)return(
