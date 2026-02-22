@@ -4,120 +4,35 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RG MedSync</title>
+<!-- React and ReactDOM -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<!-- Babel for JSX compilation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Tailwind CSS (Required for styling to work) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
 <style>
-*{box-sizing:border-box;margin:0;padding:0;}
-:root{
-  --bg:#F3F5F8;
-  --surface:#FFFFFF;
-  --sidebar-bg:#1C2B3A;
-  --topbar-bg:#FFFFFF;
-  --border:#DDE3ED;
-  --border-strong:#B8C4D6;
-  --divider:#EDF0F5;
-  --primary:#1558A0;
-  --primary-hover:#0F4A8A;
-  --primary-light:#EBF3FB;
-  --primary-border:#93C4E8;
-  --primary-text:#1558A0;
-  --sb-accent:#60A5FA;
-  --sb-accent-bg:rgba(96,165,250,.12);
-  --success:#0D7A4E;
-  --success-bg:#D1FAE5;
-  --warning:#92400E;
-  --danger:#B91C1C;
-  --danger-bg:#FEE2E2;
-  --purple:#7C3AED;
-  --purple-light:#EDE9FE;
-  --purple-border:#C4B5FD;
-  --ink:#0F1923;
-  --body:#2D3B4E;
-  --muted:#596779;
-  --subtle:#8393A5;
-  --sb-text:#CBD5E1;
-  --sb-muted:#64748B;
-  --sidebar-w:260px;
-  --topbar-h:64px;
-  --radius-sm:6px;
-  --radius:10px;
-  --radius-lg:16px;
-  --shadow-xs:0 1px 2px rgba(15,25,35,.06);
-  --shadow-sm:0 1px 4px rgba(15,25,35,.08);
-  --shadow-lg:0 8px 32px rgba(15,25,35,.14);
-}
-html,body,#root{height:100%;background:var(--bg);font-family:'Inter',sans-serif;font-size:14px;color:var(--body);}
-button,input,select,textarea{font-family:'Inter',sans-serif;}
-textarea{resize:vertical;}
-::-webkit-scrollbar{width:7px;height:7px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px;}
-a{text-decoration:none;color:var(--primary);}
-.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
-.topbar{height:var(--topbar-h);background:var(--topbar-bg);display:flex;align-items:center;padding:0 24px;gap:16px;box-shadow:var(--shadow-xs);border-bottom:2px solid var(--primary);z-index:200;}
-.t-logo{display:flex;align-items:center;gap:12px;}
-.t-logo-mark{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--primary) 0%,#1E88D4 100%);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;}
-.t-logo-text{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--ink);}
-.t-logo-text em{color:var(--primary);font-style:normal;}
-.status-pill{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;}
-.status-pill.saving{color:var(--warning);background:var(--warning-bg);}
-.status-pill.saved{color:var(--success);background:var(--success-bg);}
-.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-.status-dot.blink{animation:sdot 1.2s infinite;}
-@keyframes sdot{0%,100%{opacity:1;}50%{opacity:.2;}}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:var(--radius-sm);border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
-.btn-p{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(21,88,160,.2);}
-.btn-p:hover{background:var(--primary-hover);}
-.btn-s{background:#fff;color:var(--body);border:1.5px solid var(--border);}
-.btn-s:hover{background:var(--bg);border-color:var(--border-strong);}
-.btn-d{background:var(--danger-bg);color:var(--danger);}
-.btn-sm{padding:7px 12px;font-size:12px;}
-.body-wrap{display:flex;flex:1;overflow:hidden;}
-.sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);display:flex;flex-direction:column;border-right:1px solid rgba(0,0,0,.2);}
-.sb-rpt{padding:20px 16px;border-bottom:1px solid rgba(255,255,255,.06);}
-.sb-rpt-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;}
-.sb-rpt-meta{font-size:11px;color:var(--sb-muted);}
-.sb-nav{flex:1;overflow-y:auto;padding:12px 8px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:12px;border-radius:var(--radius-sm);font-size:13px;color:var(--sb-text);background:none;border:none;width:100%;text-align:left;cursor:pointer;margin-bottom:2px;}
-.nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
-.nav-item.active{color:var(--sb-accent);background:var(--sb-accent-bg);font-weight:600;box-shadow:inset 3px 0 0 var(--sb-accent);}
-.nav-num{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--sb-muted);}
-.nav-item.active .nav-num{background:rgba(56,189,248,.2);color:var(--sb-accent);}
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-.content{flex:1;overflow-y:auto;padding:32px 40px;}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px;box-shadow:var(--shadow-sm);}
-.card-h{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--divider);}
-.card-ico{width:36px;height:36px;border-radius:8px;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:18px;}
-.card-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--ink);}
-.field{margin-bottom:16px;}
-.field label{display:block;font-size:12px;font-weight:600;color:var(--body);margin-bottom:8px;}
-.field input,.field select,.field textarea{width:100%;background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:14px;color:var(--ink);outline:none;transition:border-color .15s;}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light);}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
-.ta-wrap{position:relative;}
-.ta-tools{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;}
-.mic{width:36px;height:36px;border-radius:8px;border:1.5px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;}
-.mic.on{background:var(--danger);color:#fff;border-color:transparent;animation:pulse 1.5s infinite;}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(185,28,28,.4);}70%{box-shadow:0 0 0 10px rgba(185,28,28,0);}}
-.aibtn{width:36px;height:36px;border-radius:8px;border:1.5px solid var(--purple-border);background:var(--purple-light);color:var(--purple);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;}
-.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,.1);border-top-color:currentColor;border-radius:50%;animation:spin .6s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.login-root{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#EFF6FF 0%,#F0FDFA 100%);}
-.login-card{background:#fff;padding:40px;border-radius:24px;box-shadow:var(--shadow-lg);width:100%;max-width:420px;}
-.preview-bg{flex:1;overflow-y:auto;background:#E8ECF2;padding:40px;}
-.preview-page{background:#fff;color:#000;max-width:850px;margin:0 auto;padding:1in;box-shadow:var(--shadow-lg);font-family:'Times New Roman',serif;font-size:11pt;line-height:1.6;}
-.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--sidebar-bg);color:#fff;padding:12px 20px;border-radius:8px;font-weight:600;z-index:999;box-shadow:var(--shadow-lg);}
-table.adl-tbl{width:100%;border-collapse:collapse;font-size:13px;}
-table.adl-tbl th{background:#F8FAFC;text-align:left;padding:10px;border:1px solid var(--border);}
-table.adl-tbl td{padding:10px;border:1px solid var(--border);}
+  /* Base custom overrides */
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;}
+  textarea{resize:vertical;}
+  ::-webkit-scrollbar{width:7px;height:7px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#B8C4D6;border-radius:6px;}
+  
+  /* Loading Spinner */
+  .spin{display:inline-block;border-radius:50%;animation:spin .6s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
 <div id="root"></div>
+
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
@@ -283,13 +198,13 @@ function ImageUploader({ label, value, onChange, hint }) {
   const ref = useRef();
   const handle = e => { const f = e.target.files?.[0]; if(!f) return; const rd = new FileReader(); rd.onload = ev => onChange(ev.target.result); rd.readAsDataURL(f); };
   return (
-    <div className="field">
-      {label && <label>{label}</label>}
-      <div style={{border:"2px dashed var(--border-strong)",borderRadius:8,padding:16,textAlign:"center",cursor:"pointer",background:"var(--bg)"}} onClick={() => ref.current.click()}>
+    <div className="mb-4">
+      {label && <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</label>}
+      <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors" onClick={() => ref.current.click()}>
         <input ref={ref} type="file" accept="image/*" style={{display:"none"}} onChange={handle}/>
-        {value ? <img src={value} style={{maxWidth:200,maxHeight:140,borderRadius:6}} alt="uploaded"/> : <div><div style={{fontSize:26}}>📸</div><div style={{fontSize:12,color:"var(--muted)"}}>{hint || "Click to upload image"}</div></div>}
+        {value ? <img src={value} className="max-w-[200px] max-h-[140px] rounded-md mx-auto" alt="uploaded"/> : <div><div className="text-3xl mb-1">📸</div><div className="text-xs text-slate-500">{hint || "Click to upload image"}</div></div>}
       </div>
-      {value && <button className="btn btn-d btn-sm" style={{marginTop:6}} onClick={(e) => { e.stopPropagation(); onChange(""); }}>Remove</button>}
+      {value && <button className="mt-2 text-xs font-bold text-red-600 hover:text-red-800" onClick={(e) => { e.stopPropagation(); onChange(""); }}>Remove Image</button>}
     </div>
   );
 }
@@ -307,13 +222,15 @@ function ReportUploader({ onExtract, apiKey }) {
     setBusy(false);
   };
   return (
-    <div className="card" style={{background:"var(--primary-light)", borderColor:"var(--primary-border)"}}>
-      <div className="card-h"><div className="card-ico">📄</div><div><div className="card-title">Auto-Extract from Referral</div></div></div>
-      <div style={{border:"2px dashed var(--primary)",borderRadius:8,padding:16,textAlign:"center",cursor:"pointer",background:"#fff"}} onClick={() => ref.current.click()}>
-        <input ref={ref} type="file" accept=".txt,.csv" style={{display:"none"}} onChange={handle}/>
-        <div><div style={{fontSize:26}}>🪄</div><div style={{fontSize:12,fontWeight:600,color:"var(--primary)"}}>{busy?"Extracting...":"Upload .txt referral letter"}</div></div>
+    <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-3xl shadow-sm mb-6">
+      <div className="flex items-center justify-between mb-4">
+         <div className="font-black text-indigo-900 uppercase tracking-widest text-xs flex items-center gap-2"><span className="text-lg">✨</span> AI Referral Extraction</div>
       </div>
-      {msg && <div style={{fontSize:12,marginTop:6,color:"var(--success)",fontWeight:600}}>{msg}</div>}
+      <div className="border-2 border-dashed border-indigo-300 rounded-xl p-6 text-center cursor-pointer bg-white hover:bg-indigo-50 transition-colors" onClick={() => ref.current.click()}>
+        <input ref={ref} type="file" accept=".txt,.csv" style={{display:"none"}} onChange={handle}/>
+        <div><div className="text-3xl mb-2">📄</div><div className="text-xs font-bold text-indigo-700">{busy?"Extracting...":"Upload .txt referral letter to auto-fill details"}</div></div>
+      </div>
+      {msg && <div className="text-xs mt-3 font-bold text-green-700">{msg}</div>}
     </div>
   );
 }
@@ -327,12 +244,12 @@ function SmartTA({ value, onChange, placeholder, rows=5, label, apiKey }) {
     setBusy(false);
   };
   return (
-    <div className="field">
-      {label && <label>{label}</label>}
-      <div className="ta-wrap">
-        <textarea rows={rows} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
-        <div className="ta-tools">
-          {apiKey && <button className="aibtn" onClick={runAI} disabled={busy || !value.trim()} title="AI Format">{busy?<div className="spin"></div>:"✨"}</button>}
+    <div className="mb-4">
+      {label && <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</label>}
+      <div className="relative">
+        <textarea rows={rows} className="w-full bg-white border border-slate-200 rounded-xl p-3 pr-14 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
+        <div className="absolute top-2 right-2 flex flex-col gap-1">
+          {apiKey && <button className="w-8 h-8 flex items-center justify-center rounded-lg bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200 transition-colors" onClick={runAI} disabled={busy || !value.trim()} title="AI Format">{busy?<div className="spin" style={{width: '16px', height: '16px', borderWidth: '2px', borderColor: 'rgba(126, 34, 206, 0.2)', borderTopColor: '#7e22ce'}}></div>:"✨"}</button>}
         </div>
       </div>
     </div>
@@ -344,11 +261,13 @@ function Preview({ r, onBack }) {
   const fmt = iso => iso ? new Date(iso).toLocaleDateString("en-ZA", {day:"2-digit",month:"long",year:"numeric"}) : "";
   
   const tocHtml = `
-    <h2 style="text-align:center; font-size:14pt; border:none;">TABLE OF CONTENTS</h2>
-    <table style="width:100%; border:none;">
-      ${CHAPTERS.filter(c=>c.id>0).map(c=>`<tr><td style="border:none; padding:4px 0; font-weight:bold; font-size:11pt;">${c.title}</td></tr>`).join("")}
-    </table>
-    <hr style="margin:20px 0;" />
+    <div style="margin-bottom: 30px;">
+      <h2 style="text-align:center; font-size:14pt; border:none; margin-bottom: 15px;">TABLE OF CONTENTS</h2>
+      <ul style="list-style-type: none; padding-left: 0; line-height: 1.8;">
+        ${CHAPTERS.filter(c=>c.id>0).map(c=>`<li><b>${c.title}</b></li>`).join("")}
+      </ul>
+    </div>
+    <br clear="all" style="page-break-before:always" />
   `;
 
   const letterhead = `
@@ -371,62 +290,64 @@ function Preview({ r, onBack }) {
     ${letterhead}
     <h1 style="text-align:center; margin-bottom: 20px;">MEDICO-LEGAL ORTHOPAEDIC REPORT</h1>
     <table style="width:100%; border-collapse: collapse; margin-bottom: 30px;">
-      <tr><td style="font-weight:bold; background:#f0f0f0; width:30%;">Our Reference:</td><td>${r.ourRef || "---"}</td><td style="font-weight:bold; background:#f0f0f0;">Attorney Ref:</td><td>${r.attRef || "---"}</td></tr>
-      <tr><td style="font-weight:bold; background:#f0f0f0;">Patient Name:</td><td style="font-weight:bold; text-decoration:underline;">${r.patientName || "---"}</td><td style="font-weight:bold; background:#f0f0f0;">ID Number:</td><td>${r.refNum || "---"}</td></tr>
-      <tr><td style="font-weight:bold; background:#f0f0f0;">Date of Birth:</td><td>${fmt(r.dob)}</td><td style="font-weight:bold; background:#f0f0f0;">Age at Assessment:</td><td>${r.age ? `${r.age} (${numToWords(r.age)}) years` : "---"}</td></tr>
-      <tr><td style="font-weight:bold; background:#f0f0f0;">Date of Injury:</td><td>${fmt(r.doi)}</td><td style="font-weight:bold; background:#f0f0f0;">Date of Exam:</td><td>${fmt(r.dateExam)}</td></tr>
-      <tr><td style="font-weight:bold; background:#f0f0f0;">Instructing Attorney:</td><td colspan="3">${r.attorney || "---"}</td></tr>
+      <tr><td style="font-weight:bold; background:#f0f0f0; width:30%; padding: 5px; border: 1px solid #ccc;">Our Reference:</td><td style="padding: 5px; border: 1px solid #ccc;">${r.ourRef || "---"}</td><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">Attorney Ref:</td><td style="padding: 5px; border: 1px solid #ccc;">${r.attRef || "---"}</td></tr>
+      <tr><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">Patient Name:</td><td style="font-weight:bold; text-decoration:underline; padding: 5px; border: 1px solid #ccc;">${r.patientName || "---"}</td><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">ID Number:</td><td style="padding: 5px; border: 1px solid #ccc;">${r.refNum || "---"}</td></tr>
+      <tr><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">Date of Birth:</td><td style="padding: 5px; border: 1px solid #ccc;">${fmt(r.dob)}</td><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">Age at Assessment:</td><td style="padding: 5px; border: 1px solid #ccc;">${r.age ? `${r.age} (${numToWords(r.age)}) years` : "---"}</td></tr>
+      <tr><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">Date of Injury:</td><td style="padding: 5px; border: 1px solid #ccc;">${fmt(r.doi)}</td><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">Date of Exam:</td><td style="padding: 5px; border: 1px solid #ccc;">${fmt(r.dateExam)}</td></tr>
+      <tr><td style="font-weight:bold; background:#f0f0f0; padding: 5px; border: 1px solid #ccc;">Instructing Attorney:</td><td colspan="3" style="padding: 5px; border: 1px solid #ccc;">${r.attorney || "---"}</td></tr>
     </table>
 
     <div style="page-break-before: always;"></div>
     ${tocHtml}
 
-    <h2>1. DOCUMENTS PERUSED</h2>
-    <div style="white-space:pre-wrap;">${r.ch1 || "None."}</div>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">1. DOCUMENTS PERUSED</h2>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch1 || "None."}</div>
 
-    <h2>2. OCCUPATIONAL AND MEDICAL HISTORY</h2>
-    <div style="white-space:pre-wrap;">${r.ch2occ || "None."}</div>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">2. OCCUPATIONAL AND MEDICAL HISTORY</h2>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch2occ || "None."}</div>
 
-    <h2>3. SUMMARY OF HOSPITAL RECORDS</h2>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">3. SUMMARY OF HOSPITAL RECORDS</h2>
     ${CH3_PROMPTS.map(p => r.ch3prompts?.[p.num] ? `<p><b>3.1.${p.num}</b> ${r.ch3prompts[p.num]}</p>` : "").join("")}
-    <div style="white-space:pre-wrap;">${r.ch3 || ""}</div>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch3 || ""}</div>
 
-    <h2>4. INJURIES SUSTAINED</h2>
-    ${(r.ch4injuries || []).map((inj, i) => `<p>${i+1}. ${inj}</p>`).join("") || "None listed."}
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">4. INJURIES SUSTAINED</h2>
+    <div style="margin-bottom: 15pt;">${(r.ch4injuries || []).map((inj, i) => `<p>${i+1}. ${inj}</p>`).join("") || "None listed."}</div>
 
-    <h2>5. PRE-ACCIDENT & CURRENT COMPLAINTS</h2>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">5. PRE-ACCIDENT & CURRENT COMPLAINTS</h2>
     <table style="width:100%; border-collapse: collapse; margin-bottom:15px;">
-      <tr><th style="background:#f0f0f0; width:50%;">Pre-Accident Complaints</th><th style="background:#f0f0f0; width:50%;">Current Complaints</th></tr>
-      <tr><td style="vertical-align:top; white-space:pre-wrap;">${r.ch6pre || "None reported."}</td><td style="vertical-align:top; white-space:pre-wrap;">${r.ch6cur || "None reported."}</td></tr>
+      <tr><th style="background:#f0f0f0; width:50%; border: 1px solid #ccc; padding: 5px;">Pre-Accident Complaints</th><th style="background:#f0f0f0; width:50%; border: 1px solid #ccc; padding: 5px;">Current Complaints</th></tr>
+      <tr><td style="vertical-align:top; white-space:pre-wrap; border: 1px solid #ccc; padding: 5px;">${r.ch6pre || "None reported."}</td><td style="vertical-align:top; white-space:pre-wrap; border: 1px solid #ccc; padding: 5px;">${r.ch6cur || "None reported."}</td></tr>
     </table>
-    <div style="white-space:pre-wrap;">${r.ch5 || ""}</div>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch5 || ""}</div>
 
-    <h2>6. CLINICAL EVALUATION</h2>
-    <div style="white-space:pre-wrap;">${r.ch6general || ""}</div>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">6. CLINICAL EVALUATION</h2>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch6general || ""}</div>
     ${EXAM_REGIONS_LIST.filter(rg => r.examRegions?.[rg]).map((rg, ri) => `
-      <h3>6.2.${ri+1} ${rg}</h3>
+      <h3 style="margin-top: 15pt;">6.2.${ri+1} ${rg}</h3>
+      <div style="margin-bottom: 15pt;">
       ${EXAM_REGIONS[rg].map((f, fi) => r.ch6msk?.[rg]?.[f] ? `<p><b>6.2.${ri+1}.${fi+1} ${f}:</b> ${r.ch6msk[rg][f]}</p>` : "").join("")}
+      </div>
     `).join("")}
-    <h3>6.3 Special Investigations</h3>
+    <h3 style="margin-top: 15pt;">6.3 Special Investigations</h3>
     ${r.ch6scarringImg ? `<img src="${r.ch6scarringImg}" style="max-height:200px; margin-bottom:10px;"/><br>` : ""}
-    <p>${r.ch6scarring || ""}</p>
+    <p style="margin-bottom: 15pt;">${r.ch6scarring || ""}</p>
     ${r.ch6radiologyImg ? `<img src="${r.ch6radiologyImg}" style="max-height:200px; margin-bottom:10px;"/><br>` : ""}
-    <p>${r.ch6radiology || ""}</p>
+    <p style="margin-bottom: 15pt;">${r.ch6radiology || ""}</p>
 
-    <h2>7. DIAGNOSIS</h2>
-    <div style="white-space:pre-wrap;">${r.ch7 || "None."}</div>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">7. DIAGNOSIS</h2>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch7 || "None."}</div>
 
-    <h2>8. FURTHER MANAGEMENT</h2>
-    <div style="white-space:pre-wrap;">${r.ch8ortho || "None."}</div>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">8. FURTHER MANAGEMENT</h2>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch8ortho || "None."}</div>
 
-    <h2>9. DISABILITY & IMPAIRMENT</h2>
-    <h3>9.3.3 Initial Treatment & Diagnosis</h3>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">9. DISABILITY & IMPAIRMENT</h2>
+    <h3 style="margin-top: 15pt;">9.3.3 Initial Treatment & Diagnosis</h3>
     <p><b>Initial Treatment:</b> ${r.ch9initTx || "---"}</p>
     <p><b>Initial Diagnosis:</b> ${r.ch9initDx || "---"}</p>
     <p><b>Outcome Diagnosis:</b> ${r.ch9outDx || "---"}</p>
 
-    <h2>10. DISCUSSION</h2>
-    <div style="white-space:pre-wrap;">${r.ch10 || "None."}</div>
+    <h2 style="border-bottom: 2px solid #1C2B3A; padding-bottom: 4px; margin-top: 24pt;">10. DISCUSSION</h2>
+    <div style="white-space:pre-wrap; margin-bottom: 15pt;">${r.ch10 || "None."}</div>
 
     <div style="margin-top: 50px; text-align: center;">
       ${r.sigImg ? `<img src="${r.sigImg}" style="height: 80px; margin-bottom: 10px;" />` : `<div style="font-weight:bold; margin-bottom: 10px;">_________________________</div>`}
@@ -446,20 +367,65 @@ function Preview({ r, onBack }) {
   };
 
   return (
-    <div style={{flex:1, display:"flex", flexDirection:"column", overflow:"hidden"}}>
-      <div style={{padding:"15px 30px", background:"#fff", borderBottom:"1px solid #ddd", display:"flex", justifyContent:"space-between"}}>
-        <button className="btn btn-s" onClick={onBack}>◀ Back to Editor</button>
-        <div>
-          <button className="btn btn-p" onClick={downloadDoc} style={{marginRight:"10px"}}>⬇ Export Word Doc</button>
-          <button className="btn btn-s" onClick={()=>window.print()}>🖨 Print PDF</button>
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-200">
+      <div className="p-4 bg-white border-b border-slate-300 flex justify-between shadow-sm z-10">
+        <button className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg font-bold hover:bg-slate-200 transition" onClick={onBack}>◀ Back to Editor</button>
+        <div className="flex gap-3">
+          <button className="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold shadow-md hover:bg-blue-700 transition" onClick={downloadDoc}>⬇ Export Word Doc</button>
+          <button className="bg-slate-800 text-white px-5 py-2 rounded-lg font-bold shadow-md hover:bg-slate-900 transition" onClick={()=>window.print()}>🖨 Print PDF</button>
         </div>
       </div>
-      <div className="preview-bg">
-        <div className="preview-page" dangerouslySetInnerHTML={{__html: html}}></div>
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="bg-white max-w-[850px] mx-auto p-[1in] shadow-xl text-[11pt] font-serif text-black leading-relaxed print:shadow-none print:p-0" dangerouslySetInnerHTML={{__html: html}}></div>
       </div>
     </div>
   );
 }
+
+// ── LOGIN COMPONENT ──
+function LoginScreen({ onLoginSuccess }) {
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const doLogin = async e => {
+    e.preventDefault();
+    setErr(""); setBusy(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) setErr(error.message);
+    else if (data.session) onLoginSuccess(data.session);
+    setBusy(false);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-6 font-sans">
+      <div className="bg-white p-10 rounded-3xl shadow-2xl max-w-md w-full border border-slate-100 text-center relative overflow-hidden">
+        <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-lg">🩺</div>
+        <h1 className="text-3xl font-black text-slate-900 mb-2 uppercase tracking-tighter">RG <span className="text-blue-600">MedSync</span></h1>
+        <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mb-8">Secure Medico-Legal Portal</p>
+        
+        {err && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold mb-6 border border-red-200">{err}</div>}
+        
+        <form onSubmit={doLogin} className="space-y-4 text-left">
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Email</label>
+            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none transition" required />
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Password</label>
+            <input type="password" value={pass} onChange={e=>setPass(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none transition" required />
+          </div>
+          <button type="submit" disabled={busy} className="w-full bg-blue-600 text-white font-black uppercase tracking-widest text-sm py-4 rounded-xl shadow-xl hover:bg-blue-700 transition-all disabled:opacity-50 mt-4 flex items-center justify-center">
+            {busy ? <div className="spin border-2 border-white/20 border-t-white mr-2" style={{width:16, height:16}}></div> : null}
+            {busy ? "Authenticating..." : "Sign In"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 
 // ── MAIN APP COMPONENT ──
 function App() {
@@ -528,31 +494,53 @@ function App() {
   if(!session) return <LoginScreen onLoginSuccess={setSession}/>;
 
   if(view === "list") return (
-    <div className="app">
-      <header className="topbar">
-        <div className="t-logo"><div className="t-logo-mark">🔬</div><div className="t-logo-text">RG <em>MedSync</em></div></div>
-        <div className="t-space"></div>
-        <button className="btn btn-p" onClick={createReport}>➕ New Report</button>
-        <button className="btn btn-s" onClick={() => supabase.auth.signOut()}>Logout</button>
-      </header>
-      <div className="content">
-        <h2 style={{fontSize:"24px", marginBottom:"20px"}}>Collab Workspace</h2>
-        <div style={{marginBottom:"20px"}}>
-           <label style={{fontSize:"12px", fontWeight:"bold"}}>Set Anthropic AI Key (Stored Locally): </label>
-           <input type="password" value={apiKey} onChange={e => {setApiKey(e.target.value); localStorage.setItem("rg_ai_key", e.target.value)}} style={{padding:"8px", borderRadius:"6px", border:"1px solid #ccc", marginLeft:"10px", width:"300px"}} placeholder="sk-ant-..."/>
+    <div className="flex flex-col h-screen bg-slate-50">
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2 rounded-xl shadow-lg text-lg">🩺</div>
+          <div className="font-black text-xl tracking-tighter uppercase">RG <em className="text-blue-400 not-italic">MedSync</em></div>
         </div>
-        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))", gap:"20px"}}>
-          {reports.map(rpt => (
-            <div key={rpt.dbId} className="card" style={{cursor:"pointer", padding:"20px"}} onClick={()=>{setActiveId(rpt.dbId); setChapter(0); setView("editor");}}>
-              <div style={{fontSize:"10px", fontWeight:"bold", color:"#1558A0", marginBottom:"10px"}}>ID: {rpt.dbId}</div>
-              <h3 style={{fontSize:"18px", marginBottom:"5px"}}>{rpt.patientName || "Untitled"}</h3>
-              <div style={{fontSize:"12px", color:"#666"}}>{rpt.ref || "No Ref"}</div>
-              <div style={{fontSize:"10px", color:"#999", marginTop:"15px"}}>Updated: {new Date(rpt._ts).toLocaleString()}</div>
+        <div className="flex gap-3">
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg transition flex items-center gap-2" onClick={createReport}>
+            <span className="text-lg">➕</span> New Report
+          </button>
+          <button className="bg-slate-800 text-slate-300 px-5 py-2 rounded-xl text-xs font-black uppercase hover:bg-slate-700 transition" onClick={() => supabase.auth.signOut()}>Logout</button>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex justify-between items-end mb-8">
+            <div>
+              <h2 className="text-3xl font-black text-slate-900 uppercase">Collab Workspace</h2>
+              <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Shared Medico-Legal Registry</p>
             </div>
-          ))}
+          </div>
+          
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-10 flex flex-col md:flex-row items-center gap-4">
+             <label className="text-xs font-black uppercase tracking-widest text-slate-500">Set AI Key (Local Only): </label>
+             <input type="password" value={apiKey} onChange={e => {setApiKey(e.target.value); localStorage.setItem("rg_ai_key", e.target.value)}} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500 transition" placeholder="sk-ant-..."/>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {reports.map(rpt => (
+              <div key={rpt.dbId} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer" onClick={()=>{setActiveId(rpt.dbId); setChapter(0); setView("editor");}}>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-widest">ID: {rpt.dbId.slice(0,6)}</span>
+                  <span className="text-slate-400">📄</span>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-1 truncate">{rpt.patientName || "Untitled Report"}</h3>
+                <div className="text-xs text-slate-500 font-medium truncate mb-6">{rpt.ref || "No Reference Set"}</div>
+                <div className="border-t border-slate-100 pt-4 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <span>{new Date(rpt._ts).toLocaleDateString()}</span>
+                  <span className="text-blue-500">▶</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl font-bold text-sm z-50">{toast}</div>}
     </div>
   );
 
@@ -560,157 +548,218 @@ function App() {
 
   // EDITOR VIEW
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="t-logo"><div className="t-logo-mark">🔬</div><div className="t-logo-text">RG <em>MedSync</em></div></div>
-        <div className="t-space"></div>
-        <div className="status-pill saved"><div className="status-dot"></div> Auto-Saving Active</div>
-        <button className="btn btn-s" onClick={() => setView("list")}>◀ All Reports</button>
-        <button className="btn btn-p" onClick={() => setView("preview")}>👁 Compile & Preview</button>
+    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
+      <header className="bg-slate-900 text-white p-4 flex justify-between items-center shadow-md z-50">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2 rounded-xl shadow-lg text-lg">🩺</div>
+          <div className="font-black text-lg tracking-tighter uppercase hidden sm:block">RG <em className="text-blue-400 not-italic">MedSync</em></div>
+          <div className="ml-4 flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-slate-300">Auto-Saving</span>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button className="bg-slate-800 text-slate-300 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-700 transition" onClick={() => setView("list")}>◀ All Reports</button>
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg transition flex items-center gap-2" onClick={() => setView("preview")}>
+            <span className="text-sm">👁</span> Compile & Preview
+          </button>
+        </div>
       </header>
       
-      <div className="body-wrap">
-        <div className="sidebar">
-          <div style={{padding:"20px", color:"#fff", borderBottom:"1px solid #333"}}>
-            <div style={{fontWeight:"bold", fontSize:"14px"}}>{r?.patientName || "New Report"}</div>
-            <div style={{fontSize:"11px", color:"#aaa"}}>{r?.ref || "No Ref"}</div>
+      <div className="flex flex-1 overflow-hidden">
+        {/* SIDEBAR */}
+        <div className="w-[280px] bg-slate-900 border-r border-slate-800 flex flex-col text-white shadow-xl z-40 hidden lg:flex">
+          <div className="p-6 border-b border-slate-800">
+            <div className="font-bold text-sm truncate">{r?.patientName || "New Report"}</div>
+            <div className="text-[10px] text-slate-400 uppercase tracking-widest mt-1 truncate">{r?.ref || "No Reference"}</div>
           </div>
-          <div style={{flex:1, overflowY:"auto", padding:"10px"}}>
+          <div className="flex-1 overflow-y-auto p-4 space-y-1">
             {CHAPTERS.map(c => (
-              <button key={c.id} className={`nav-item ${chapter === c.id ? "active" : ""}`} onClick={() => setChapter(c.id)}>
-                <span className="nav-num">{c.id}</span> {c.short}
+              <button key={c.id} className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 text-xs font-bold ${chapter === c.id ? "bg-blue-600 text-white shadow-lg" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`} onClick={() => setChapter(c.id)}>
+                <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${chapter === c.id ? "bg-white/20" : "bg-slate-800"}`}>{c.id}</span>
+                <span className="truncate">{c.short}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="content" style={{background:"#F8FAFC"}}>
-           <h2 style={{fontSize:"22px", marginBottom:"20px", color:"#1C2B3A"}}>{CHAPTERS[chapter].title}</h2>
+        {/* CONTENT */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-6 lg:p-12 pb-32">
+           <div className="max-w-4xl mx-auto">
+             <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-8 pb-4 border-b border-slate-200">{CHAPTERS[chapter].title}</h2>
 
-           {/* CH 0: DEMOGRAPHICS */}
-           {chapter === 0 && (
-             <div className="space-y-6">
-               <ReportUploader apiKey={apiKey} onExtract={(info) => updateR(p => {
-                 const next = {...p, ...info};
-                 if(info.refNum) {
-                   next.dob = parseSAID(info.refNum) || next.dob;
-                   next.age = calcAge(next.dob, next.dateExam) || next.age;
-                 }
-                 return next;
-               })} />
-               <div className="card">
-                 <div className="card-title" style={{marginBottom:"15px"}}>Patient Details</div>
-                 <div className="g2">
-                   <div className="field"><label>Patient Name</label><input value={r?.patientName} onChange={e=>updateR(p=>({...p, patientName:e.target.value}))}/></div>
-                   <div className="field"><label>ID Number (Auto DOB)</label><input value={r?.refNum} onChange={e=>{
-                     const val = e.target.value; const dob = parseSAID(val); const age = calcAge(dob||r.dob, r.dateExam);
-                     updateR(p=>({...p, refNum:val, dob:dob||p.dob, age:age||p.age}));
-                   }}/></div>
-                   <div className="field"><label>Date of Birth</label><input type="date" value={r?.dob} onChange={e=>updateR(p=>({...p, dob:e.target.value, age:calcAge(e.target.value, p.dateExam)}))}/></div>
-                   <div className="field"><label>Age at Assessment</label><input value={r?.age} readOnly style={{background:"#eee"}}/></div>
-                   <div className="field"><label>Date of Injury</label><input type="date" value={r?.doi} onChange={e=>updateR(p=>({...p, doi:e.target.value}))}/></div>
-                   <div className="field"><label>Date of Examination</label><input type="date" value={r?.dateExam} onChange={e=>updateR(p=>({...p, dateExam:e.target.value, age:calcAge(p.dob, e.target.value)}))}/></div>
-                 </div>
-               </div>
-               <div className="card">
-                 <div className="card-title" style={{marginBottom:"15px"}}>Practice & Attorney Details</div>
-                 <div className="g2">
-                   <div className="field"><label>Doctor Name</label><input value={r?.drName} onChange={e=>updateR(p=>({...p, drName:e.target.value}))}/></div>
-                   <div className="field"><label>Qualifications</label><input value={r?.quals} onChange={e=>updateR(p=>({...p, quals:e.target.value}))}/></div>
-                   <div className="field"><label>Our Reference</label><input value={r?.ourRef} onChange={e=>updateR(p=>({...p, ourRef:e.target.value}))}/></div>
-                   <div className="field"><label>Attorney</label><input value={r?.atty} onChange={e=>updateR(p=>({...p, atty:e.target.value}))}/></div>
-                 </div>
-                 <ImageUploader label="Doctor Signature" value={r?.sigImg} onChange={v=>updateR(p=>({...p, sigImg:v}))} hint="Upload signature for final report" />
-               </div>
-             </div>
-           )}
-
-           {/* CH 6: CLINICAL EVAL */}
-           {chapter === 6 && (
-             <div className="space-y-6">
-               <div className="card">
-                 <div className="card-title" style={{marginBottom:"15px"}}>6.1 Pre-Accident & Current Complaints</div>
-                 <div className="g2">
-                   <SmartTA label="Pre-Accident Complaints" value={r?.ch6pre} onChange={v=>updateR(p=>({...p, ch6pre:v}))} rows={4} apiKey={apiKey} />
-                   <SmartTA label="Current Complaints" value={r?.ch6cur} onChange={v=>updateR(p=>({...p, ch6cur:v}))} rows={4} apiKey={apiKey} />
-                 </div>
-                 <SmartTA label="General Examination Notes" value={r?.ch6general} onChange={v=>updateR(p=>({...p, ch6general:v}))} rows={4} apiKey={apiKey} />
-               </div>
-               <div className="card">
-                 <div className="card-title" style={{marginBottom:"15px"}}>6.2 Musculoskeletal Regions</div>
-                 <div style={{display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"20px"}}>
-                   {EXAM_REGIONS_LIST.map(reg => (
-                     <button key={reg} onClick={()=>updateR(p=>({...p, examRegions:{...p.examRegions, [reg]:!p.examRegions[reg]}}))} className="btn btn-s" style={{background: r?.examRegions?.[reg] ? "var(--primary)" : "#fff", color: r?.examRegions?.[reg] ? "#fff" : "#333"}}>{reg}</button>
-                   ))}
-                 </div>
-                 {EXAM_REGIONS_LIST.filter(reg => r?.examRegions?.[reg]).map(reg => (
-                   <div key={reg} style={{marginBottom:"20px", padding:"15px", border:"1px solid #ccc", borderRadius:"8px"}}>
-                     <div style={{fontWeight:"bold", color:"#1558A0", marginBottom:"10px"}}>{reg}</div>
-                     {EXAM_REGIONS[reg].map(fld => (
-                       <div key={fld} className="field"><label>{fld}</label><input value={r?.ch6msk?.[reg]?.[fld] || ""} onChange={e=>updateR(p=>({...p, ch6msk:{...p.ch6msk, [reg]:{...(p.ch6msk?.[reg]||{}), [fld]:e.target.value}}}))}/></div>
-                     ))}
-                   </div>
-                 ))}
-               </div>
-               <div className="card g2">
-                 <div>
-                   <div className="card-title" style={{marginBottom:"10px"}}>6.3.1 Scarring & Deformity</div>
-                   <ImageUploader value={r?.ch6scarringImg} onChange={v=>updateR(p=>({...p, ch6scarringImg:v}))}/>
-                   <SmartTA value={r?.ch6scarring} onChange={v=>updateR(p=>({...p, ch6scarring:v}))} rows={3} apiKey={apiKey}/>
-                 </div>
-                 <div>
-                   <div className="card-title" style={{marginBottom:"10px"}}>6.3.2 Radiology</div>
-                   <ImageUploader value={r?.ch6radiologyImg} onChange={v=>updateR(p=>({...p, ch6radiologyImg:v}))}/>
-                   <SmartTA value={r?.ch6radiology} onChange={v=>updateR(p=>({...p, ch6radiology:v}))} rows={3} apiKey={apiKey}/>
-                 </div>
-               </div>
-             </div>
-           )}
-
-           {/* CH 9: IMPAIRMENT */}
-           {chapter === 9 && (
-             <div className="space-y-6">
-               <div className="card">
-                 <div className="card-title" style={{marginBottom:"15px"}}>9.3.3 Treatment & Outcomes</div>
-                 <div className="field">
-                   <label style={{display:"flex", justifyContent:"space-between"}}>
-                     <span>Initial Treatment</span>
-                     <span style={{color:"#1558A0", cursor:"pointer"}} onClick={()=>updateR(p=>({...p, ch9initTx: p.ch5 || "Pulled from Chapter 5"}))}>Pull from Chapter 5</span>
-                   </label>
-                   <textarea rows={3} value={r?.ch9initTx} onChange={e=>updateR(p=>({...p, ch9initTx:e.target.value}))} className="w-full bg-white border border-slate-300 rounded-lg p-3"/>
-                 </div>
-                 <div className="g2">
-                   <div className="field"><label>Initial Diagnosis</label><textarea rows={3} value={r?.ch9initDx} onChange={e=>updateR(p=>({...p, ch9initDx:e.target.value}))} className="w-full bg-white border border-slate-300 rounded-lg p-3"/></div>
-                   <div className="field"><label>Outcome Diagnosis</label><textarea rows={3} value={r?.ch9outDx} onChange={e=>updateR(p=>({...p, ch9outDx:e.target.value}))} className="w-full bg-white border border-slate-300 rounded-lg p-3"/></div>
-                 </div>
-               </div>
-               <div className="card">
-                 <div className="card-title" style={{marginBottom:"15px"}}>Whole Person Impairment (WPI)</div>
-                 {r?.wpiRows?.map((row, i) => (
-                   <div key={i} className="g3" style={{marginBottom:"10px"}}>
-                     <input placeholder="Region" value={row.region} onChange={e=>{const nr=[...r.wpiRows]; nr[i].region=e.target.value; updateR(p=>({...p, wpiRows:nr}))}} className="w-full border rounded p-2"/>
-                     <input placeholder="Impairment" value={row.impairment} onChange={e=>{const nr=[...r.wpiRows]; nr[i].impairment=e.target.value; updateR(p=>({...p, wpiRows:nr}))}} className="w-full border rounded p-2"/>
-                     <div style={{display:"flex", gap:"5px"}}>
-                       <input placeholder="WPI %" value={row.wpi} onChange={e=>{const nr=[...r.wpiRows]; nr[i].wpi=e.target.value; updateR(p=>({...p, wpiRows:nr}))}} className="w-full border rounded p-2"/>
-                       <button className="btn btn-d" onClick={()=>{const nr=r.wpiRows.filter((_,x)=>x!==i); updateR(p=>({...p, wpiRows:nr}))}}>X</button>
+             {/* CH 0: DEMOGRAPHICS */}
+             {chapter === 0 && (
+               <div className="space-y-6">
+                 <ReportUploader apiKey={apiKey} onExtract={(info) => updateR(p => {
+                   const next = {...p, ...info};
+                   if(info.refNum) {
+                     next.dob = parseSAID(info.refNum) || next.dob;
+                     next.age = calcAge(next.dob, next.dateExam) || next.age;
+                   }
+                   return next;
+                 })} />
+                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
+                   <div className="font-black text-slate-900 uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-100">Patient Details</div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                     <div className="md:col-span-2">
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Patient Name</label>
+                       <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.patientName} onChange={e=>updateR(p=>({...p, patientName:e.target.value}))}/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">ID Number (Auto DOB)</label>
+                       <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.refNum} onChange={e=>{
+                         const val = e.target.value; const dob = parseSAID(val); const age = calcAge(dob||r.dob, r.dateExam);
+                         updateR(p=>({...p, refNum:val, dob:dob||p.dob, age:age||p.age}));
+                       }}/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Date of Birth</label>
+                       <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.dob} onChange={e=>updateR(p=>({...p, dob:e.target.value, age:calcAge(e.target.value, p.dateExam)}))}/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Age at Assessment</label>
+                       <input className="w-full bg-slate-100 border border-slate-200 rounded-xl p-3 font-bold text-slate-500 cursor-not-allowed" value={r?.age} readOnly/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Date of Injury</label>
+                       <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.doi} onChange={e=>updateR(p=>({...p, doi:e.target.value}))}/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Date of Examination</label>
+                       <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.dateExam} onChange={e=>updateR(p=>({...p, dateExam:e.target.value, age:calcAge(p.dob, e.target.value)}))}/>
                      </div>
                    </div>
-                 ))}
-                 <button className="btn btn-s" onClick={()=>updateR(p=>({...p, wpiRows:[...(p.wpiRows||[]), {region:"", impairment:"", wpi:""}]}))}>+ Add Row</button>
+                 </div>
+
+                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
+                   <div className="font-black text-slate-900 uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-100">Practice & Attorney</div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Doctor Name</label>
+                       <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.drName} onChange={e=>updateR(p=>({...p, drName:e.target.value}))}/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Qualifications</label>
+                       <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.quals} onChange={e=>updateR(p=>({...p, quals:e.target.value}))}/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Our Reference</label>
+                       <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.ourRef} onChange={e=>updateR(p=>({...p, ourRef:e.target.value}))}/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Instructing Attorney</label>
+                       <input className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold" value={r?.atty} onChange={e=>updateR(p=>({...p, atty:e.target.value}))}/>
+                     </div>
+                   </div>
+                   <ImageUploader label="Upload Doctor Signature (Used in Final Export)" value={r?.sigImg} onChange={v=>updateR(p=>({...p, sigImg:v}))} />
+                 </div>
                </div>
-             </div>
-           )}
+             )}
 
-           {/* STANDARD DICTATION FOR OTHER CHAPTERS */}
-           {(chapter !== 0 && chapter !== 6 && chapter !== 9) && (
-             <div className="card">
-               <SmartTA label={`${CHAPTERS[chapter].title} Content`} value={r?.[`ch${chapter}`] || ""} onChange={v=>updateR(p=>({...p, [`ch${chapter}`]:v}))} rows={12} apiKey={apiKey} aiPrompt="Correct grammar and format the text. NUMBER EVERY SINGLE SENTENCE (1.1, 1.2, etc.). For any numbers mentioned, write them as digit and word in brackets, e.g. 2 (two). Do not change facts."/>
-             </div>
-           )}
+             {/* CH 6: CLINICAL EVAL */}
+             {chapter === 6 && (
+               <div className="space-y-6">
+                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
+                   <div className="font-black text-slate-900 uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-100">6.1 Pre-Accident & Current Complaints</div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                     <SmartTA label="Pre-Accident Complaints" value={r?.ch6pre} onChange={v=>updateR(p=>({...p, ch6pre:v}))} rows={5} apiKey={apiKey} />
+                     <SmartTA label="Current Complaints" value={r?.ch6cur} onChange={v=>updateR(p=>({...p, ch6cur:v}))} rows={5} apiKey={apiKey} />
+                   </div>
+                   <SmartTA label="General Examination Notes" value={r?.ch6general} onChange={v=>updateR(p=>({...p, ch6general:v}))} rows={4} apiKey={apiKey} />
+                 </div>
+                 
+                 <div className="bg-slate-900 p-8 rounded-[2rem] shadow-xl text-white">
+                   <div className="font-black uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-700">6.2 Musculoskeletal Regions</div>
+                   <div className="flex flex-wrap gap-2 mb-8">
+                     {EXAM_REGIONS_LIST.map(reg => (
+                       <button key={reg} onClick={()=>updateR(p=>({...p, examRegions:{...p.examRegions, [reg]:!p.examRegions[reg]}}))} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${r?.examRegions?.[reg] ? "bg-blue-600 shadow-lg" : "bg-slate-800 text-slate-400 hover:bg-slate-700"}`}>
+                         {r?.examRegions?.[reg] ? "✓ " : ""}{reg}
+                       </button>
+                     ))}
+                   </div>
+                   <div className="space-y-4">
+                     {EXAM_REGIONS_LIST.filter(reg => r?.examRegions?.[reg]).map(reg => (
+                       <div key={reg} className="p-6 bg-slate-800 rounded-2xl border border-slate-700">
+                         <div className="font-black text-blue-400 uppercase tracking-widest text-xs mb-4">{reg}</div>
+                         <div className="space-y-3">
+                           {EXAM_REGIONS[reg].map(fld => (
+                             <div key={fld}>
+                               <label className="block text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">{fld}</label>
+                               <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 outline-none focus:border-blue-500 text-sm text-white" value={r?.ch6msk?.[reg]?.[fld] || ""} onChange={e=>updateR(p=>({...p, ch6msk:{...p.ch6msk, [reg]:{...(p.ch6msk?.[reg]||{}), [fld]:e.target.value}}}))}/>
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
 
+                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div>
+                     <div className="font-black text-slate-900 uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-100">6.3.1 Scarring & Deformity</div>
+                     <ImageUploader value={r?.ch6scarringImg} onChange={v=>updateR(p=>({...p, ch6scarringImg:v}))}/>
+                     <SmartTA value={r?.ch6scarring} onChange={v=>updateR(p=>({...p, ch6scarring:v}))} rows={4} apiKey={apiKey} placeholder="Describe scarring..."/>
+                   </div>
+                   <div>
+                     <div className="font-black text-slate-900 uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-100">6.3.2 Radiology</div>
+                     <ImageUploader value={r?.ch6radiologyImg} onChange={v=>updateR(p=>({...p, ch6radiologyImg:v}))}/>
+                     <SmartTA value={r?.ch6radiology} onChange={v=>updateR(p=>({...p, ch6radiology:v}))} rows={4} apiKey={apiKey} placeholder="Radiological findings..."/>
+                   </div>
+                 </div>
+               </div>
+             )}
+
+             {/* CH 9: IMPAIRMENT */}
+             {chapter === 9 && (
+               <div className="space-y-6">
+                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
+                   <div className="font-black text-slate-900 uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-100">9.3.3 Treatment & Outcomes</div>
+                   <div className="mb-4">
+                     <div className="flex justify-between items-center mb-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initial Treatment</label>
+                       <button className="text-[10px] font-black text-blue-600 uppercase hover:text-blue-800" onClick={()=>updateR(p=>({...p, ch9initTx: p.ch5 || "Pulled from Chapter 5"}))}>Pull from Chapter 5</button>
+                     </div>
+                     <textarea rows={3} value={r?.ch9initTx} onChange={e=>updateR(p=>({...p, ch9initTx:e.target.value}))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500 text-sm"/>
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Initial Diagnosis</label>
+                       <textarea rows={3} value={r?.ch9initDx} onChange={e=>updateR(p=>({...p, ch9initDx:e.target.value}))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500 text-sm"/>
+                     </div>
+                     <div>
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Outcome Diagnosis</label>
+                       <textarea rows={3} value={r?.ch9outDx} onChange={e=>updateR(p=>({...p, ch9outDx:e.target.value}))} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-blue-500 text-sm"/>
+                     </div>
+                   </div>
+                 </div>
+                 <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
+                   <div className="font-black text-slate-900 uppercase tracking-widest text-sm mb-6 pb-2 border-b border-slate-100">Whole Person Impairment (WPI)</div>
+                   <div className="space-y-3 mb-6">
+                     {r?.wpiRows?.map((row, i) => (
+                       <div key={i} className="flex gap-3 items-center">
+                         <input placeholder="Region" value={row.region} onChange={e=>{const nr=[...r.wpiRows]; nr[i].region=e.target.value; updateR(p=>({...p, wpiRows:nr}))}} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-blue-500"/>
+                         <input placeholder="Impairment" value={row.impairment} onChange={e=>{const nr=[...r.wpiRows]; nr[i].impairment=e.target.value; updateR(p=>({...p, wpiRows:nr}))}} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-blue-500"/>
+                         <input placeholder="WPI %" value={row.wpi} onChange={e=>{const nr=[...r.wpiRows]; nr[i].wpi=e.target.value; updateR(p=>({...p, wpiRows:nr}))}} className="w-24 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-blue-500 text-center font-bold"/>
+                         <button className="w-10 h-10 flex items-center justify-center bg-red-100 text-red-600 rounded-lg font-bold hover:bg-red-200 transition" onClick={()=>{const nr=r.wpiRows.filter((_,x)=>x!==i); updateR(p=>({...p, wpiRows:nr}))}}>✕</button>
+                       </div>
+                     ))}
+                   </div>
+                   <button className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition shadow-md" onClick={()=>updateR(p=>({...p, wpiRows:[...(p.wpiRows||[]), {region:"", impairment:"", wpi:""}]}))}>➕ Add Row</button>
+                 </div>
+               </div>
+             )}
+
+             {/* STANDARD DICTATION FOR OTHER CHAPTERS */}
+             {(chapter !== 0 && chapter !== 6 && chapter !== 9) && (
+               <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-200">
+                 <SmartTA label={`${CHAPTERS[chapter].title} Content`} value={r?.[`ch${chapter}`] || ""} onChange={v=>updateR(p=>({...p, [`ch${chapter}`]:v}))} rows={15} apiKey={apiKey}/>
+               </div>
+             )}
+           </div>
         </div>
       </div>
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl font-bold text-sm z-50">{toast}</div>}
     </div>
   );
 }
