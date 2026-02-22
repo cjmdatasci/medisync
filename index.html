@@ -8,420 +8,624 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --white:#ffffff;
-  --bg:#f4f6f9;
-  --card:#ffffff;
-  --border:#e2e8f0;
-  --border-focus:#0ea5a0;
-  --sidebar:#1a2234;
-  --sidebar-hover:#243048;
-  --sidebar-active:#0ea5a0;
-  --text:#1a2234;
-  --text-secondary:#64748b;
-  --text-muted:#94a3b8;
-  --teal:#0ea5a0;
-  --teal-light:#e0f7f6;
-  --teal-dark:#0b8a86;
-  --navy:#1a2234;
-  --gold:#f59e0b;
-  --gold-light:#fef3c7;
-  --red:#ef4444;
-  --red-light:#fee2e2;
-  --green:#22c55e;
-  --green-light:#dcfce7;
-  --blue:#3b82f6;
-  --blue-light:#dbeafe;
-  --shadow-sm:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
-  --shadow:0 4px 16px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
-  --shadow-lg:0 10px 40px rgba(0,0,0,.12),0 4px 12px rgba(0,0,0,.06);
-  --radius:12px;
-  --radius-sm:8px;
-  --radius-lg:16px;
+  --bg:#07090f;
+  --surface:#0d1117;
+  --panel:#111827;
+  --raised:#161d2e;
+  --rim:#1e2a40;
+  --line:#243050;
+  --teal:#00e5d8;
+  --teal-dim:#00b5aa;
+  --teal-glow:rgba(0,229,216,.14);
+  --teal-ghost:rgba(0,229,216,.05);
+  --gold:#f5a623;
+  --red:#ff4d6d;
+  --red-glow:rgba(255,77,109,.12);
+  --green:#00e676;
+  --green-glow:rgba(0,230,118,.1);
+  --purple:#9d7eff;
+  --t1:#e8f0ff;
+  --t2:#7d8fb3;
+  --t3:#3d4f70;
+  --t4:#1e2a40;
+  --glass:rgba(255,255,255,.025);
+  --glass-b:rgba(255,255,255,.05);
+  --sidebar-w:252px;
+  --topbar-h:58px;
 }
 html,body,#root{height:100%;background:var(--bg);}
-body{font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text);-webkit-font-smoothing:antialiased;}
+body{font-family:'DM Sans',sans-serif;font-size:14px;color:var(--t1);-webkit-font-smoothing:antialiased;}
 button,input,select,textarea{font-family:'DM Sans',sans-serif;}
 textarea{resize:vertical;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--rim);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--line);}
+a{text-decoration:none;color:inherit;}
 
-/* SCROLLBAR */
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
-::-webkit-scrollbar-thumb:hover{background:var(--text-muted);}
+/* ─── AMBIENT GLOW ─────────────────────────────────── */
+.glow-tr{position:fixed;top:-300px;right:-200px;width:700px;height:700px;
+  background:radial-gradient(circle,rgba(0,229,216,.055) 0%,transparent 65%);pointer-events:none;z-index:0;}
+.glow-bl{position:fixed;bottom:-300px;left:-200px;width:600px;height:600px;
+  background:radial-gradient(circle,rgba(157,126,255,.04) 0%,transparent 65%);pointer-events:none;z-index:0;}
 
-/* APP */
-.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+/* ─── LAYOUT ────────────────────────────────────────── */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;position:relative;z-index:1;}
 
-/* TOP HEADER */
+/* ─── TOPBAR ────────────────────────────────────────── */
 .topbar{
-  height:64px;background:var(--white);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;padding:0 24px;gap:16px;
-  box-shadow:var(--shadow-sm);flex-shrink:0;z-index:50;
+  height:var(--topbar-h);
+  background:rgba(13,17,23,.85);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--glass-b);
+  display:flex;align-items:center;padding:0 20px;gap:12px;
+  flex-shrink:0;z-index:200;position:relative;
 }
-.topbar-logo{display:flex;align-items:center;gap:12px;}
-.logo-mark{
-  width:40px;height:40px;background:linear-gradient(135deg,var(--teal),var(--teal-dark));
-  border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-size:20px;box-shadow:0 2px 8px rgba(14,165,160,.3);
+.topbar::after{
+  content:"";position:absolute;bottom:-1px;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--teal-dim) 40%,var(--teal-dim) 60%,transparent 100%);
+  opacity:.18;
 }
-.logo-text{font-family:'DM Serif Display',serif;font-size:20px;color:var(--navy);}
-.logo-text span{color:var(--teal);}
-.logo-sub{font-size:11px;color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;margin-top:1px;}
-.topbar-spacer{flex:1;}
-.save-indicator{
-  display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);
+.t-logo{display:flex;align-items:center;gap:10px;}
+.t-logo-mark{
+  width:36px;height:36px;border-radius:9px;
+  background:linear-gradient(135deg,var(--teal) 0%,var(--teal-dim) 100%);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 0 18px rgba(0,229,216,.28),inset 0 1px 0 rgba(255,255,255,.18);
 }
-.save-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
-.save-dot.saving{background:var(--gold);animation:pulse 1s infinite;}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.t-logo-text{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;letter-spacing:.2px;color:var(--t1);}
+.t-logo-text em{color:var(--teal);font-style:normal;}
+.t-logo-sub{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--t3);margin-top:1px;}
+.t-sep{width:1px;height:18px;background:var(--rim);margin:0 4px;}
+.t-space{flex:1;}
 
-/* BODY */
+/* topbar status pill */
+.status-pill{
+  display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;
+  font-size:11px;font-weight:600;letter-spacing:.4px;border:1px solid transparent;
+  transition:all .3s;
+}
+.status-pill.idle{color:var(--t3);background:transparent;border-color:transparent;}
+.status-pill.saving{color:var(--gold);background:rgba(245,166,35,.08);border-color:rgba(245,166,35,.2);}
+.status-pill.saved{color:var(--teal-dim);background:var(--teal-ghost);border-color:rgba(0,229,216,.15);}
+.status-pill.error{color:var(--red);background:var(--red-glow);border-color:rgba(255,77,109,.25);}
+.status-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.status-dot.blink{animation:sdot 1.2s ease infinite;}
+@keyframes sdot{0%,100%{opacity:1;}50%{opacity:.15;}}
+
+/* topbar buttons */
+.tb-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;
+  letter-spacing:.3px;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;
+}
+.tb-ghost{background:transparent;color:var(--t2);border:1px solid var(--rim);}
+.tb-ghost:hover{border-color:var(--teal-dim);color:var(--teal);background:var(--teal-ghost);}
+.tb-primary{background:var(--teal);color:#07090f;font-weight:700;box-shadow:0 0 18px rgba(0,229,216,.22);}
+.tb-primary:hover{background:#00cfca;box-shadow:0 0 26px rgba(0,229,216,.38);}
+.tb-icon{
+  width:34px;height:34px;border-radius:8px;border:1px solid var(--rim);
+  background:transparent;color:var(--t2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  transition:all .15s;flex-shrink:0;
+}
+.tb-icon:hover{border-color:var(--teal-dim);color:var(--teal);background:var(--teal-ghost);}
+
+/* hamburger */
+.hamburger{
+  width:34px;height:34px;border-radius:8px;border:1px solid var(--rim);
+  background:transparent;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;transition:all .15s;flex-shrink:0;
+}
+.hamburger:hover{border-color:var(--teal-dim);background:var(--teal-ghost);}
+.hamburger span{display:block;width:14px;height:1.5px;background:var(--t2);border-radius:2px;transition:background .15s;}
+.hamburger:hover span{background:var(--teal);}
+
+/* ─── BODY WRAP ─────────────────────────────────────── */
 .body-wrap{display:flex;flex:1;overflow:hidden;}
 
-/* SIDEBAR */
+/* ─── SIDEBAR ───────────────────────────────────────── */
 .sidebar{
-  width:260px;min-width:260px;background:var(--sidebar);
-  display:flex;flex-direction:column;transition:width .25s ease,min-width .25s ease;
-  overflow:hidden;
+  width:var(--sidebar-w);min-width:var(--sidebar-w);
+  background:rgba(11,15,22,.7);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-right:1px solid var(--glass-b);
+  display:flex;flex-direction:column;
+  transition:width .22s ease,min-width .22s ease;overflow:hidden;
 }
-.sidebar.collapsed{width:0;min-width:0;}
-.sidebar-header{
-  padding:20px 20px 12px;border-bottom:1px solid rgba(255,255,255,.06);
+.sidebar.closed{width:0;min-width:0;}
+
+/* report info block */
+.sb-rpt{
+  padding:16px 16px 14px;border-bottom:1px solid var(--glass-b);
+  position:relative;
 }
-.sidebar-report-name{
-  font-size:13px;font-weight:600;color:#fff;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;
+.sb-rpt::before{
+  content:"";position:absolute;top:0;left:16px;right:16px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--teal-dim),transparent);opacity:.3;
 }
-.sidebar-report-meta{font-size:11px;color:rgba(255,255,255,.35);}
-.sidebar-progress-bar{
-  height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:10px;
+.sb-rpt-name{
+  font-family:'Syne',sans-serif;font-size:12px;font-weight:700;
+  color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;
 }
-.sidebar-progress-fill{height:100%;background:var(--teal);border-radius:2px;transition:width .4s ease;}
-.sidebar-nav{flex:1;overflow-y:auto;padding:8px;}
-.sidebar-section-label{
-  font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
-  color:rgba(255,255,255,.25);padding:12px 12px 4px;
+.sb-rpt-meta{font-size:10px;color:var(--t3);letter-spacing:.3px;}
+.sb-prog{margin-top:11px;}
+.sb-prog-track{height:2px;background:var(--rim);border-radius:2px;position:relative;}
+.sb-prog-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--teal-dim),var(--teal));
+  transition:width .5s ease;position:relative;
 }
+.sb-prog-fill::after{
+  content:"";position:absolute;right:-3px;top:-3px;
+  width:8px;height:8px;border-radius:50%;background:var(--teal);
+  box-shadow:0 0 8px var(--teal);
+}
+.sb-prog-pct{font-size:9px;color:var(--teal);text-align:right;margin-top:5px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:.5px;}
+
+/* nav */
+.sb-nav{flex:1;overflow-y:auto;padding:6px 8px;}
+.sb-nav-label{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--t4);padding:10px 8px 4px;}
 .nav-item{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;
-  font-size:14px;font-weight:400;color:rgba(255,255,255,.55);
-  border:none;background:none;width:100%;text-align:left;cursor:pointer;
-  transition:all .15s ease;margin-bottom:1px;white-space:nowrap;
+  display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;
+  font-size:13px;color:var(--t3);background:none;border:1px solid transparent;
+  width:100%;text-align:left;cursor:pointer;transition:all .12s;margin-bottom:1px;
+  white-space:nowrap;position:relative;
 }
-.nav-item:hover{background:var(--sidebar-hover);color:rgba(255,255,255,.85);}
-.nav-item.active{background:rgba(14,165,160,.2);color:var(--teal);font-weight:500;}
+.nav-item:hover{color:var(--t1);background:var(--glass);border-color:var(--glass-b);}
+.nav-item.active{
+  color:var(--teal);background:var(--teal-ghost);
+  border-color:rgba(0,229,216,.12);font-weight:500;
+}
+.nav-item.active::before{
+  content:"";position:absolute;left:0;top:25%;height:50%;
+  width:2px;background:var(--teal);border-radius:2px;
+  box-shadow:0 0 6px var(--teal);
+}
 .nav-num{
-  width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.07);
+  width:20px;height:20px;border-radius:5px;background:var(--raised);
   display:flex;align-items:center;justify-content:center;
-  font-size:11px;font-weight:600;flex-shrink:0;
+  font-size:9px;font-weight:700;flex-shrink:0;color:var(--t3);
+  font-family:'Syne',sans-serif;
 }
-.nav-item.active .nav-num{background:rgba(14,165,160,.3);color:var(--teal);}
-.nav-done{
-  width:18px;height:18px;border-radius:50%;background:var(--green);
+.nav-item.active .nav-num{background:rgba(0,229,216,.15);color:var(--teal);}
+.nav-tick{
+  width:15px;height:15px;border-radius:50%;background:var(--green);
   display:flex;align-items:center;justify-content:center;
-  font-size:10px;color:#fff;margin-left:auto;flex-shrink:0;
+  font-size:8px;color:#07090f;font-weight:900;margin-left:auto;flex-shrink:0;
+  box-shadow:0 0 7px rgba(0,230,118,.4);
 }
 
-/* MAIN CONTENT */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
-
-/* CHAPTER HEADER */
-.chapter-header{
-  background:var(--white);border-bottom:1px solid var(--border);
-  padding:20px 32px;display:flex;align-items:center;justify-content:space-between;
+/* ─── ACCOUNT PANEL (bottom of sidebar) ─────────────── */
+.sb-account{
+  border-top:1px solid var(--glass-b);
+  background:rgba(0,0,0,.2);
   flex-shrink:0;
 }
-.chapter-header-left{display:flex;align-items:center;gap:12px;}
-.chapter-badge{
-  width:44px;height:44px;border-radius:12px;background:var(--teal-light);
+.sb-acc-btn{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;width:100%;background:none;border:none;
+  cursor:pointer;transition:background .15s;text-align:left;
+}
+.sb-acc-btn:hover{background:var(--glass);}
+.acc-avatar{
+  width:32px;height:32px;border-radius:8px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--purple),var(--teal-dim));
   display:flex;align-items:center;justify-content:center;
-  font-size:15px;font-weight:700;color:var(--teal);flex-shrink:0;
+  font-family:'Syne',sans-serif;font-size:12px;font-weight:800;color:#fff;
+  box-shadow:0 0 12px rgba(157,126,255,.25);
 }
-.chapter-title{font-size:20px;font-weight:600;color:var(--text);}
-.chapter-subtitle{font-size:13px;color:var(--text-muted);margin-top:2px;}
-.chapter-nav{display:flex;gap:8px;}
+.acc-info{flex:1;min-width:0;}
+.acc-email{font-size:11px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.acc-role{font-size:9px;color:var(--t3);letter-spacing:.5px;text-transform:uppercase;margin-top:1px;}
+.acc-chevron{font-size:10px;color:var(--t3);flex-shrink:0;transition:transform .2s;}
+.acc-chevron.open{transform:rotate(180deg);}
 
-/* CONTENT AREA */
-.content-area{flex:1;overflow-y:auto;padding:28px 32px;}
-.content-area.wide{padding:28px 24px;}
+/* account dropdown */
+.acc-dropdown{
+  background:var(--raised);border-top:1px solid var(--line);
+  animation:acc-in .15s ease;overflow:hidden;
+}
+@keyframes acc-in{from{opacity:0;max-height:0;}to{opacity:1;max-height:400px;}}
+.acc-item{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 16px;font-size:13px;color:var(--t2);
+  cursor:pointer;background:none;border:none;width:100%;text-align:left;
+  border-top:1px solid var(--glass-b);transition:all .12s;
+}
+.acc-item:first-child{border-top:none;}
+.acc-item:hover{color:var(--t1);background:var(--glass);}
+.acc-item.red{color:var(--red);}
+.acc-item.red:hover{background:var(--red-glow);}
+.acc-item-ico{
+  width:26px;height:26px;border-radius:6px;background:var(--panel);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;
+}
 
-/* CARDS */
+/* ─── MAIN ──────────────────────────────────────────── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+.ch-bar{
+  background:rgba(11,15,22,.6);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--glass-b);
+  padding:15px 28px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.ch-left{display:flex;align-items:center;gap:12px;}
+.ch-badge{
+  width:40px;height:40px;border-radius:10px;flex-shrink:0;
+  background:var(--teal-ghost);border:1px solid rgba(0,229,216,.15);
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+}
+.ch-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;color:var(--t1);}
+.ch-sub{font-size:11px;color:var(--t3);margin-top:1px;letter-spacing:.3px;}
+.ch-nav{display:flex;gap:7px;}
+
+.content{flex:1;overflow-y:auto;padding:24px 28px;}
+
+/* ─── CARDS ─────────────────────────────────────────── */
 .card{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
-  padding:24px;margin-bottom:20px;box-shadow:var(--shadow-sm);
+  background:var(--glass);border:1px solid var(--glass-b);
+  border-radius:14px;padding:22px;margin-bottom:16px;
+  position:relative;overflow:hidden;transition:border-color .2s;
 }
-.card-header{
-  display:flex;align-items:center;gap:10px;margin-bottom:20px;
-  padding-bottom:14px;border-bottom:1px solid var(--border);
+.card::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.015) 0%,transparent 50%);
+  pointer-events:none;border-radius:inherit;
 }
-.card-icon{
-  width:36px;height:36px;border-radius:8px;background:var(--teal-light);
-  display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;
+.card:focus-within{border-color:rgba(0,229,216,.1);}
+.card-h{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--glass-b);}
+.card-ico{
+  width:34px;height:34px;border-radius:8px;
+  background:var(--teal-ghost);border:1px solid rgba(0,229,216,.12);
+  display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;
 }
-.card-title{font-size:15px;font-weight:600;color:var(--text);}
-.card-desc{font-size:13px;color:var(--text-muted);margin-top:2px;}
+.card-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--t1);}
+.card-desc{font-size:11px;color:var(--t3);margin-top:2px;}
 
-/* FORM ELEMENTS */
-.field{margin-bottom:18px;}
+/* ─── FORMS ─────────────────────────────────────────── */
+.field{margin-bottom:15px;}
 .field label{
-  display:block;font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px;
+  display:block;font-size:10px;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;color:var(--t3);margin-bottom:6px;
 }
-.field label .required{color:var(--red);margin-left:2px;}
 .field input,.field select,.field textarea{
-  width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);
-  color:var(--text);padding:11px 14px;font-size:15px;outline:none;
+  width:100%;background:var(--panel);border:1px solid var(--rim);
+  border-radius:8px;color:var(--t1);padding:10px 13px;font-size:14px;outline:none;
   transition:border-color .15s,box-shadow .15s;
 }
 .field input:focus,.field select:focus,.field textarea:focus{
-  border-color:var(--teal);box-shadow:0 0 0 3px rgba(14,165,160,.12);background:var(--white);
+  border-color:var(--teal-dim);
+  box-shadow:0 0 0 3px var(--teal-glow);
+  background:var(--raised);
 }
-.field select option{background:var(--white);}
-.field textarea{min-height:100px;line-height:1.6;}
-.field-hint{font-size:12px;color:var(--text-muted);margin-top:4px;}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.field input::placeholder,.field textarea::placeholder{color:var(--t4);}
+.field select option{background:var(--panel);}
+.field textarea{min-height:90px;line-height:1.6;}
+.fhint{font-size:11px;color:var(--t3);margin-top:4px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
 
-/* TEXTAREA WITH VOICE */
-.ta-container{position:relative;}
-.ta-container textarea{padding-right:100px;}
-.ta-toolbar{
-  position:absolute;top:8px;right:8px;
-  display:flex;flex-direction:column;gap:6px;
-}
-.mic-btn{
-  width:36px;height:36px;border-radius:8px;border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-size:16px;
+/* ─── SMART TEXTAREA ────────────────────────────────── */
+.ta-wrap{position:relative;}
+.ta-wrap textarea{padding-right:92px;}
+.ta-tools{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px;}
+.mic{
+  width:34px;height:34px;border-radius:7px;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
   transition:all .15s;
 }
-.mic-btn.idle{background:var(--bg);color:var(--text-muted);border:1.5px solid var(--border);}
-.mic-btn.idle:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-light);}
-.mic-btn.active{background:var(--red);color:#fff;border-color:transparent;animation:mic-pulse 1.2s infinite;}
-@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4);}50%{box-shadow:0 0 0 8px rgba(239,68,68,0);}}
-.ai-btn{
-  width:36px;height:36px;border-radius:8px;border:1.5px solid #e9d5ff;
-  background:#faf5ff;color:#7c3aed;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-size:14px;
+.mic.off{background:var(--raised);color:var(--t3);border:1px solid var(--rim);}
+.mic.off:hover{border-color:var(--teal-dim);color:var(--teal);background:var(--teal-ghost);}
+.mic.on{background:var(--red);color:#fff;animation:rec 1.3s ease infinite;}
+@keyframes rec{0%,100%{box-shadow:0 0 0 0 rgba(255,77,109,.5);}60%{box-shadow:0 0 0 7px rgba(255,77,109,0);}}
+.aibtn{
+  width:34px;height:34px;border-radius:7px;border:1px solid rgba(157,126,255,.25);
+  background:rgba(157,126,255,.08);color:var(--purple);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
   transition:all .15s;
 }
-.ai-btn:hover{background:#ede9fe;border-color:#7c3aed;}
-.ai-btn:disabled{opacity:.4;cursor:wait;}
+.aibtn:hover{background:rgba(157,126,255,.18);border-color:var(--purple);}
+.aibtn:disabled{opacity:.3;cursor:wait;}
 
-/* BUTTONS */
+/* ─── BUTTONS ───────────────────────────────────────── */
 .btn{
-  display:inline-flex;align-items:center;gap:7px;padding:10px 18px;
-  border-radius:var(--radius-sm);border:none;font-size:14px;font-weight:500;
-  cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 16px;border-radius:8px;border:none;
+  font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .15s;white-space:nowrap;
 }
-.btn-primary{background:var(--teal);color:#fff;box-shadow:0 2px 8px rgba(14,165,160,.3);}
-.btn-primary:hover{background:var(--teal-dark);box-shadow:0 4px 12px rgba(14,165,160,.4);}
-.btn-secondary{background:var(--white);color:var(--text);border:1.5px solid var(--border);}
-.btn-secondary:hover{border-color:var(--teal);color:var(--teal);}
-.btn-ghost{background:transparent;color:var(--text-secondary);padding:8px 12px;}
-.btn-ghost:hover{background:var(--bg);color:var(--text);}
-.btn-danger{background:var(--red-light);color:var(--red);border:1.5px solid transparent;}
-.btn-danger:hover{background:var(--red);color:#fff;}
-.btn-sm{padding:7px 13px;font-size:13px;}
-.btn-lg{padding:13px 24px;font-size:16px;}
-.btn-icon{width:38px;height:38px;padding:0;justify-content:center;font-size:16px;}
+.btn-p{background:var(--teal);color:#07090f;font-weight:700;box-shadow:0 0 18px rgba(0,229,216,.2);}
+.btn-p:hover{background:#00cfca;box-shadow:0 0 24px rgba(0,229,216,.36);}
+.btn-s{background:var(--raised);color:var(--t2);border:1px solid var(--rim);}
+.btn-s:hover{border-color:var(--teal-dim);color:var(--teal);background:var(--teal-ghost);}
+.btn-g{background:transparent;color:var(--t2);border:1px solid transparent;padding:8px 12px;}
+.btn-g:hover{background:var(--glass);border-color:var(--glass-b);color:var(--t1);}
+.btn-d{background:var(--red-glow);color:var(--red);border:1px solid rgba(255,77,109,.18);}
+.btn-d:hover{background:var(--red);color:#fff;}
+.btn-sm{padding:6px 11px;font-size:12px;}
+.btn-lg{padding:12px 22px;font-size:15px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
 
-/* REPORT LIST */
-.report-card{
-  background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);
-  padding:20px 22px;margin-bottom:12px;cursor:pointer;
-  transition:all .18s ease;display:flex;align-items:center;gap:16px;
-  box-shadow:var(--shadow-sm);
+/* ─── LOGIN ─────────────────────────────────────────── */
+.login-root{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);padding:20px;position:relative;overflow:hidden;z-index:1;
 }
-.report-card:hover{border-color:var(--teal);box-shadow:var(--shadow);transform:translateY(-1px);}
-.report-icon{
-  width:48px;height:48px;border-radius:12px;
-  background:linear-gradient(135deg,var(--teal-light),#b2f0ee);
-  display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+.login-ring{
+  position:absolute;border-radius:50%;border:1px solid rgba(0,229,216,.05);
+  animation:ring-pulse 6s ease infinite;
 }
-.report-meta{flex:1;min-width:0;}
-.report-name{font-size:16px;font-weight:600;color:var(--text);margin-bottom:3px;}
-.report-info{font-size:13px;color:var(--text-muted);}
-.report-progress{display:flex;align-items:center;gap:8px;margin-top:8px;}
-.report-progress-bar{flex:1;height:4px;background:var(--border);border-radius:2px;}
-.report-progress-fill{height:100%;background:var(--teal);border-radius:2px;transition:width .3s;}
-.report-progress-label{font-size:12px;color:var(--teal);font-weight:600;min-width:32px;}
+@keyframes ring-pulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+.login-card{
+  background:var(--surface);border:1px solid var(--rim);border-radius:20px;
+  padding:40px 44px;width:100%;max-width:420px;
+  box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03);
+  position:relative;z-index:1;
+}
+.login-card::before{
+  content:"";position:absolute;top:0;left:20px;right:20px;height:1px;border-radius:20px;
+  background:linear-gradient(90deg,transparent,var(--teal-dim),transparent);opacity:.5;
+}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+.login-mark{
+  width:46px;height:46px;border-radius:12px;
+  background:linear-gradient(135deg,var(--teal),var(--teal-dim));
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  box-shadow:0 0 24px rgba(0,229,216,.35);
+}
+.login-appname{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--t1);}
+.login-appname em{color:var(--teal);font-style:normal;}
+.login-apptag{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--t3);margin-top:2px;}
+.login-heading{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--t1);margin-bottom:4px;}
+.login-sub{font-size:14px;color:var(--t3);margin-bottom:28px;}
+.login-err{
+  background:var(--red-glow);border:1px solid rgba(255,77,109,.25);
+  color:var(--red);border-radius:8px;padding:10px 13px;font-size:13px;margin-bottom:14px;
+}
+.login-ok{
+  background:var(--green-glow);border:1px solid rgba(0,230,118,.2);
+  color:var(--green);border-radius:8px;padding:10px 13px;font-size:13px;margin-bottom:14px;
+}
+.login-forgot{font-size:12px;color:var(--teal-dim);cursor:pointer;float:right;margin-top:-12px;margin-bottom:16px;}
+.login-forgot:hover{color:var(--teal);}
+.login-invite-hint{
+  margin-top:20px;padding:13px 14px;background:rgba(0,0,0,.35);
+  border-radius:8px;border:1px solid var(--rim);
+}
+.login-invite-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:4px;}
+.login-invite-hint p{font-size:12px;color:var(--t3);line-height:1.5;}
+.login-invite-hint strong{color:var(--t2);}
 
-/* ADL TABLE */
-.adl-table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);}
-.adl-table th{
-  background:var(--navy);color:#fff;padding:10px 14px;
-  font-size:12px;font-weight:600;letter-spacing:.5px;text-align:center;
+/* ─── ACCOUNT MODAL ─────────────────────────────────── */
+.overlay{
+  position:fixed;inset:0;z-index:900;
+  background:rgba(0,0,0,.75);backdrop-filter:blur(10px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  animation:fade-in .15s ease;
 }
-.adl-table th:first-child{text-align:left;}
-.adl-table td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
-.adl-table tr:last-child td{border-bottom:none;}
-.adl-table tr:nth-child(even) td{background:#f8fafc;}
-.adl-table tr:hover td{background:var(--teal-light);}
-.adl-radio{display:flex;justify-content:center;gap:0;}
-.adl-radio label{
-  cursor:pointer;padding:4px 6px;border-radius:4px;font-size:13px;
-  display:flex;align-items:center;gap:3px;color:var(--text-muted);transition:all .1s;
+@keyframes fade-in{from{opacity:0;}to{opacity:1;}}
+.modal{
+  background:var(--surface);border:1px solid var(--rim);border-radius:16px;
+  width:100%;max-width:460px;box-shadow:0 24px 80px rgba(0,0,0,.7);
+  overflow:hidden;position:relative;animation:modal-up .18s ease;
 }
-.adl-radio label:hover{color:var(--teal);}
-.adl-radio input[type=radio]{accent-color:var(--teal);width:15px;height:15px;}
+@keyframes modal-up{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.modal::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--teal-dim),transparent);opacity:.4;
+}
+.modal-head{
+  padding:20px 24px 16px;border-bottom:1px solid var(--glass-b);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.modal-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--t1);}
+.modal-body{padding:20px 24px;}
+.modal-foot{padding:14px 24px;border-top:1px solid var(--glass-b);display:flex;gap:8px;justify-content:flex-end;}
 
-/* WPI TABLE */
-.wpi-table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);}
-.wpi-table th{background:var(--navy);color:#fff;padding:10px 14px;font-size:12px;font-weight:600;letter-spacing:.5px;}
-.wpi-table td{padding:8px 10px;border-bottom:1px solid var(--border);}
-.wpi-table tr:last-child td{background:var(--navy);color:#fff;font-weight:600;}
-.wpi-table input{
-  width:100%;background:transparent;border:1.5px solid var(--border);
-  border-radius:6px;padding:6px 8px;font-size:13px;color:var(--text);outline:none;
+/* account modal specifics */
+.acc-hero{
+  display:flex;align-items:center;gap:14px;padding:16px;
+  background:var(--raised);border:1px solid var(--line);border-radius:10px;margin-bottom:18px;
 }
-.wpi-table input:focus{border-color:var(--teal);background:var(--white);}
-.wpi-table tr:last-child input{background:transparent;border-color:rgba(255,255,255,.3);color:#fff;}
-.wpi-total{font-size:20px;font-weight:700;color:var(--teal);}
+.acc-hero-av{
+  width:52px;height:52px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--purple),var(--teal-dim));
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff;
+  box-shadow:0 0 20px rgba(157,126,255,.25);
+}
+.acc-hero-email{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:3px;}
+.acc-hero-meta{font-size:11px;color:var(--t3);}
+.acc-section{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin:14px 0 7px;}
+.acc-stat{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 13px;background:var(--raised);border:1px solid var(--line);
+  border-radius:8px;margin-bottom:6px;
+}
+.acc-stat-k{font-size:12px;color:var(--t3);}
+.acc-stat-v{font-family:'Syne',sans-serif;font-size:14px;font-weight:600;color:var(--t1);}
+.api-row{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;
+  background:var(--raised);border:1px solid var(--line);border-radius:8px;
+}
+.api-val{flex:1;font-family:monospace;font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.api-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.api-badge.on{background:rgba(0,229,216,.1);color:var(--teal);border:1px solid rgba(0,229,216,.2);}
+.api-badge.off{background:var(--glass);color:var(--t3);border:1px solid var(--glass-b);}
 
-/* INJURY LIST */
-.injury-item{
-  display:flex;align-items:center;gap:12px;padding:12px 14px;
-  background:var(--bg);border:1.5px solid var(--border);border-radius:8px;margin-bottom:8px;
+/* ─── REPORT LIST ───────────────────────────────────── */
+.list-page{flex:1;overflow-y:auto;padding:28px 32px;}
+.list-head{max-width:720px;margin:0 auto 22px;}
+.list-head-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--t1);margin-bottom:4px;}
+.list-head-title em{color:var(--teal);font-style:normal;}
+.list-head-sub{font-size:13px;color:var(--t3);}
+.search-row{max-width:720px;margin:0 auto 18px;position:relative;}
+.search-ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--t3);}
+.searchbox{
+  width:100%;padding:11px 14px 11px 39px;
+  background:var(--panel);border:1px solid var(--rim);border-radius:9px;
+  font-size:14px;color:var(--t1);outline:none;transition:border-color .15s;
 }
-.injury-bullet{
-  width:10px;height:10px;border-radius:50%;background:var(--teal);flex-shrink:0;
-}
-.injury-text{flex:1;font-size:14px;color:var(--text);}
+.searchbox:focus{border-color:var(--teal-dim);box-shadow:0 0 0 3px var(--teal-glow);}
+.searchbox::placeholder{color:var(--t4);}
+.rpt-list{max-width:720px;margin:0 auto;}
 
-/* PROMPT BLOCK */
+.rpt-card{
+  background:var(--glass);border:1px solid var(--glass-b);border-radius:13px;
+  padding:17px 20px;margin-bottom:9px;cursor:pointer;
+  display:flex;align-items:center;gap:14px;
+  transition:all .18s ease;position:relative;overflow:hidden;
+}
+.rpt-card::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.015),transparent);
+  pointer-events:none;
+}
+.rpt-card:hover{
+  border-color:rgba(0,229,216,.18);background:var(--glass);
+  transform:translateY(-1px);
+  box-shadow:0 8px 28px rgba(0,0,0,.3),0 0 0 1px rgba(0,229,216,.07);
+}
+.rpt-ico{
+  width:44px;height:44px;border-radius:11px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--teal-ghost),rgba(0,229,216,.03));
+  border:1px solid rgba(0,229,216,.1);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+}
+.rpt-info{flex:1;min-width:0;}
+.rpt-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--t1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rpt-meta{font-size:11px;color:var(--t3);}
+.rpt-prog{display:flex;align-items:center;gap:8px;margin-top:7px;}
+.rpt-track{flex:1;height:2px;background:var(--rim);border-radius:2px;}
+.rpt-fill{height:100%;background:linear-gradient(90deg,var(--teal-dim),var(--teal));border-radius:2px;transition:width .3s;}
+.rpt-pct{font-size:10px;color:var(--teal);font-weight:700;min-width:28px;text-align:right;font-family:'Syne',sans-serif;}
+
+/* ─── CHAPTER CONTENT ───────────────────────────────── */
 .prompt-block{
-  background:var(--bg);border-left:3px solid var(--teal);border-radius:0 var(--radius-sm) var(--radius-sm) 0;
-  padding:14px 16px;margin-bottom:16px;
+  background:var(--raised);border:1px solid var(--glass-b);
+  border-left:2px solid var(--teal);
+  border-radius:0 8px 8px 0;padding:13px 15px;margin-bottom:13px;
 }
-.prompt-label{font-size:12px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
-.prompt-guide{font-size:13px;color:var(--text-muted);margin-bottom:10px;line-height:1.5;}
+.prompt-lbl{font-size:9px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--teal);margin-bottom:3px;}
+.prompt-guide{font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.55;}
 
-/* EXAM REGION */
-.region-grid{display:grid;grid-template-columns:200px 1fr;gap:20px;}
-.region-list{display:flex;flex-direction:column;gap:4px;}
+.region-grid{display:grid;grid-template-columns:188px 1fr;gap:16px;}
 .region-btn{
-  padding:10px 14px;border-radius:8px;font-size:14px;font-weight:400;
-  border:1.5px solid var(--border);background:var(--white);color:var(--text-secondary);
-  cursor:pointer;text-align:left;transition:all .15s;
+  padding:9px 12px;border-radius:7px;font-size:12px;
+  border:1px solid var(--rim);background:var(--raised);color:var(--t3);
+  cursor:pointer;text-align:left;transition:all .13s;width:100%;margin-bottom:3px;display:block;
 }
-.region-btn:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-light);}
-.region-btn.active{background:var(--teal);color:#fff;border-color:var(--teal);font-weight:500;}
-.region-fields{flex:1;}
-.region-field-label{
-  font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;
-  letter-spacing:.5px;margin-bottom:6px;margin-top:14px;display:flex;align-items:center;gap:6px;
-}
-.region-field-label:first-child{margin-top:0;}
+.region-btn:hover{border-color:var(--teal-dim);color:var(--teal);background:var(--teal-ghost);}
+.region-btn.active{background:var(--teal);color:#07090f;border-color:var(--teal);font-weight:600;}
+.region-fld{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--teal-dim);margin:12px 0 5px;}
+.region-fld:first-child{margin-top:0;}
 
-/* PREVIEW */
-.preview-wrap{flex:1;overflow-y:auto;background:#e8ecf0;padding:32px;}
-.preview-page{
-  background:#fff;max-width:800px;margin:0 auto;
-  padding:60px 72px;font-family:'DM Serif Display',serif;
-  font-size:11pt;line-height:1.7;box-shadow:var(--shadow-lg);border-radius:4px;
+.inj-item{
+  display:flex;align-items:center;gap:11px;padding:10px 14px;
+  background:var(--raised);border:1px solid var(--line);border-radius:8px;margin-bottom:7px;
+  transition:border-color .13s;
 }
-.preview-page h1{font-size:16pt;text-align:center;margin-bottom:4px;}
-.preview-page h2{font-size:12pt;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #1a2234;padding-bottom:4px;font-family:'DM Sans',sans-serif;}
-.preview-page h3{font-size:11pt;font-weight:600;margin:14px 0 5px;font-family:'DM Sans',sans-serif;}
-.preview-page h4{font-size:10.5pt;font-weight:600;margin:10px 0 4px;font-family:'DM Sans',sans-serif;}
-.preview-page p,.preview-page .btext{margin-bottom:8px;font-family:'DM Sans',sans-serif;font-size:10.5pt;}
+.inj-item:hover{border-color:var(--teal-dim);}
+.inj-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);flex-shrink:0;box-shadow:0 0 6px var(--teal);}
+.inj-txt{flex:1;font-size:13px;color:var(--t1);}
+
+.std-box{
+  background:var(--raised);border:1px solid var(--line);border-radius:8px;
+  padding:14px;font-size:13px;color:var(--t3);line-height:1.7;
+}
+.std-lbl{
+  font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--t4);margin-bottom:7px;display:flex;align-items:center;gap:6px;
+}
+.std-lbl::before{content:"";display:block;width:14px;height:1px;background:var(--teal-dim);}
+
+/* ─── ADL TABLE ─────────────────────────────────────── */
+.adl-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;border-radius:10px;overflow:hidden;border:1px solid var(--line);}
+.adl-tbl th{background:var(--deep,#060b14);color:var(--t3);padding:9px 12px;font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;text-align:center;border-bottom:1px solid var(--line);}
+.adl-tbl th:first-child{text-align:left;}
+.adl-tbl td{padding:9px 12px;border-bottom:1px solid rgba(30,42,64,.6);vertical-align:middle;}
+.adl-tbl tr:nth-child(odd) td{background:var(--panel);}
+.adl-tbl tr:nth-child(even) td{background:var(--raised);}
+.adl-tbl tr:hover td{background:var(--teal-ghost);}
+.adl-tbl tr:last-child td{border-bottom:none;}
+.adl-r{display:flex;justify-content:center;}
+.adl-r label{cursor:pointer;padding:3px 5px;border-radius:4px;display:flex;align-items:center;gap:3px;color:var(--t3);}
+.adl-r label:hover{color:var(--teal);}
+.adl-r input[type=radio]{accent-color:var(--teal);width:14px;height:14px;}
+
+/* ─── WPI TABLE ─────────────────────────────────────── */
+.wpi-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;border-radius:10px;overflow:hidden;border:1px solid var(--line);}
+.wpi-tbl th{background:var(--surface);color:var(--t3);padding:9px 12px;font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;border-bottom:1px solid var(--line);}
+.wpi-tbl td{padding:7px 9px;border-bottom:1px solid rgba(30,42,64,.5);background:var(--panel);}
+.wpi-tbl tr:last-child td{background:var(--surface);border-bottom:none;}
+.wpi-tbl input{width:100%;background:transparent;border:1px solid var(--rim);border-radius:6px;padding:5px 8px;font-size:12px;color:var(--t1);outline:none;}
+.wpi-tbl input:focus{border-color:var(--teal-dim);box-shadow:0 0 0 2px var(--teal-glow);}
+.wpi-tbl tr:last-child input{border-color:rgba(255,255,255,.08);color:var(--t2);}
+.wpi-total{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:var(--teal);text-shadow:0 0 16px rgba(0,229,216,.3);}
+
+/* ─── PREVIEW ───────────────────────────────────────── */
+.preview-bg{flex:1;overflow-y:auto;background:#12121e;padding:32px;}
+.preview-page{
+  background:#fff;color:#111;max-width:800px;margin:0 auto;
+  padding:60px 72px;font-size:11pt;line-height:1.7;
+  box-shadow:0 24px 80px rgba(0,0,0,.7);border-radius:4px;
+}
+.preview-page h1{font-family:'DM Serif Display',serif;font-size:16pt;text-align:center;margin-bottom:4px;}
+.preview-page h2{font-family:'DM Sans',sans-serif;font-size:11.5pt;font-weight:700;margin:22px 0 8px;border-bottom:2px solid #1a2234;padding-bottom:4px;}
+.preview-page h3{font-family:'DM Sans',sans-serif;font-size:11pt;font-weight:600;margin:14px 0 5px;}
+.preview-page h4{font-family:'DM Sans',sans-serif;font-size:10.5pt;font-weight:600;margin:10px 0 4px;}
+.preview-page p,.preview-page .bt{font-family:'DM Sans',sans-serif;font-size:10.5pt;margin-bottom:8px;}
 .preview-page table{width:100%;border-collapse:collapse;margin:10px 0;font-family:'DM Sans',sans-serif;font-size:9.5pt;}
 .preview-page table th{background:#1a2234;color:#fff;padding:6px 10px;border:1px solid #ccc;}
 .preview-page table td{padding:5px 10px;border:1px solid #ccc;}
 .preview-page table tr:nth-child(even) td{background:#f8f9fa;}
 .preview-fabs{position:fixed;bottom:28px;right:28px;display:flex;gap:10px;}
 .fab{
-  width:50px;height:50px;border-radius:50%;border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-size:20px;
-  box-shadow:0 4px 16px rgba(0,0,0,.2);transition:all .15s;
+  width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .15s;
 }
-.fab:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.25);}
+.fab:hover{transform:translateY(-2px);}
 
-/* MODAL */
-.modal-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
-  display:flex;align-items:center;justify-content:center;padding:20px;
-  backdrop-filter:blur(4px);
-}
-.modal{
-  background:var(--white);border-radius:var(--radius-lg);padding:28px 32px;
-  width:100%;max-width:480px;box-shadow:var(--shadow-lg);
-}
-.modal-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:6px;}
-.modal-desc{font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.5;}
+/* ─── EMPTY STATE ───────────────────────────────────── */
+.empty{text-align:center;padding:80px 32px;max-width:360px;margin:0 auto;}
+.empty-ico{font-size:52px;margin-bottom:18px;}
+.empty-t{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--t1);margin-bottom:8px;}
+.empty-s{font-size:14px;color:var(--t3);line-height:1.6;margin-bottom:24px;}
 
-/* EMPTY STATE */
-.empty-state{text-align:center;padding:80px 40px;max-width:400px;margin:0 auto;}
-.empty-icon{font-size:56px;margin-bottom:20px;}
-.empty-title{font-size:22px;font-weight:600;color:var(--text);margin-bottom:8px;font-family:'DM Serif Display',serif;}
-.empty-desc{font-size:15px;color:var(--text-muted);line-height:1.6;margin-bottom:24px;}
-
-/* TOAST */
+/* ─── TOAST ─────────────────────────────────────────── */
 .toast{
   position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-  background:var(--navy);color:#fff;border-radius:8px;
-  padding:12px 20px;font-size:14px;z-index:1000;
-  box-shadow:var(--shadow-lg);animation:toast-in .2s ease;
+  background:var(--raised);border:1px solid var(--rim);color:var(--t1);
+  border-radius:9px;padding:11px 18px;font-size:13px;z-index:999;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  animation:toast-up .18s ease;
 }
-@keyframes toast-in{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+@keyframes toast-up{from{opacity:0;transform:translateX(-50%) translateY(8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
 
-/* SPINNER */
-.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(14,165,160,.3);border-top-color:var(--teal);border-radius:50%;animation:spin .6s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,229,216,.15);border-top-color:var(--teal);border-radius:50%;animation:spinning .6s linear infinite;}
+@keyframes spinning{to{transform:rotate(360deg);}}
+.loading-full{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);position:relative;z-index:1;}
+.loading-full .spin{width:36px;height:36px;border-width:3px;}
 
-/* BADGES */
-.badge{
-  display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;
-  font-size:12px;font-weight:500;
-}
-.badge-teal{background:var(--teal-light);color:var(--teal);}
-.badge-gold{background:var(--gold-light);color:#92400e;}
-.badge-red{background:var(--red-light);color:var(--red);}
-.badge-blue{background:var(--blue-light);color:var(--blue);}
-
-/* SEARCH */
-.search-box{
-  width:100%;padding:12px 16px 12px 44px;border:1.5px solid var(--border);
-  border-radius:var(--radius-sm);font-size:15px;background:var(--white);
-  color:var(--text);outline:none;transition:border-color .15s;
-}
-.search-box:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(14,165,160,.1);}
-.search-wrap{position:relative;margin-bottom:20px;}
-.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-muted);}
-
-/* DIVIDER */
-.divider{height:1px;background:var(--border);margin:20px 0;}
-
-/* STANDARD TEXT BOX */
-.standard-box{
-  background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);
-  padding:16px;font-size:14px;color:var(--text-secondary);line-height:1.7;
-}
-.standard-box-label{
-  font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;
-  letter-spacing:.8px;margin-bottom:6px;
-}
-
-/* TOGGLE MENU BUTTON */
-.menu-toggle{
-  width:38px;height:38px;border-radius:8px;border:1.5px solid var(--border);
-  background:var(--white);cursor:pointer;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:4px;transition:all .15s;flex-shrink:0;
-}
-.menu-toggle:hover{border-color:var(--teal);background:var(--teal-light);}
-.menu-toggle span{display:block;width:16px;height:2px;background:var(--text);border-radius:2px;transition:background .15s;}
-.menu-toggle:hover span{background:var(--teal);}
-
-@media print{
-  .no-print{display:none!important;}
-  .preview-page{box-shadow:none;padding:0;}
+@media print{.no-print{display:none!important;}.preview-page{box-shadow:none;padding:0;}}
+@media(max-width:640px){
+  .ch-bar,.content{padding-left:16px;padding-right:16px;}
+  .region-grid{grid-template-columns:1fr;}
+  .g2,.g3{grid-template-columns:1fr;}
+  .preview-page{padding:32px 24px;}
+  .login-card{padding:28px 22px;}
 }
 </style>
 </head>
 <body>
+<div class="glow-tr"></div>
+<div class="glow-bl"></div>
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
@@ -431,49 +635,44 @@ const SUPA_URL = "https://lwmghkbqdwvqcadhocxa.supabase.co";
 const SUPA_KEY = "sb_publishable_2vo76E53tWg9k3OHeT7DRA_AeVe0C6l";
 const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
-
-
-// ── DATA ──────────────────────────────────────────────────────────────
+// ── CONSTANTS ─────────────────────────────────────────────────────────
 const CHAPTERS = [
-  {id:0, title:"Cover / Demographics",       short:"Demographics",    icon:"👤"},
-  {id:1, title:"Documents Perused",           short:"Documents",       icon:"📎"},
-  {id:2, title:"Occupational & Medical Hx",   short:"Med History",     icon:"🏥"},
-  {id:3, title:"Hospital Records",             short:"Hospital",        icon:"📋"},
-  {id:4, title:"Injuries Sustained",          short:"Injuries",        icon:"🦴"},
-  {id:5, title:"Current Complaints",          short:"Complaints",      icon:"💬"},
-  {id:6, title:"Clinical Evaluation",         short:"Clinical Eval",   icon:"🔍"},
-  {id:7, title:"Diagnosis",                   short:"Diagnosis",       icon:"📊"},
-  {id:8, title:"Further Management",          short:"Management",      icon:"💊"},
-  {id:9, title:"Disability & Impairment",     short:"Disability",      icon:"📏"},
-  {id:10,title:"Discussion",                  short:"Discussion",      icon:"📝"},
+  {id:0,title:"Cover / Demographics",short:"Demographics",icon:"👤"},
+  {id:1,title:"Documents Perused",short:"Documents",icon:"📎"},
+  {id:2,title:"Occupational & Medical Hx",short:"Med History",icon:"🏥"},
+  {id:3,title:"Hospital Records",short:"Hospital",icon:"📋"},
+  {id:4,title:"Injuries Sustained",short:"Injuries",icon:"🦴"},
+  {id:5,title:"Current Complaints",short:"Complaints",icon:"💬"},
+  {id:6,title:"Clinical Evaluation",short:"Clinical Eval",icon:"🔍"},
+  {id:7,title:"Diagnosis",short:"Diagnosis",icon:"📊"},
+  {id:8,title:"Further Management",short:"Management",icon:"💊"},
+  {id:9,title:"Disability & Impairment",short:"Disability",icon:"📏"},
+  {id:10,title:"Discussion",short:"Discussion",icon:"📝"},
 ];
-
 const CH3_PROMPTS = [
-  {letter:"a", text:"Mechanism of accident and date of accident."},
-  {letter:"b", text:"EMS assessment on scene — presentation, complaints, exam findings, GCS, suspected diagnosis."},
-  {letter:"c", text:"Transfer to hospital — name and mode of transport (ambulance, helicopter, etc.)."},
-  {letter:"d", text:"Date of presentation to hospital and which department."},
-  {letter:"e", text:"Complaints and findings on initial assessment."},
-  {letter:"f", text:"Immediate investigations / treatment rendered."},
-  {letter:"g", text:"Diagnosis."},
-  {letter:"h", text:"Admission, transfer to relevant department, and formal diagnosis."},
-  {letter:"i", text:"Definitive management and treatment prescribed, including dates."},
-  {letter:"j", text:"Post-operative treatment and rehabilitation."},
-  {letter:"k", text:"Discharge and assistive devices / step-down treatment."},
-  {letter:"l", text:"Follow-up and review."},
+  {letter:"a",text:"Mechanism of accident and date of accident."},
+  {letter:"b",text:"EMS assessment on scene — presentation, complaints, exam findings, GCS, suspected diagnosis."},
+  {letter:"c",text:"Transfer to hospital — name and mode of transport (ambulance, helicopter, etc.)."},
+  {letter:"d",text:"Date of presentation to hospital and which department."},
+  {letter:"e",text:"Complaints and findings on initial assessment."},
+  {letter:"f",text:"Immediate investigations / treatment rendered."},
+  {letter:"g",text:"Diagnosis."},
+  {letter:"h",text:"Admission, transfer to relevant department, and formal diagnosis."},
+  {letter:"i",text:"Definitive management and treatment prescribed, including dates."},
+  {letter:"j",text:"Post-operative treatment and rehabilitation."},
+  {letter:"k",text:"Discharge and assistive devices / step-down treatment."},
+  {letter:"l",text:"Follow-up and review."},
 ];
-
 const EXAM_REGIONS = {
-  "Cervical Spine":   ["Inspection","Palpation","Range of Motion (Flexion / Extension / Rotation / Lateral Flexion)","Power (myotomes C5–T1)","Sensation (dermatomes)","Reflexes (biceps C5, triceps C7, brachioradialis C6)","Spurling's Test","Lhermitte's Sign"],
-  "Shoulder":         ["Inspection","Palpation","Range of Motion (Flexion / Abduction / External & Internal Rotation)","Power","Sensation","Reflexes","Neer's Test","Hawkins-Kennedy Test","Job's Test (Empty Can)","Apprehension Test","O'Brien's Test"],
-  "Elbow":            ["Inspection","Palpation","Range of Motion (Flexion / Extension / Pronation / Supination)","Power","Sensation","Reflexes (biceps, triceps, brachioradialis)","Valgus / Varus Stress Test","Tinel's Sign (Cubital Tunnel)"],
-  "Wrist & Hand":     ["Inspection","Palpation","Range of Motion (Flexion / Extension / Radial & Ulnar Deviation)","Power (grip strength)","Sensation","Reflexes","Tinel's (Carpal Tunnel)","Phalen's Test","Finkelstein's Test"],
-  "Lumbar Spine":     ["Inspection","Palpation","Range of Motion (Flexion / Extension / Lateral Flexion / Rotation)","Power (myotomes L1–S1)","Sensation (dermatomes)","Reflexes (knee L4, ankle S1)","Straight Leg Raise (SLR)","Crossed SLR","Femoral Nerve Stretch"],
-  "Hip":              ["Inspection","Palpation","Range of Motion (Flexion / Extension / Abduction / Adduction / Internal & External Rotation)","Power","Sensation","FABER Test","FADIR Test","Thomas Test","Trendelenburg Test"],
-  "Knee":             ["Inspection","Palpation","Range of Motion (Flexion / Extension)","Power (quadriceps / hamstrings)","Sensation","Reflexes (patellar)","Lachman's Test","Anterior / Posterior Drawer","McMurray's Test","Valgus / Varus Stress"],
-  "Ankle & Foot":     ["Inspection","Palpation","Range of Motion (Dorsiflexion / Plantar Flexion / Inversion / Eversion)","Power (big toe, ankle)","Sensation","Reflexes (Achilles)","Anterior Drawer Test","Talar Tilt Test","Thompson's Test"],
+  "Cervical Spine":["Inspection","Palpation","Range of Motion (Flexion / Extension / Rotation / Lateral Flexion)","Power (myotomes C5–T1)","Sensation (dermatomes)","Reflexes (biceps C5, triceps C7, brachioradialis C6)","Spurling's Test","Lhermitte's Sign"],
+  "Shoulder":["Inspection","Palpation","Range of Motion (Flexion / Abduction / External & Internal Rotation)","Power","Sensation","Reflexes","Neer's Test","Hawkins-Kennedy Test","Job's Test (Empty Can)","Apprehension Test","O'Brien's Test"],
+  "Elbow":["Inspection","Palpation","Range of Motion (Flexion / Extension / Pronation / Supination)","Power","Sensation","Reflexes","Valgus / Varus Stress","Tinel's Sign (Cubital Tunnel)"],
+  "Wrist & Hand":["Inspection","Palpation","Range of Motion (Flexion / Extension / Radial & Ulnar Deviation)","Power (grip)","Sensation","Reflexes","Tinel's (Carpal Tunnel)","Phalen's Test","Finkelstein's Test"],
+  "Lumbar Spine":["Inspection","Palpation","Range of Motion (Flexion / Extension / Lateral Flexion / Rotation)","Power (myotomes L1–S1)","Sensation (dermatomes)","Reflexes (knee L4, ankle S1)","Straight Leg Raise (SLR)","Crossed SLR","Femoral Nerve Stretch"],
+  "Hip":["Inspection","Palpation","Range of Motion (Flexion / Extension / Abduction / Adduction / IR & ER)","Power","Sensation","FABER Test","FADIR Test","Thomas Test","Trendelenburg Test"],
+  "Knee":["Inspection","Palpation","Range of Motion (Flexion / Extension)","Power (quadriceps / hamstrings)","Sensation","Reflexes (patellar)","Lachman's Test","Anterior / Posterior Drawer","McMurray's Test","Valgus / Varus Stress"],
+  "Ankle & Foot":["Inspection","Palpation","Range of Motion (Dorsiflexion / Plantar Flexion / Inversion / Eversion)","Power (big toe, ankle)","Sensation","Reflexes (Achilles)","Anterior Drawer Test","Talar Tilt Test","Thompson's Test"],
 };
-
 const ADL_BASIC = ["Bowel control","Bladder control","Grooming","Toileting","Feeding","Transfer (chair to bed)","Indoor mobility","Dressing","Stairs","Bathing"];
 const ADL_ADV   = ["Driving a car","Sexual function","Medical self-care","Money management","Writing & communication","Travelling","Shopping","Cooking","Housework","Moderate activities (pushing/lifting)","Vigorous activities (sport/heavy lifting)"];
 const ADL_OPTS_B = ["No Effect","Mild","Moderate","Severe"];
@@ -481,576 +680,323 @@ const ADL_OPTS_A = ["N/A","No Effect","Mild","Moderate","Severe"];
 
 function newReport(){
   return {
-    id:Date.now(), created:new Date().toISOString(), updated:new Date().toISOString(),
-    drName:"", quals:"", ourRef:"", attRef:"",
-    patientName:"", refNum:"", gender:"", dob:"", age:"", address:"", contact:"",
-    doi:"", mechanism:"Motor Vehicle Accident", preOccupation:"", postOccupation:"",
-    dateExam:"", placeExam:"RG Medlegal Rooms, Kings Court Centre, Walmer Heights, Gqeberha, 6070",
-    attorney:"", attContact:"",
-    ch2grade:"", ch2tertiary:"", ch2occ:"", ch2postOcc:"",
-    ch2injuries:"None reported.", ch2surgery:"None reported.", ch2medical:"None reported.", ch2meds:"None reported.",
-    ch1:"", ch3:"", ch3prompts:{}, ch4injuries:[], ch5:"",
-    ch6general:"", ch6msk:{}, ch6scarring:"", ch6radiology:"",
-    ch7:"", ch8ortho:"", ch8ref:"",
-    adlBasic:{}, adlAdv:{}, ch9occ:"",
+    created:new Date().toISOString(),updated:new Date().toISOString(),
+    drName:"",quals:"",ourRef:"",attRef:"",attorney:"",attContact:"",
+    patientName:"",refNum:"",gender:"",dob:"",age:"",address:"",contact:"",
+    doi:"",mechanism:"Motor Vehicle Accident",preOccupation:"",postOccupation:"",
+    dateExam:"",placeExam:"RG Medlegal Rooms, Kings Court Centre, Walmer Heights, Gqeberha, 6070",
+    ch2grade:"",ch2tertiary:"",ch2occ:"",ch2postOcc:"",
+    ch2injuries:"None reported.",ch2surgery:"None reported.",ch2medical:"None reported.",ch2meds:"None reported.",
+    ch1:"",ch3:"",ch3prompts:{},ch4injuries:[],ch5:"",
+    ch6general:"",ch6msk:{},ch6scarring:"",ch6radiology:"",
+    ch7:"",ch8ortho:"",ch8ref:"",
+    adlBasic:{},adlAdv:{},ch9occ:"",
     wpiRows:[{region:"",impairment:"",reference:"",wpi:""}],
-    examRegions:{}, ch10:"",
+    examRegions:{},ch10:"",
   };
 }
 
-// ── VOICE HOOK ────────────────────────────────────────────────────────
+// ── VOICE ─────────────────────────────────────────────────────────────
 function useVoice(){
   const [active,setActive]=useState(false);
-  const [supported]=useState(()=>'webkitSpeechRecognition' in window||'SpeechRecognition' in window);
-  const recRef=useRef(null); const cbRef=useRef(null);
-  const start=useCallback((onResult)=>{
-    if(!supported){alert("Voice recognition not supported in this browser.");return;}
-    cbRef.current=onResult;
+  const [ok]=useState(()=>'webkitSpeechRecognition' in window||'SpeechRecognition' in window);
+  const rec=useRef(null);const cb=useRef(null);
+  const start=useCallback((fn)=>{
+    if(!ok){alert("Voice not supported in this browser.");return;}
+    cb.current=fn;
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    const r=new SR(); r.lang="en-ZA"; r.continuous=true; r.interimResults=false;
-    r.onresult=e=>{ const t=Array.from(e.results).map(r=>r[0].transcript).join(" "); if(cbRef.current)cbRef.current(t); };
-    r.onerror=()=>setActive(false); r.onend=()=>setActive(false);
-    r.start(); recRef.current=r; setActive(true);
-  },[supported]);
-  const stop=useCallback(()=>{ if(recRef.current){recRef.current.stop();recRef.current=null;} setActive(false); },[]);
-  return {active,supported,start,stop};
+    const r=new SR();r.lang="en-ZA";r.continuous=true;r.interimResults=false;
+    r.onresult=e=>{const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");cb.current&&cb.current(t);};
+    r.onerror=()=>setActive(false);r.onend=()=>setActive(false);
+    r.start();rec.current=r;setActive(true);
+  },[ok]);
+  const stop=useCallback(()=>{rec.current&&(rec.current.stop(),rec.current=null);setActive(false);},[]);
+  return {active,ok,start,stop};
 }
 
 // ── AI ────────────────────────────────────────────────────────────────
-async function aiProcess(text,instruction,apiKey){
-  if(!apiKey||!text.trim())return text;
+async function ai(text,prompt,key){
+  if(!key||!text.trim())return text;
   try{
-    const res=await fetch("https://api.anthropic.com/v1/messages",{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:2000,messages:[{role:"user",content:`${instruction}\n\nText:\n${text}`}]})
+      headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:2000,messages:[{role:"user",content:`${prompt}\n\nText:\n${text}`}]})
     });
-    const d=await res.json(); return d?.content?.[0]?.text||text;
-  }catch(e){return text;}
+    const d=await r.json();return d?.content?.[0]?.text||text;
+  }catch{return text;}
 }
 
 // ── SMART TEXTAREA ────────────────────────────────────────────────────
-function SmartTextarea({value, onChange, placeholder, rows=5, label, hint, apiKey, aiHint, required}){
+function SmartTA({value,onChange,placeholder,rows=5,label,hint,apiKey,aiPrompt}){
   const voice=useVoice();
-  const [loading,setLoading]=useState(false);
-  const valRef=useRef(value);
-  useEffect(()=>{valRef.current=value;},[value]);
-
+  const [busy,setBusy]=useState(false);
+  const val=useRef(value);
+  useEffect(()=>{val.current=value;},[value]);
   const toggleMic=()=>{
     if(voice.active){voice.stop();return;}
-    voice.start(t=>onChange((valRef.current?valRef.current+" ":"")+t));
+    voice.start(t=>onChange((val.current?val.current+" ":"")+t));
   };
   const runAI=async()=>{
     if(!value.trim()||!apiKey)return;
-    setLoading(true);
-    const r=await aiProcess(value,aiHint||"Correct grammar, spelling and formatting for a South African medico-legal report. Return only the corrected text.");
-    onChange(r); setLoading(false);
+    setBusy(true);
+    onChange(await ai(value,aiPrompt||"Correct grammar and formatting for a South African medico-legal orthopaedic report. Return only the corrected text."));
+    setBusy(false);
   };
-
   return (
     <div className="field">
-      {label&&<label>{label}{required&&<span className="required">*</span>}</label>}
-      <div className="ta-container">
+      {label&&<label>{label}</label>}
+      <div className="ta-wrap">
         <textarea rows={rows} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>
-        <div className="ta-toolbar">
-          {voice.supported&&(
-            <button className={`mic-btn ${voice.active?"active":"idle"}`} onClick={toggleMic}
-              title={voice.active?"Stop recording":"Voice input (SA English)"}>
-              {voice.active?"⏹":"🎤"}
-            </button>
-          )}
-          {apiKey&&(
-            <button className="ai-btn" onClick={runAI} disabled={loading||!value.trim()} title="AI: improve grammar & formatting">
-              {loading?<span className="spin"/>:"✨"}
-            </button>
-          )}
+        <div className="ta-tools">
+          {voice.ok&&<button className={`mic ${voice.active?"on":"off"}`} onClick={toggleMic} title={voice.active?"Stop recording":"Voice (SA English)"}>{voice.active?"⏹":"🎤"}</button>}
+          {apiKey&&<button className="aibtn" onClick={runAI} disabled={busy||!value.trim()} title="AI: clean & format">{busy?<span className="spin"/>:"✨"}</button>}
         </div>
       </div>
-      {hint&&<div className="field-hint">{hint}</div>}
+      {hint&&<div className="fhint">{hint}</div>}
     </div>
   );
 }
 
-// ── CHAPTERS ──────────────────────────────────────────────────────────
-
+// ── CHAPTER 0 ─────────────────────────────────────────────────────────
 function Ch0({r,setR}){
   const f=k=>e=>setR(p=>({...p,[k]:e.target.value}));
-  return (
-    <>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🏢</div>
-          <div><div className="card-title">Practice Details</div><div className="card-desc">Doctor and reference information</div></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Doctor Name</label><input value={r.drName} onChange={f("drName")} placeholder="Dr Sayed M Mia"/></div>
-          <div className="field"><label>Qualifications</label><input value={r.quals} onChange={f("quals")} placeholder="FC Ortho (SA)"/></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Our Reference</label><input value={r.ourRef} onChange={f("ourRef")} placeholder="RGML/SMM/szb/26453"/></div>
-          <div className="field"><label>Attorney Reference</label><input value={r.attRef} onChange={f("attRef")} placeholder="TIMOTHY/MS_BURO"/></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Instructing Attorney</label><input value={r.attorney} onChange={f("attorney")} placeholder="David Rossouw Attorneys"/></div>
-          <div className="field"><label>Attorney Contact</label><input value={r.attContact} onChange={f("attContact")} placeholder="041 030 0107"/></div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">👤</div>
-          <div><div className="card-title">Patient Details</div><div className="card-desc">Personal and identification information</div></div>
-        </div>
-        <div className="field"><label>Full Name <span className="required">*</span></label><input value={r.patientName} onChange={f("patientName")} placeholder="MOHAMUD SAID BURO"/></div>
-        <div className="grid-2">
-          <div className="field"><label>ID / Reference Number</label><input value={r.refNum} onChange={f("refNum")} placeholder="ECZSOM01030209"/></div>
-          <div className="field"><label>Gender</label>
-            <select value={r.gender} onChange={f("gender")}><option value="">Select...</option><option>Male</option><option>Female</option><option>Other</option></select>
-          </div>
-        </div>
-        <div className="grid-3">
-          <div className="field"><label>Date of Birth</label><input type="date" value={r.dob} onChange={f("dob")}/></div>
-          <div className="field"><label>Current Age</label><input value={r.age} onChange={f("age")} placeholder="47"/></div>
-          <div className="field"><label>Contact Number</label><input value={r.contact} onChange={f("contact")} placeholder="069 899 3104"/></div>
-        </div>
-        <div className="field"><label>Residential Address</label><input value={r.address} onChange={f("address")} placeholder="182 Durban Road, Korsten, Gqeberha, 6001"/></div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🚗</div>
-          <div><div className="card-title">Accident & Examination</div><div className="card-desc">Injury and consultation details</div></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Date of Injury</label><input type="date" value={r.doi} onChange={f("doi")}/></div>
-          <div className="field"><label>Mechanism of Injury</label><input value={r.mechanism} onChange={f("mechanism")} placeholder="Motor Vehicle Accident"/></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Pre-Accident Occupation</label><input value={r.preOccupation} onChange={f("preOccupation")} placeholder="General worker at Top Tyre"/></div>
-          <div className="field"><label>Post-Accident Occupation</label><input value={r.postOccupation} onChange={f("postOccupation")} placeholder="General worker at Top Tyre"/></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Date of Examination</label><input type="date" value={r.dateExam} onChange={f("dateExam")}/></div>
-          <div className="field"><label>Place of Examination</label><input value={r.placeExam} onChange={f("placeExam")}/></div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function Ch1({r,setR,apiKey}){
-  return (
+  return(<>
     <div className="card">
-      <div className="card-header">
-        <div className="card-icon">📎</div>
-        <div><div className="card-title">Documents Perused</div><div className="card-desc">List all documents reviewed, one per line or dictate</div></div>
+      <div className="card-h"><div className="card-ico">🏢</div><div><div className="card-title">Practice Details</div><div className="card-desc">Doctor and reference information</div></div></div>
+      <div className="g2">
+        <div className="field"><label>Doctor Name</label><input value={r.drName} onChange={f("drName")} placeholder="Dr Sayed M Mia"/></div>
+        <div className="field"><label>Qualifications</label><input value={r.quals} onChange={f("quals")} placeholder="FC Ortho (SA)"/></div>
       </div>
-      <SmartTextarea value={r.ch1} onChange={v=>setR(p=>({...p,ch1:v}))} rows={10} apiKey={apiKey}
-        placeholder={"1. Instruction Letter\n2. Refugee Status of Client\n3. Accident Report\n4. Ambulance Voucher\n5. Livingstone Hospital Records\n6. Patient Questionnaire dated 29 November 2025"}/>
+      <div className="g2">
+        <div className="field"><label>Our Reference</label><input value={r.ourRef} onChange={f("ourRef")} placeholder="RGML/SMM/szb/26453"/></div>
+        <div className="field"><label>Attorney Reference</label><input value={r.attRef} onChange={f("attRef")} placeholder="TIMOTHY/MS_BURO"/></div>
+      </div>
+      <div className="g2">
+        <div className="field"><label>Instructing Attorney</label><input value={r.attorney} onChange={f("attorney")} placeholder="David Rossouw Attorneys"/></div>
+        <div className="field"><label>Attorney Contact</label><input value={r.attContact} onChange={f("attContact")} placeholder="041 030 0107"/></div>
+      </div>
     </div>
-  );
+    <div className="card">
+      <div className="card-h"><div className="card-ico">👤</div><div><div className="card-title">Patient Details</div></div></div>
+      <div className="field"><label>Full Name</label><input value={r.patientName} onChange={f("patientName")} placeholder="MOHAMUD SAID BURO"/></div>
+      <div className="g2">
+        <div className="field"><label>ID / Reference Number</label><input value={r.refNum} onChange={f("refNum")}/></div>
+        <div className="field"><label>Gender</label><select value={r.gender} onChange={f("gender")}><option value="">Select...</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+      </div>
+      <div className="g3">
+        <div className="field"><label>Date of Birth</label><input type="date" value={r.dob} onChange={f("dob")}/></div>
+        <div className="field"><label>Age</label><input value={r.age} onChange={f("age")} placeholder="47"/></div>
+        <div className="field"><label>Contact Number</label><input value={r.contact} onChange={f("contact")}/></div>
+      </div>
+      <div className="field"><label>Residential Address</label><input value={r.address} onChange={f("address")}/></div>
+    </div>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">🚗</div><div><div className="card-title">Accident & Examination</div></div></div>
+      <div className="g2">
+        <div className="field"><label>Date of Injury</label><input type="date" value={r.doi} onChange={f("doi")}/></div>
+        <div className="field"><label>Mechanism of Injury</label><input value={r.mechanism} onChange={f("mechanism")}/></div>
+      </div>
+      <div className="g2">
+        <div className="field"><label>Pre-Accident Occupation</label><input value={r.preOccupation} onChange={f("preOccupation")}/></div>
+        <div className="field"><label>Post-Accident Occupation</label><input value={r.postOccupation} onChange={f("postOccupation")}/></div>
+      </div>
+      <div className="g2">
+        <div className="field"><label>Date of Examination</label><input type="date" value={r.dateExam} onChange={f("dateExam")}/></div>
+        <div className="field"><label>Place of Examination</label><input value={r.placeExam} onChange={f("placeExam")}/></div>
+      </div>
+    </div>
+  </>);
 }
-
+function Ch1({r,setR,apiKey}){return<div className="card"><div className="card-h"><div className="card-ico">📎</div><div><div className="card-title">Documents Perused</div><div className="card-desc">List all documents reviewed, one per line</div></div></div><SmartTA value={r.ch1} onChange={v=>setR(p=>({...p,ch1:v}))} rows={10} apiKey={apiKey} placeholder={"1. Instruction Letter\n2. Refugee Status of Client\n3. Accident Report\n4. Ambulance Voucher\n5. Hospital Records\n6. Patient Questionnaire"}/></div>;}
 function Ch2({r,setR,apiKey}){
   const f=k=>e=>setR(p=>({...p,[k]:e.target.value}));
-  return (
-    <>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">💼</div>
-          <div><div className="card-title">2.1 Occupational History</div></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Highest Grade Passed</label><input value={r.ch2grade} onChange={f("ch2grade")} placeholder="Grade 7"/></div>
-          <div className="field"><label>Tertiary Education</label><input value={r.ch2tertiary} onChange={f("ch2tertiary")} placeholder="None"/></div>
-        </div>
-        <SmartTextarea label="Pre-Accident Occupation (Detail)" value={r.ch2occ} onChange={v=>setR(p=>({...p,ch2occ:v}))}
-          rows={4} apiKey={apiKey} placeholder="At the time of the accident, the patient was employed as..."/>
-        <SmartTextarea label="Post-Accident Occupation (Detail)" value={r.ch2postOcc} onChange={v=>setR(p=>({...p,ch2postOcc:v}))}
-          rows={4} apiKey={apiKey} placeholder="Following the accident, the patient..."/>
+  return(<>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">💼</div><div><div className="card-title">2.1 Occupational History</div></div></div>
+      <div className="g2">
+        <div className="field"><label>Highest Grade Passed</label><input value={r.ch2grade} onChange={f("ch2grade")} placeholder="Grade 7"/></div>
+        <div className="field"><label>Tertiary Education</label><input value={r.ch2tertiary} onChange={f("ch2tertiary")} placeholder="None"/></div>
       </div>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🏥</div>
-          <div><div className="card-title">2.2 Past Medical & Surgical History</div></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Previous Injuries</label><input value={r.ch2injuries} onChange={f("ch2injuries")} placeholder="None reported."/></div>
-          <div className="field"><label>Surgical History</label><input value={r.ch2surgery} onChange={f("ch2surgery")} placeholder="None reported."/></div>
-        </div>
-        <div className="grid-2">
-          <div className="field"><label>Medical History</label><input value={r.ch2medical} onChange={f("ch2medical")} placeholder="None reported."/></div>
-          <div className="field"><label>Chronic Medication</label><input value={r.ch2meds} onChange={f("ch2meds")} placeholder="None reported."/></div>
-        </div>
+      <SmartTA label="Pre-Accident Occupation (Detail)" value={r.ch2occ} onChange={v=>setR(p=>({...p,ch2occ:v}))} rows={4} apiKey={apiKey} placeholder="At the time of the accident, the patient was employed as..."/>
+      <SmartTA label="Post-Accident Occupation (Detail)" value={r.ch2postOcc||""} onChange={v=>setR(p=>({...p,ch2postOcc:v}))} rows={4} apiKey={apiKey} placeholder="Following the accident, the patient..."/>
+    </div>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">🏥</div><div><div className="card-title">2.2 Past Medical & Surgical History</div></div></div>
+      <div className="g2">
+        <div className="field"><label>Previous Injuries</label><input value={r.ch2injuries} onChange={f("ch2injuries")} placeholder="None reported."/></div>
+        <div className="field"><label>Surgical History</label><input value={r.ch2surgery} onChange={f("ch2surgery")} placeholder="None reported."/></div>
       </div>
-    </>
-  );
+      <div className="g2">
+        <div className="field"><label>Medical History</label><input value={r.ch2medical} onChange={f("ch2medical")} placeholder="None reported."/></div>
+        <div className="field"><label>Chronic Medication</label><input value={r.ch2meds} onChange={f("ch2meds")} placeholder="None reported."/></div>
+      </div>
+    </div>
+  </>);
 }
-
 function Ch3({r,setR,apiKey}){
-  const setPrompt=(letter,val)=>setR(p=>({...p,ch3prompts:{...p.ch3prompts,[letter]:val}}));
-  return (
-    <>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">📋</div>
-          <div>
-            <div className="card-title">3.1 Management and Diagnosis</div>
-            <div className="card-desc">Follow each prompt below — dictate or type your findings</div>
-          </div>
+  const sp=(l,v)=>setR(p=>({...p,ch3prompts:{...p.ch3prompts,[l]:v}}));
+  return(<>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">📋</div><div><div className="card-title">3.1 Management and Diagnosis</div><div className="card-desc">Follow each prompt — dictate or type</div></div></div>
+      {CH3_PROMPTS.map(p=>(
+        <div className="prompt-block" key={p.letter}>
+          <div className="prompt-lbl">Section {p.letter.toUpperCase()}</div>
+          <div className="prompt-guide">{p.text}</div>
+          <SmartTA value={r.ch3prompts?.[p.letter]||""} onChange={v=>sp(p.letter,v)} rows={3} apiKey={apiKey} placeholder={`Dictate section ${p.letter.toUpperCase()}...`}/>
         </div>
-        {CH3_PROMPTS.map(p=>(
-          <div className="prompt-block" key={p.letter}>
-            <div className="prompt-label">Section {p.letter.toUpperCase()}</div>
-            <div className="prompt-guide">{p.text}</div>
-            <SmartTextarea value={r.ch3prompts?.[p.letter]||""} onChange={v=>setPrompt(p.letter,v)}
-              rows={3} apiKey={apiKey} placeholder={`Dictate or type section ${p.letter.toUpperCase()}...`}/>
-          </div>
-        ))}
-      </div>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🔄</div>
-          <div><div className="card-title">3.2 Post-Trauma Follow-Up and Treatment</div></div>
-        </div>
-        <SmartTextarea value={r.ch3} onChange={v=>setR(p=>({...p,ch3:v}))} rows={5} apiKey={apiKey}
-          placeholder="The patient attended multiple follow-up appointments for suture removal, wound cleaning, and review."/>
-      </div>
-    </>
-  );
+      ))}
+    </div>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">🔄</div><div><div className="card-title">3.2 Post-Trauma Follow-Up</div></div></div>
+      <SmartTA value={r.ch3} onChange={v=>setR(p=>({...p,ch3:v}))} rows={5} apiKey={apiKey} placeholder="The patient attended multiple follow-up appointments..."/>
+    </div>
+  </>);
 }
-
 function Ch4({r,setR}){
-  const [newInj,setNewInj]=useState("");
-  const add=()=>{ if(!newInj.trim())return; setR(p=>({...p,ch4injuries:[...(p.ch4injuries||[]),newInj.trim()]})); setNewInj(""); };
-  const remove=i=>setR(p=>({...p,ch4injuries:p.ch4injuries.filter((_,idx)=>idx!==i)}));
-  return (
+  const [ni,setNi]=useState("");
+  const add=()=>{if(!ni.trim())return;setR(p=>({...p,ch4injuries:[...(p.ch4injuries||[]),ni.trim()]}));setNi("");};
+  const rm=i=>setR(p=>({...p,ch4injuries:p.ch4injuries.filter((_,x)=>x!==i)}));
+  return(
     <div className="card">
-      <div className="card-header">
-        <div className="card-icon">🦴</div>
-        <div>
-          <div className="card-title">Injuries Sustained</div>
-          <div className="card-desc">Extracted from hospital records — list each injury individually</div>
-        </div>
-      </div>
-      <div style={{marginBottom:16}}>
-        {(r.ch4injuries||[]).length===0&&(
-          <div style={{padding:"24px",textAlign:"center",color:"var(--text-muted)",fontSize:14,background:"var(--bg)",borderRadius:8,border:"1.5px dashed var(--border)"}}>
-            No injuries added yet. Add the first injury below.
-          </div>
-        )}
+      <div className="card-h"><div className="card-ico">🦴</div><div><div className="card-title">Injuries Sustained</div><div className="card-desc">List each injury extracted from hospital records</div></div></div>
+      <div style={{marginBottom:14}}>
+        {!(r.ch4injuries||[]).length&&<div style={{padding:"20px",textAlign:"center",color:"var(--t3)",fontSize:13,background:"var(--raised)",borderRadius:8,border:"1px dashed var(--line)"}}>No injuries added yet — add below</div>}
         {(r.ch4injuries||[]).map((inj,i)=>(
-          <div className="injury-item" key={i}>
-            <div className="injury-bullet"/>
-            <div className="injury-text">{inj}</div>
-            <button className="btn btn-ghost btn-sm" style={{color:"var(--red)"}} onClick={()=>remove(i)}>✕</button>
+          <div className="inj-item" key={i}>
+            <div className="inj-dot"/>
+            <div className="inj-txt">{inj}</div>
+            <button className="btn btn-g btn-sm" style={{color:"var(--red)"}} onClick={()=>rm(i)}>✕</button>
           </div>
         ))}
       </div>
-      <div style={{display:"flex",gap:10}}>
-        <input
-          style={{flex:1,background:"var(--bg)",border:"1.5px solid var(--border)",borderRadius:8,padding:"11px 14px",fontSize:15,color:"var(--text)",outline:"none"}}
-          value={newInj} onChange={e=>setNewInj(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&add()}
-          placeholder="e.g. Right foot fractures of the distal metatarsal bones"/>
-        <button className="btn btn-primary" onClick={add}>+ Add Injury</button>
+      <div style={{display:"flex",gap:9}}>
+        <input style={{flex:1,background:"var(--panel)",border:"1px solid var(--rim)",borderRadius:8,padding:"10px 13px",fontSize:14,color:"var(--t1)",outline:"none"}}
+          value={ni} onChange={e=>setNi(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="e.g. Right foot fractures of the distal metatarsal bones"/>
+        <button className="btn btn-p" onClick={add}>+ Add</button>
       </div>
     </div>
   );
 }
-
-function Ch5({r,setR,apiKey}){
-  return (
-    <div className="card">
-      <div className="card-header">
-        <div className="card-icon">💬</div>
-        <div><div className="card-title">Current Complaints</div><div className="card-desc">As reported by the patient during examination</div></div>
-      </div>
-      <SmartTextarea value={r.ch5} onChange={v=>setR(p=>({...p,ch5:v}))} rows={12} apiKey={apiKey}
-        placeholder={"Pre-accident symptoms:\nThe patient reports no history of injury, functional abnormality, musculoskeletal symptoms, or pain prior to the accident.\n\nCurrent complaints:\nAccording to the patient he experiences a stabbing pain in his right leg and foot especially during the night. He rates the pain 8/10 and reports that the pain is exacerbated by prolonged sitting and standing..."}
-        aiHint="Improve grammar and formatting for a South African orthopaedic medico-legal report Current Complaints section. Use formal medical language. Return only the formatted text."/>
-    </div>
-  );
-}
-
+function Ch5({r,setR,apiKey}){return<div className="card"><div className="card-h"><div className="card-ico">💬</div><div><div className="card-title">Current Complaints</div><div className="card-desc">As reported by the patient during examination</div></div></div><SmartTA value={r.ch5} onChange={v=>setR(p=>({...p,ch5:v}))} rows={12} apiKey={apiKey} placeholder={"Pre-accident symptoms:\nThe patient reports no history of injury...\n\nCurrent complaints:\nAccording to the patient he experiences a stabbing pain..."}/></div>;}
 function Ch6({r,setR,apiKey}){
-  const [selRegion,setSelRegion]=useState(null);
-  const activeRegions=Object.keys(r.examRegions||{}).filter(k=>r.examRegions[k]);
-  const addRegion=rg=>{setR(p=>({...p,examRegions:{...p.examRegions,[rg]:true}}));setSelRegion(rg);};
-  const removeRegion=rg=>{const n={...r.examRegions};delete n[rg];setR(p=>({...p,examRegions:n}));if(selRegion===rg)setSelRegion(null);};
-  const updateMsk=(region,field,val)=>setR(p=>({...p,ch6msk:{...p.ch6msk,[region]:{...(p.ch6msk?.[region]||{}),[field]:val}}}));
-
-  return (
-    <>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🧍</div>
-          <div><div className="card-title">6.1 General Examination</div></div>
-        </div>
-        <SmartTextarea value={r.ch6general} onChange={v=>setR(p=>({...p,ch6general:v}))} rows={6} apiKey={apiKey}
-          placeholder={"Gait: Right antalgic gait with weight bearing on lateral aspect of the foot.\nGeneral impression: Well-kempt.\nAssistive devices: None.\nHome language: Somali, English.\nDexterity: Right-handed."}/>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🔍</div>
-          <div><div className="card-title">6.2 Musculoskeletal Examination</div><div className="card-desc">Select a region to see guided examination prompts</div></div>
-        </div>
-        <div className="region-grid">
-          <div className="region-list">
-            {Object.keys(EXAM_REGIONS).map(rg=>(
-              <button key={rg} className={`region-btn${activeRegions.includes(rg)&&selRegion===rg?" active":activeRegions.includes(rg)?" ":" "}`}
-                style={activeRegions.includes(rg)&&selRegion!==rg?{borderColor:"var(--teal)",color:"var(--teal)"}:{}}
-                onClick={()=>activeRegions.includes(rg)?setSelRegion(rg):addRegion(rg)}>
-                {rg} {activeRegions.includes(rg)&&" ✓"}
-              </button>
-            ))}
-          </div>
-          <div style={{minWidth:0}}>
-            {!selRegion&&(
-              <div style={{padding:"32px 20px",textAlign:"center",color:"var(--text-muted)",background:"var(--bg)",borderRadius:10,border:"1.5px dashed var(--border)"}}>
-                <div style={{fontSize:32,marginBottom:10}}>🦴</div>
-                <div style={{fontWeight:600,marginBottom:4}}>Select a region to begin</div>
-                <div style={{fontSize:13}}>Click any region on the left to load examination prompts</div>
-              </div>
-            )}
-            {selRegion&&(
-              <div>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-                  <div style={{fontSize:17,fontWeight:600,color:"var(--teal)"}}>{selRegion}</div>
-                  <button className="btn btn-danger btn-sm" onClick={()=>removeRegion(selRegion)}>Remove Region</button>
-                </div>
-                {EXAM_REGIONS[selRegion].map(field=>(
-                  <div key={field}>
-                    <div className="region-field-label">📌 {field}</div>
-                    <div className="ta-container" style={{marginBottom:10}}>
-                      <SmartTextarea value={r.ch6msk?.[selRegion]?.[field]||""} onChange={v=>updateMsk(selRegion,field,v)}
-                        rows={2} apiKey={apiKey} placeholder={`Enter ${field.toLowerCase()} findings...`}/>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">📸</div>
-          <div><div className="card-title">6.3 Evidence of Injury & Special Investigations</div></div>
-        </div>
-        <div style={{marginBottom:20}}>
-          <div style={{fontSize:15,fontWeight:600,color:"var(--text)",marginBottom:4}}>6.3.1 Scarring / Disfigurement / Deformity</div>
-          <div className="field-hint" style={{marginBottom:8}}>Capture photos using your device camera (mobile/tablet). Describe findings below.</div>
-          <SmartTextarea value={r.ch6scarring||""} onChange={v=>setR(p=>({...p,ch6scarring:v}))} rows={3} apiKey={apiKey}
-            placeholder="Description of visible scarring, deformity, or disfigurement..."/>
-        </div>
-        <div>
-          <div style={{fontSize:15,fontWeight:600,color:"var(--text)",marginBottom:4}}>6.3.2 Special Investigations — Radiological Examination</div>
-          <div className="field-hint" style={{marginBottom:8}}>Upload X-ray images and paste the radiology report text below.</div>
-          <SmartTextarea value={r.ch6radiology||""} onChange={v=>setR(p=>({...p,ch6radiology:v}))} rows={8} apiKey={apiKey}
-            placeholder={"Exam Date: 17 December 2025\n\nX-RAY RIGHT FOOT\nBones: Deformity of the bases of the 3rd and 4th metatarsals...\nSoft tissue: Normal\nOther: Normal"}/>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function Ch7({r,setR,apiKey}){
-  return (
+  const [sel,setSel]=useState(null);
+  const active=Object.keys(r.examRegions||{}).filter(k=>r.examRegions[k]);
+  const add=rg=>{setR(p=>({...p,examRegions:{...p.examRegions,[rg]:true}}));setSel(rg);};
+  const rm=rg=>{const n={...r.examRegions};delete n[rg];setR(p=>({...p,examRegions:n}));if(sel===rg)setSel(null);};
+  const upd=(rg,fld,v)=>setR(p=>({...p,ch6msk:{...p.ch6msk,[rg]:{...(p.ch6msk?.[rg]||{}),[fld]:v}}}));
+  return(<>
     <div className="card">
-      <div className="card-header">
-        <div className="card-icon">📊</div>
-        <div>
-          <div className="card-title">Diagnosis</div>
-          <div className="card-desc">Following thorough review of records, patient interview, clinical examination and special investigations</div>
-        </div>
-      </div>
-      <SmartTextarea value={r.ch7} onChange={v=>setR(p=>({...p,ch7:v}))} rows={12} apiKey={apiKey}
-        placeholder={"1. Soft tissue injury of the right leg treated conservatively.\n2. Right foot fractures resulting in:\n   a. Pain and swelling of the foot with pain on weight bearing and an antalgic gait,\n   b. Tender bony deformity at the mid-foot,\n   c. Painful and restricted range of motion of the foot and ankle,\n   d. Decreased power of the foot with hyperaesthesia of the lateral foot and big toe."}
-        aiHint="Format this as a numbered diagnosis list for a South African orthopaedic medico-legal report. Use formal medical language. Return only the formatted text."/>
+      <div className="card-h"><div className="card-ico">🧍</div><div><div className="card-title">6.1 General Examination</div></div></div>
+      <SmartTA value={r.ch6general||""} onChange={v=>setR(p=>({...p,ch6general:v}))} rows={6} apiKey={apiKey} placeholder={"Gait: ...\nGeneral impression: Well-kempt.\nAssistive devices: None.\nHome language: ...\nDexterity: Right-handed."}/>
     </div>
-  );
-}
-
-function Ch8({r,setR,apiKey}){
-  return (
-    <>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🔧</div>
-          <div><div className="card-title">8.1 Orthopaedic Treatment</div></div>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">🔍</div><div><div className="card-title">6.2 Musculoskeletal Examination</div><div className="card-desc">Select a region to load guided examination prompts</div></div></div>
+      <div className="region-grid">
+        <div>
+          {Object.keys(EXAM_REGIONS).map(rg=>(
+            <button key={rg} className={`region-btn${sel===rg?" active":""}`}
+              style={active.includes(rg)&&sel!==rg?{borderColor:"rgba(0,229,216,.3)",color:"var(--teal-dim)"}:{}}
+              onClick={()=>active.includes(rg)?setSel(rg):add(rg)}>
+              {active.includes(rg)?"✓ ":""}{rg}
+            </button>
+          ))}
         </div>
-        <SmartTextarea value={r.ch8ortho} onChange={v=>setR(p=>({...p,ch8ortho:v}))} rows={8} apiKey={apiKey}
-          placeholder={"Right foot and ankle:\na) Referral to a podiatrist for specialised footwear.\nb) Conservative treatment with NSAIDs and analgesics — approximately R500.00 per month.\nc) Physiotherapy at R600.00 per session.\nd) Occupational therapy at R600.00 per session."}/>
-      </div>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">👥</div>
-          <div><div className="card-title">8.2 Referrals</div></div>
-        </div>
-        <SmartTextarea value={r.ch8ref} onChange={v=>setR(p=>({...p,ch8ref:v}))} rows={5} apiKey={apiKey}
-          placeholder={"After reviewing patient records I advise assessment by:\n1. Podiatrist\n2. Physiotherapist\n3. Occupational Therapist\n4. Industrial Psychologist"}/>
-      </div>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">ℹ️</div>
-          <div><div className="card-title">8.3 Burden of Treatment</div><div className="card-desc">Standard paragraph — included automatically</div></div>
-        </div>
-        <div className="standard-box">
-          <div className="standard-box-label">Auto-included in report</div>
-          Side effects from regular use of NSAIDs and analgesics include but are not limited to allergic reactions, peptic ulcer disease, heartburn, gastritis, kidney and liver damage, excessive bleeding, heart problems, and toxicity. Some of these drugs can cause impaired concentration, anxiety, sleepiness, and breathing abnormalities. Careful monitoring of the use of these drugs is essential as one can become dependent on them and/or suffer harmful side effects. Additionally, the burden of cost, drug dependence, regional availability of medication, and compliance of treatment could become a stressor in the patient's life.
-        </div>
-      </div>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">💰</div>
-          <div><div className="card-title">8.4 Additional Expenses</div><div className="card-desc">Standard paragraph — included automatically</div></div>
-        </div>
-        <div className="standard-box">
-          <div className="standard-box-label">Auto-included in report</div>
-          Other specialist consultation rates, consultation frequency, and further treatment costs are to be determined by the relevant specialist. Transportation costs for treatment are to be determined by the Occupational Therapist. Medical inflation rates need to be taken into consideration as determined annually.
-        </div>
-      </div>
-    </>
-  );
-}
-
-function Ch9({r,setR,apiKey}){
-  const setAdl=(type,act,val)=>{
-    const k=type==="basic"?"adlBasic":"adlAdv";
-    setR(p=>({...p,[k]:{...p[k],[act]:val}}));
-  };
-  const updateWpi=(i,field,val)=>{
-    const rows=[...(r.wpiRows||[])]; rows[i]={...rows[i],[field]:val}; setR(p=>({...p,wpiRows:rows}));
-  };
-  const addWpiRow=()=>setR(p=>({...p,wpiRows:[...(p.wpiRows||[]),{region:"",impairment:"",reference:"",wpi:""}]}));
-  const removeWpiRow=i=>setR(p=>({...p,wpiRows:p.wpiRows.filter((_,idx)=>idx!==i)}));
-  const combinedWpi=(r.wpiRows||[]).reduce((acc,row)=>acc+(parseFloat(row.wpi)||0),0).toFixed(0);
-
-  const adlBlock=(items,opts,type)=>(
-    <table className="adl-table">
-      <thead>
-        <tr>
-          <th style={{width:"35%",textAlign:"left"}}>Activity</th>
-          {opts.map(o=><th key={o}>{o}</th>)}
-        </tr>
-      </thead>
-      <tbody>
-        {items.map(act=>(
-          <tr key={act}>
-            <td style={{fontWeight:500}}>{act}</td>
-            {opts.map(opt=>(
-              <td key={opt}>
-                <div className="adl-radio">
-                  <label>
-                    <input type="radio" name={`${type}_${act}`} value={opt}
-                      checked={(r[type==="basic"?"adlBasic":"adlAdv"]?.[act]||"")===opt}
-                      onChange={()=>setAdl(type,act,opt)}/>
-                  </label>
-                </div>
-              </td>
+        <div style={{minWidth:0}}>
+          {!sel&&<div style={{padding:"36px 20px",textAlign:"center",color:"var(--t3)",background:"var(--raised)",borderRadius:10,border:"1px dashed var(--line)"}}><div style={{fontSize:30,marginBottom:10}}>🦴</div><div style={{fontWeight:600,marginBottom:4,color:"var(--t2)"}}>Select a region</div><div style={{fontSize:12}}>Click any region on the left to begin</div></div>}
+          {sel&&(<div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+              <div style={{fontFamily:"'Syne',sans-serif",fontSize:15,fontWeight:700,color:"var(--teal)"}}>{sel}</div>
+              <button className="btn btn-d btn-sm" onClick={()=>rm(sel)}>Remove</button>
+            </div>
+            {EXAM_REGIONS[sel].map(fld=>(
+              <div key={fld}>
+                <div className="region-fld">📌 {fld}</div>
+                <SmartTA value={r.ch6msk?.[sel]?.[fld]||""} onChange={v=>upd(sel,fld,v)} rows={2} apiKey={apiKey} placeholder={`Enter ${fld.toLowerCase()} findings...`}/>
+              </div>
             ))}
-          </tr>
-        ))}
-      </tbody>
+          </div>)}
+        </div>
+      </div>
+    </div>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">📸</div><div><div className="card-title">6.3 Evidence of Injury & Special Investigations</div></div></div>
+      <div style={{marginBottom:18}}>
+        <div style={{fontSize:13,fontWeight:600,color:"var(--t1)",marginBottom:8}}>6.3.1 Scarring / Disfigurement / Deformity</div>
+        <SmartTA value={r.ch6scarring||""} onChange={v=>setR(p=>({...p,ch6scarring:v}))} rows={3} apiKey={apiKey} placeholder="Description of visible scarring, deformity, or disfigurement..."/>
+      </div>
+      <div>
+        <div style={{fontSize:13,fontWeight:600,color:"var(--t1)",marginBottom:8}}>6.3.2 Radiological Examination</div>
+        <SmartTA value={r.ch6radiology||""} onChange={v=>setR(p=>({...p,ch6radiology:v}))} rows={8} apiKey={apiKey} placeholder={"Exam Date:\nX-RAY [REGION]\nBones: ...\nSoft tissue: Normal\nOther: Normal"}/>
+      </div>
+    </div>
+  </>);
+}
+function Ch7({r,setR,apiKey}){return<div className="card"><div className="card-h"><div className="card-ico">📊</div><div><div className="card-title">Diagnosis</div><div className="card-desc">Following thorough review of records and examination</div></div></div><SmartTA value={r.ch7} onChange={v=>setR(p=>({...p,ch7:v}))} rows={12} apiKey={apiKey} placeholder={"1. Soft tissue injury of the right leg treated conservatively.\n2. Right foot fractures resulting in:\n   a. Pain and swelling...\n   b. Tender bony deformity at the mid-foot..."}/></div>;}
+function Ch8({r,setR,apiKey}){return(<>
+  <div className="card"><div className="card-h"><div className="card-ico">🔧</div><div><div className="card-title">8.1 Orthopaedic Treatment</div></div></div><SmartTA value={r.ch8ortho} onChange={v=>setR(p=>({...p,ch8ortho:v}))} rows={8} apiKey={apiKey} placeholder={"Right foot and ankle:\na) Referral to podiatrist for specialised footwear.\nb) NSAIDs and analgesics — approx R500/month.\nc) Physiotherapy at R600 per session.\nd) Occupational therapy at R600 per session."}/></div>
+  <div className="card"><div className="card-h"><div className="card-ico">👥</div><div><div className="card-title">8.2 Referrals</div></div></div><SmartTA value={r.ch8ref} onChange={v=>setR(p=>({...p,ch8ref:v}))} rows={5} apiKey={apiKey} placeholder={"1. Podiatrist\n2. Physiotherapist\n3. Occupational Therapist\n4. Industrial Psychologist"}/></div>
+  <div className="card"><div className="card-h"><div className="card-ico">ℹ️</div><div><div className="card-title">8.3 Burden of Treatment</div><div className="card-desc">Standard paragraph — auto-included</div></div></div><div className="std-box"><div className="std-lbl">Auto-included in report</div>Side effects from regular use of NSAIDs and analgesics include but are not limited to allergic reactions, peptic ulcer disease, heartburn, gastritis, kidney and liver damage, excessive bleeding, heart problems, and toxicity. Careful monitoring is essential as one can become dependent and/or suffer harmful side effects. Additionally, the burden of cost, drug dependence, regional availability of medication, and compliance could become a stressor in the patient's life.</div></div>
+  <div className="card"><div className="card-h"><div className="card-ico">💰</div><div><div className="card-title">8.4 Additional Expenses</div><div className="card-desc">Standard paragraph — auto-included</div></div></div><div className="std-box"><div className="std-lbl">Auto-included in report</div>Other specialist consultation rates and further treatment costs are to be determined by the relevant specialist. Transportation costs are to be determined by the Occupational Therapist. Medical inflation rates need to be taken into consideration as determined annually.</div></div>
+</>);}
+function Ch9({r,setR,apiKey}){
+  const sa=(t,a,v)=>{const k=t==="b"?"adlBasic":"adlAdv";setR(p=>({...p,[k]:{...p[k],[a]:v}}));};
+  const uw=(i,f,v)=>{const rows=[...(r.wpiRows||[])];rows[i]={...rows[i],[f]:v};setR(p=>({...p,wpiRows:rows}));};
+  const addRow=()=>setR(p=>({...p,wpiRows:[...(p.wpiRows||[]),{region:"",impairment:"",reference:"",wpi:""}]}));
+  const rmRow=i=>setR(p=>({...p,wpiRows:p.wpiRows.filter((_,x)=>x!==i)}));
+  const totalWpi=(r.wpiRows||[]).reduce((a,row)=>a+(parseFloat(row.wpi)||0),0).toFixed(0);
+  const adlBlock=(items,opts,t)=>(
+    <table className="adl-tbl">
+      <thead><tr><th style={{textAlign:"left",width:"36%"}}>Activity</th>{opts.map(o=><th key={o}>{o}</th>)}</tr></thead>
+      <tbody>{items.map(act=>(
+        <tr key={act}><td style={{fontWeight:500,fontSize:12}}>{act}</td>
+          {opts.map(opt=><td key={opt}><div className="adl-r"><label><input type="radio" name={`${t}_${act}`} value={opt} checked={(r[t==="b"?"adlBasic":"adlAdv"]?.[act]||"")===opt} onChange={()=>sa(t,act,opt)}/></label></div></td>)}
+        </tr>
+      ))}</tbody>
     </table>
   );
-
-  return (
-    <>
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🏃</div>
-          <div><div className="card-title">9.1 Activities of Daily Living</div><div className="card-desc">As reported by the patient</div></div>
-        </div>
-        <div style={{marginBottom:24}}>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:10,color:"var(--text)"}}>Basic Activities of Daily Living</div>
-          <div style={{overflowX:"auto"}}>{adlBlock(ADL_BASIC,ADL_OPTS_B,"basic")}</div>
-        </div>
-        <div>
-          <div style={{fontSize:15,fontWeight:600,marginBottom:10,color:"var(--text)"}}>Advanced Activities of Daily Living</div>
-          <div style={{overflowX:"auto"}}>{adlBlock(ADL_ADV,ADL_OPTS_A,"advanced")}</div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">🧑‍💼</div>
-          <div><div className="card-title">9.2 Occupational Effects and Limitations</div></div>
-        </div>
-        <SmartTextarea value={r.ch9occ||""} onChange={v=>setR(p=>({...p,ch9occ:v}))} rows={8} apiKey={apiKey}
-          placeholder={"The patient was employed as a general worker at the time of the accident.\nAccording to the patient his recuperation period was approximately 1 (one) year...\nThe patient states that following his recuperation period he returned to his pre-accident employment but struggles to perform his daily tasks..."}/>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">⚖️</div>
-          <div><div className="card-title">9.3 Narrative Test</div><div className="card-desc">Standard RAF section — kept for manual editing in final document</div></div>
-        </div>
-        <div className="standard-box">
-          <div className="standard-box-label">Standard RAF text — review and edit in exported document</div>
-          The Road Accident Fund (RAF) Amendment Regulations of 2008 prescribes the use of the Narrative Test as a medical instrument to determine the seriousness of an individual's injuries if the WPI rating is less than 30% in accordance with the AMA Guides, and if the medical practitioner regards the injuries as serious. Criteria considered: <strong>5.1 Serious long-term impairment or loss of a body function. 5.2 Permanent serious disfigurement. 5.3 Severe long-term mental or behavioural disturbance. 5.4 Loss of a foetus.</strong>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-header">
-          <div className="card-icon">📏</div>
-          <div><div className="card-title">9.5 Whole Person Impairment (WPI)</div><div className="card-desc">AMA Guides® 6th Edition</div></div>
-        </div>
-        <div style={{overflowX:"auto",marginBottom:12}}>
-          <table className="wpi-table" style={{minWidth:600}}>
-            <thead>
-              <tr><th>Region</th><th>Impairment Description</th><th>Reference</th><th style={{width:80}}>WPI %</th><th style={{width:40}}></th></tr>
-            </thead>
-            <tbody>
-              {(r.wpiRows||[]).map((row,i)=>(
-                <tr key={i}>
-                  <td><input value={row.region} onChange={e=>updateWpi(i,"region",e.target.value)} placeholder="Lower Extremities"/></td>
-                  <td><input value={row.impairment} onChange={e=>updateWpi(i,"impairment",e.target.value)} placeholder="Right foot fractures..."/></td>
-                  <td><input value={row.reference} onChange={e=>updateWpi(i,"reference",e.target.value)} placeholder="P501-505, T16-2"/></td>
-                  <td><input value={row.wpi} onChange={e=>updateWpi(i,"wpi",e.target.value)} placeholder="8%"/></td>
-                  <td><button className="btn btn-ghost btn-sm" style={{color:"var(--red)",padding:"4px 6px"}} onClick={()=>removeWpiRow(i)}>✕</button></td>
-                </tr>
-              ))}
-              <tr>
-                <td colSpan={3} style={{fontWeight:700,fontSize:14}}>Combined WPI</td>
-                <td><span className="wpi-total">{combinedWpi}%</span></td>
-                <td></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <button className="btn btn-secondary btn-sm" onClick={addWpiRow}>+ Add Row</button>
-      </div>
-    </>
-  );
-}
-
-function Ch10({r,setR,apiKey}){
-  return (
+  return(<>
     <div className="card">
-      <div className="card-header">
-        <div className="card-icon">📝</div>
-        <div><div className="card-title">Discussion</div><div className="card-desc">Professional opinion and summary findings</div></div>
-      </div>
-      <SmartTextarea value={r.ch10||""} onChange={v=>setR(p=>({...p,ch10:v}))} rows={14} apiKey={apiKey}
-        placeholder={"Mr. [Name] was involved in a motor vehicle accident on [date].\n\nHe sustained [injuries] and continues to suffer from the sequelae of his injury.\n\nI believe that the injury he sustained has led to long-term impairment and a hindered functional ability.\n\nTherefore, it is my professional opinion that his injuries are serious and qualify under 5.1 Serious long-term impairment or loss of a body function of the Narrative Test.\n\nHis Whole Person Impairment (WPI) is [X]% in accordance with the AMA Guides® to the Evaluation of Permanent Impairment, 6th Edition.\n\nFrom an orthopaedic perspective, the injury will have no effect on his life expectancy."}
-        aiHint="Write a professional Discussion section for a South African orthopaedic medico-legal RAF report. Use formal legal-medical language. Return only the formatted text."/>
+      <div className="card-h"><div className="card-ico">🏃</div><div><div className="card-title">9.1 Activities of Daily Living</div><div className="card-desc">As reported by the patient</div></div></div>
+      <div style={{marginBottom:22}}><div style={{fontSize:12,fontWeight:600,color:"var(--t2)",marginBottom:10,textTransform:"uppercase",letterSpacing:".5px"}}>Basic ADL</div><div style={{overflowX:"auto"}}>{adlBlock(ADL_BASIC,ADL_OPTS_B,"b")}</div></div>
+      <div><div style={{fontSize:12,fontWeight:600,color:"var(--t2)",marginBottom:10,textTransform:"uppercase",letterSpacing:".5px"}}>Advanced ADL</div><div style={{overflowX:"auto"}}>{adlBlock(ADL_ADV,ADL_OPTS_A,"a")}</div></div>
     </div>
-  );
+    <div className="card"><div className="card-h"><div className="card-ico">🧑‍💼</div><div><div className="card-title">9.2 Occupational Effects and Limitations</div></div></div><SmartTA value={r.ch9occ||""} onChange={v=>setR(p=>({...p,ch9occ:v}))} rows={8} apiKey={apiKey} placeholder={"The patient was employed as a general worker at the time of the accident.\nRecuperation period was approximately 1 year..."}/></div>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">⚖️</div><div><div className="card-title">9.3 Narrative Test</div><div className="card-desc">Standard RAF section — edit in exported document</div></div></div>
+      <div className="std-box"><div className="std-lbl">Standard RAF text</div>The Road Accident Fund (RAF) Amendment Regulations of 2008 prescribes the use of the Narrative Test to determine the seriousness of an individual's injuries if the WPI is less than 30% in accordance with the AMA Guides. Criteria: <strong style={{color:"var(--t2)"}}>5.1 Serious long-term impairment or loss of a body function. 5.2 Permanent serious disfigurement. 5.3 Severe long-term mental/behavioural disturbance. 5.4 Loss of a foetus.</strong></div>
+    </div>
+    <div className="card">
+      <div className="card-h"><div className="card-ico">📏</div><div><div className="card-title">9.5 Whole Person Impairment (WPI)</div><div className="card-desc">AMA Guides® 6th Edition</div></div></div>
+      <div style={{overflowX:"auto",marginBottom:12}}>
+        <table className="wpi-tbl" style={{minWidth:580}}>
+          <thead><tr><th>Region</th><th>Impairment Description</th><th>Reference</th><th style={{width:80}}>WPI %</th><th style={{width:36}}></th></tr></thead>
+          <tbody>
+            {(r.wpiRows||[]).map((row,i)=>(
+              <tr key={i}>
+                <td><input value={row.region} onChange={e=>uw(i,"region",e.target.value)} placeholder="Lower Extremities"/></td>
+                <td><input value={row.impairment} onChange={e=>uw(i,"impairment",e.target.value)} placeholder="Right foot fractures..."/></td>
+                <td><input value={row.reference} onChange={e=>uw(i,"reference",e.target.value)} placeholder="P501-505, T16-2"/></td>
+                <td><input value={row.wpi} onChange={e=>uw(i,"wpi",e.target.value)} placeholder="8%"/></td>
+                <td><button className="btn btn-g btn-sm" style={{color:"var(--red)",padding:"4px 6px"}} onClick={()=>rmRow(i)}>✕</button></td>
+              </tr>
+            ))}
+            <tr><td colSpan={3} style={{fontWeight:700,fontSize:13,color:"var(--t2)"}}>Combined WPI</td><td><span className="wpi-total">{totalWpi}%</span></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button className="btn btn-s btn-sm" onClick={addRow}>+ Add Row</button>
+    </div>
+  </>);
 }
+function Ch10({r,setR,apiKey}){return<div className="card"><div className="card-h"><div className="card-ico">📝</div><div><div className="card-title">Discussion</div><div className="card-desc">Professional opinion and summary findings</div></div></div><SmartTA value={r.ch10||""} onChange={v=>setR(p=>({...p,ch10:v}))} rows={14} apiKey={apiKey} placeholder={"Mr. [Name] was involved in a motor vehicle accident on [date].\n\nHe sustained [injuries] and continues to suffer from the sequelae of his injury.\n\nTherefore, it is my professional opinion that his injuries are serious and qualify under 5.1 Serious long-term impairment or loss of a body function.\n\nHis Whole Person Impairment (WPI) is [X]% in accordance with the AMA Guides® 6th Edition.\n\nFrom an orthopaedic perspective, the injury will have no effect on his life expectancy."}/></div>;}
 
 // ── PREVIEW ───────────────────────────────────────────────────────────
 function Preview({r,onBack}){
-  const fmt=iso=>{ if(!iso)return ""; try{return new Date(iso).toLocaleDateString("en-ZA",{day:"2-digit",month:"long",year:"numeric"});}catch{return iso;} };
-  const adlTbl=(title,items,opts,type)=>{
-    const k=type==="basic"?"adlBasic":"adlAdv";
-    return `<h3>${title}</h3><table><thead><tr><th style="text-align:left">Activity</th>${opts.map(o=>`<th>${o}</th>`).join("")}</tr></thead><tbody>`+
-      items.map(act=>`<tr><td>${act}</td>${opts.map(opt=>`<td style="text-align:center">${r[k]?.[act]===opt?"✓":""}</td>`).join("")}</tr>`).join("")+
-      `</tbody></table>`;
+  const fmt=iso=>{if(!iso)return "";try{return new Date(iso).toLocaleDateString("en-ZA",{day:"2-digit",month:"long",year:"numeric"});}catch{return iso;}};
+  const adlTbl=(title,items,opts,t)=>{
+    const k=t==="b"?"adlBasic":"adlAdv";
+    return`<h3>${title}</h3><table><thead><tr><th style="text-align:left">Activity</th>${opts.map(o=>`<th>${o}</th>`).join("")}</tr></thead><tbody>`+items.map(act=>`<tr><td>${act}</td>${opts.map(opt=>`<td style="text-align:center">${r[k]?.[act]===opt?"✓":""}</td>`).join("")}</tr>`).join("")+"</tbody></table>";
   };
   const injuries=(r.ch4injuries||[]).map((inj,i)=>`<p>${i+1}. ${inj}</p>`).join("");
   const prompts=CH3_PROMPTS.map(p=>{const v=r.ch3prompts?.[p.letter];return v?`<p><strong>${p.letter.toUpperCase()}.</strong> ${v}</p>`:""}).filter(Boolean).join("");
@@ -1059,12 +1005,10 @@ function Preview({r,onBack}){
     return c?`<h3>${rg}</h3>${c}`:"";
   }).filter(Boolean).join("");
   const wpiRows=(r.wpiRows||[]).map(row=>`<tr><td>${row.region}</td><td>${row.impairment}</td><td>${row.reference}</td><td>${row.wpi}</td></tr>`).join("");
-  const combinedWpi=(r.wpiRows||[]).reduce((acc,row)=>acc+(parseFloat(row.wpi)||0),0).toFixed(0);
-
+  const wpiTotal=(r.wpiRows||[]).reduce((a,row)=>a+(parseFloat(row.wpi)||0),0).toFixed(0);
   const html=`
     <h1>MEDICO-LEGAL REPORT</h1>
-    <p style="text-align:center"><strong>Our Reference:</strong> ${r.ourRef||""} &nbsp;|&nbsp; <strong>Attorney Reference:</strong> ${r.attRef||""}</p>
-    <br/>
+    <p style="text-align:center"><strong>Our Reference:</strong> ${r.ourRef||""} &nbsp;|&nbsp; <strong>Attorney Reference:</strong> ${r.attRef||""}</p><br/>
     <table><tbody>
       <tr><td><strong>Patient Full Name:</strong></td><td>${r.patientName||""}</td><td><strong>ID/Reference:</strong></td><td>${r.refNum||""}</td></tr>
       <tr><td><strong>Gender:</strong></td><td>${r.gender||""}</td><td><strong>Date of Birth:</strong></td><td>${fmt(r.dob)}</td></tr>
@@ -1075,477 +1019,533 @@ function Preview({r,onBack}){
       <tr><td><strong>Date of Examination:</strong></td><td>${fmt(r.dateExam)}</td><td><strong>Place:</strong></td><td>${r.placeExam||""}</td></tr>
       <tr><td><strong>Instructing Attorney:</strong></td><td>${r.attorney||""}</td><td><strong>Contact:</strong></td><td>${r.attContact||""}</td></tr>
     </tbody></table>
-    <h2>1. DOCUMENTS PERUSED</h2><div class="btext">${(r.ch1||"").replace(/\n/g,"<br/>")}</div>
+    <h2>1. DOCUMENTS PERUSED</h2><div class="bt">${(r.ch1||"").replace(/\n/g,"<br/>")}</div>
     <h2>2. OCCUPATIONAL AND MEDICAL HISTORY</h2>
     <h3>2.1 Occupational History</h3>
-    <p><strong>Highest grade passed:</strong> ${r.ch2grade||""} &nbsp; <strong>Tertiary education:</strong> ${r.ch2tertiary||""}</p>
+    <p><strong>Highest grade passed:</strong> ${r.ch2grade||""} &nbsp;&nbsp; <strong>Tertiary education:</strong> ${r.ch2tertiary||""}</p>
     <p><strong>Pre-accident occupation:</strong> ${(r.ch2occ||"").replace(/\n/g,"<br/>")}</p>
     <p><strong>Post-accident occupation:</strong> ${(r.ch2postOcc||"").replace(/\n/g,"<br/>")}</p>
     <h3>2.2 Past Medical and Surgical History</h3>
-    <p><strong>Previous injuries:</strong> ${r.ch2injuries||""}</p>
-    <p><strong>Surgical history:</strong> ${r.ch2surgery||""}</p>
-    <p><strong>Medical history:</strong> ${r.ch2medical||""}</p>
-    <p><strong>Chronic medication:</strong> ${r.ch2meds||""}</p>
+    <p><strong>Previous injuries:</strong> ${r.ch2injuries||""} &nbsp;&nbsp; <strong>Surgical history:</strong> ${r.ch2surgery||""}</p>
+    <p><strong>Medical history:</strong> ${r.ch2medical||""} &nbsp;&nbsp; <strong>Chronic medication:</strong> ${r.ch2meds||""}</p>
     <h2>3. SUMMARY OF THE HOSPITAL RECORDS</h2>
     <h3>3.1 Management and Diagnosis</h3>${prompts}
-    <h3>3.2 Post-Trauma Follow-Up and Treatment</h3><div class="btext">${(r.ch3||"").replace(/\n/g,"<br/>")}</div>
+    <h3>3.2 Post-Trauma Follow-Up and Treatment</h3><div class="bt">${(r.ch3||"").replace(/\n/g,"<br/>")}</div>
     <h2>4. INJURIES SUSTAINED</h2>${injuries||"<p>No injuries listed.</p>"}
-    <h2>5. CURRENT COMPLAINTS</h2><div class="btext">${(r.ch5||"").replace(/\n/g,"<br/>")}</div>
+    <h2>5. CURRENT COMPLAINTS</h2><div class="bt">${(r.ch5||"").replace(/\n/g,"<br/>")}</div>
     <h2>6. CLINICAL EVALUATION</h2>
-    <h3>6.1 General Examination</h3><div class="btext">${(r.ch6general||"").replace(/\n/g,"<br/>")}</div>
+    <h3>6.1 General Examination</h3><div class="bt">${(r.ch6general||"").replace(/\n/g,"<br/>")}</div>
     <h3>6.2 Musculoskeletal Examination</h3>${msk||"<p>No examination findings entered.</p>"}
     <h3>6.3 Evidence of Injury &amp; Special Investigations</h3>
-    <h4>6.3.1 Scarring and Disfigurement/Deformity</h4><div class="btext">${(r.ch6scarring||"").replace(/\n/g,"<br/>")}</div>
-    <h4>6.3.2 Radiological Examination</h4><div class="btext">${(r.ch6radiology||"").replace(/\n/g,"<br/>")}</div>
+    <h4>6.3.1 Scarring and Disfigurement/Deformity</h4><div class="bt">${(r.ch6scarring||"").replace(/\n/g,"<br/>")}</div>
+    <h4>6.3.2 Radiological Examination</h4><div class="bt">${(r.ch6radiology||"").replace(/\n/g,"<br/>")}</div>
     <h2>7. DIAGNOSIS</h2>
-    <p>Following a thorough review of the patient's available records, the patient interview, my clinical examination, and the special investigation findings, I diagnose the patient as follows:</p>
-    <div class="btext">${(r.ch7||"").replace(/\n/g,"<br/>")}</div>
+    <p>Following a thorough review of the patient's available records, the patient interview, clinical examination, and special investigation findings, I diagnose the patient as follows:</p>
+    <div class="bt">${(r.ch7||"").replace(/\n/g,"<br/>")}</div>
     <h2>8. FURTHER MANAGEMENT</h2>
-    <h3>8.1 Orthopaedic Treatment</h3><div class="btext">${(r.ch8ortho||"").replace(/\n/g,"<br/>")}</div>
-    <h3>8.2 Referrals</h3><div class="btext">${(r.ch8ref||"").replace(/\n/g,"<br/>")}</div>
+    <h3>8.1 Orthopaedic Treatment</h3><div class="bt">${(r.ch8ortho||"").replace(/\n/g,"<br/>")}</div>
+    <h3>8.2 Referrals</h3><div class="bt">${(r.ch8ref||"").replace(/\n/g,"<br/>")}</div>
     <h3>8.3 Burden of Treatment</h3>
-    <p>Side effects from regular use of NSAIDs and analgesics include but are not limited to allergic reactions, peptic ulcer disease, heartburn, gastritis, kidney and liver damage, excessive bleeding, heart problems, and toxicity. Some of these drugs can cause impaired concentration, anxiety, sleepiness, and breathing abnormalities. Careful monitoring of the use of these drugs is essential. Additionally, the burden of cost, drug dependence, regional availability of medication, and compliance of treatment could become a stressor in the patient's life.</p>
+    <p>Side effects from regular use of NSAIDs and analgesics include but are not limited to allergic reactions, peptic ulcer disease, heartburn, gastritis, kidney and liver damage, excessive bleeding, heart problems, and toxicity. Careful monitoring is essential. The burden of cost, drug dependence, regional availability of medication, and compliance could become a stressor in the patient's life.</p>
     <h3>8.4 Additional Expenses</h3>
-    <p>Other specialist consultation rates, consultation frequency, and further treatment costs are to be determined by the relevant specialist. Transportation costs are to be determined by the Occupational Therapist. Medical inflation rates need to be taken into consideration as determined annually.</p>
+    <p>Other specialist consultation rates and further treatment costs are to be determined by the relevant specialist. Transportation costs are to be determined by the Occupational Therapist. Medical inflation rates need to be taken into consideration annually.</p>
     <h2>9. DISABILITY &amp; IMPAIRMENT</h2>
     <h3>9.1 Activities of Daily Living — As Reported by the Patient</h3>
-    ${adlTbl("Basic Activities of Daily Living",ADL_BASIC,ADL_OPTS_B,"basic")}
-    ${adlTbl("Advanced Activities of Daily Living",ADL_ADV,ADL_OPTS_A,"advanced")}
-    <h3>9.2 Occupational Effects and Limitations</h3><div class="btext">${(r.ch9occ||"").replace(/\n/g,"<br/>")}</div>
+    ${adlTbl("Basic Activities of Daily Living",ADL_BASIC,ADL_OPTS_B,"b")}
+    ${adlTbl("Advanced Activities of Daily Living",ADL_ADV,ADL_OPTS_A,"a")}
+    <h3>9.2 Occupational Effects and Limitations</h3><div class="bt">${(r.ch9occ||"").replace(/\n/g,"<br/>")}</div>
     <h3>9.3 Applying the Narrative Test</h3>
-    <p>The Road Accident Fund (RAF) Amendment Regulations of 2008 prescribes the use of the Narrative Test as a medical instrument to determine the seriousness of an individual's injuries if the Whole Person Impairment (WPI) rating calculated is less than 30% in accordance with the American Medical Association (AMA) Guides to the Evaluation of Permanent Impairment, and if the medical practitioner regards the injuries as serious.</p>
-    <p>In accordance with the RAF4 Serious Injury Assessment Report the following criteria were considered:</p>
-    <p><strong>5.1 Serious long-term impairment or loss of a body function.</strong><br/><strong>5.2 Permanent serious disfigurement.</strong><br/><strong>5.3 Severe long-term mental or severe long-term behavioural disturbance or disorder.</strong><br/><strong>5.4 Loss of a foetus.</strong></p>
+    <p>The Road Accident Fund (RAF) Amendment Regulations of 2008 prescribes the use of the Narrative Test as a medical instrument to determine the seriousness of an individual's injuries if the WPI is less than 30% in accordance with the AMA Guides, and if the medical practitioner regards the injuries as serious. Criteria considered: <strong>5.1 Serious long-term impairment or loss of a body function. 5.2 Permanent serious disfigurement. 5.3 Severe long-term mental or behavioural disturbance or disorder. 5.4 Loss of a foetus.</strong></p>
     <h3>9.5 Whole Person Impairment</h3>
-    <p>Using the AMA Guides® to the Evaluation of Permanent Impairment, 6th Edition, the Whole Person Impairment rating equates to:</p>
     <table><thead><tr><th>Region</th><th>Impairment</th><th>Reference</th><th>WPI</th></tr></thead>
-    <tbody>${wpiRows}<tr><td colspan="3"><strong>Combined WPI</strong></td><td><strong>${combinedWpi}%</strong></td></tr></tbody></table>
-    <h2>10. DISCUSSION</h2><div class="btext">${(r.ch10||"").replace(/\n/g,"<br/>")}</div>
-    <div style="margin-top:60px;padding-top:24px;border-top:2px solid #1a2234;">
+    <tbody>${wpiRows}<tr><td colspan="3"><strong>Combined WPI</strong></td><td><strong>${wpiTotal}%</strong></td></tr></tbody></table>
+    <h2>10. DISCUSSION</h2><div class="bt">${(r.ch10||"").replace(/\n/g,"<br/>")}</div>
+    <div style="margin-top:60px;padding-top:20px;border-top:2px solid #1a2234;">
       <p>________________________________</p>
       <p><strong>${r.drName||"[PRACTITIONER NAME]"}</strong></p>
       <p><em>${r.quals||"[QUALIFICATIONS]"}</em></p>
       <p>Orthopaedic Surgeon</p>
-      <p style="font-size:9pt;margin-top:16px;color:#666;border-top:1px solid #ddd;padding-top:12px;">
-        <strong>VALIDITY:</strong> This report will remain valid to be used in a court of law for a period of 2 (two) years from the date of the first consultation. If this matter has not been finalised within 2 (two) years from the date of the first consultation, an updated Medico-Legal Report will have to be prepared.
-      </p>
+      <p style="font-size:9pt;margin-top:16px;color:#666;border-top:1px solid #ddd;padding-top:10px;"><strong>VALIDITY:</strong> This report will remain valid for use in a court of law for 2 (two) years from the date of first consultation. An updated report will be required if the matter is not finalised within this period.</p>
     </div>`;
-
   const exportDoc=()=>{
-    const full=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.7;margin:2.5cm;}h1{font-size:14pt;text-align:center;}h2{font-size:11pt;border-bottom:2px solid #000;padding-bottom:3px;margin:20px 0 8px;}h3{font-size:10.5pt;margin:14px 0 5px;}h4{font-size:10pt;margin:10px 0 4px;}table{width:100%;border-collapse:collapse;margin:10px 0;}th,td{border:1px solid #ccc;padding:5px 8px;font-size:9.5pt;}th{background:#1a2234;color:#fff;}.btext{margin-bottom:8px;}</style></head><body>${html}</body></html>`;
-    const blob=new Blob([full],{type:"application/msword"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=`MediSync_${(r.patientName||"Report").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.doc`;
-    a.click();
+    const full=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:'Times New Roman',serif;font-size:11pt;line-height:1.7;margin:2.5cm;}h1{font-size:14pt;text-align:center;}h2{font-size:11pt;border-bottom:2px solid #000;padding-bottom:3px;margin:20px 0 8px;}h3{font-size:10.5pt;margin:14px 0 5px;}h4{font-size:10pt;margin:10px 0 4px;}table{width:100%;border-collapse:collapse;margin:10px 0;}th,td{border:1px solid #ccc;padding:5px 8px;font-size:9.5pt;}th{background:#1a2234;color:#fff;}.bt{margin-bottom:8px;}</style></head><body>${html}</body></html>`;
+    const b=new Blob([full],{type:"application/msword"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(b);
+    a.download=`MediSync_${(r.patientName||"Report").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.doc`;a.click();
   };
-  const copyText=()=>{const d=document.createElement("div");d.innerHTML=html;navigator.clipboard.writeText(d.textContent||"");};
-
-  return (
+  const copyTxt=()=>{const d=document.createElement("div");d.innerHTML=html;navigator.clipboard.writeText(d.textContent||"");};
+  return(
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div className="chapter-header no-print">
-        <div className="chapter-header-left">
-          <div className="chapter-badge">👁</div>
-          <div>
-            <div className="chapter-title">Report Preview</div>
-            <div className="chapter-subtitle">Read-only — export or print to share</div>
-          </div>
+      <div className="ch-bar no-print">
+        <div className="ch-left">
+          <div className="ch-badge">👁</div>
+          <div><div className="ch-title">Report Preview</div><div className="ch-sub">Read-only — export or print to share</div></div>
         </div>
-        <button className="btn btn-secondary" onClick={onBack}>← Back to Editor</button>
+        <button className="btn btn-s" onClick={onBack}>← Back to Editor</button>
       </div>
-      <div className="preview-wrap">
-        <div className="preview-page" dangerouslySetInnerHTML={{__html:html}}/>
-      </div>
+      <div className="preview-bg"><div className="preview-page" dangerouslySetInnerHTML={{__html:html}}/></div>
       <div className="preview-fabs no-print">
-        <button className="fab" style={{background:"#7c3aed",color:"#fff"}} onClick={copyText} title="Copy text">📋</button>
-        <button className="fab" style={{background:"var(--teal)",color:"#fff"}} onClick={exportDoc} title="Export .doc">⬇</button>
-        <button className="fab" style={{background:"var(--navy)",color:"#fff"}} onClick={()=>window.print()} title="Print">🖨</button>
+        <button className="fab" style={{background:"#7c3aed",color:"#fff"}} onClick={copyTxt} title="Copy text">📋</button>
+        <button className="fab" style={{background:"var(--teal)",color:"#07090f"}} onClick={exportDoc} title="Export .doc">⬇</button>
+        <button className="fab" style={{background:"var(--panel)",color:"var(--t1)",border:"1px solid var(--rim)"}} onClick={()=>window.print()} title="Print">🖨</button>
       </div>
     </div>
   );
 }
 
-
-// ── LOGIN SCREEN ──────────────────────────────────────────────────────
+// ── LOGIN ─────────────────────────────────────────────────────────────
 function LoginScreen(){
   const [email,setEmail]=useState("");
-  const [password,setPassword]=useState("");
-  const [loading,setLoading]=useState(false);
-  const [error,setError]=useState("");
-  const [resetMode,setResetMode]=useState(false);
-  const [resetSent,setResetSent]=useState(false);
-
-  const handleLogin=async e=>{
-    e.preventDefault();setError("");setLoading(true);
-    const {error:err}=await supabase.auth.signInWithPassword({email,password});
-    if(err)setError(err.message);
-    setLoading(false);
+  const [pass,setPass]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const [reset,setReset]=useState(false);
+  const [sent,setSent]=useState(false);
+  const doLogin=async e=>{
+    e.preventDefault();setErr("");setBusy(true);
+    const {error}=await supabase.auth.signInWithPassword({email,password:pass});
+    if(error)setErr(error.message);
+    setBusy(false);
   };
-  const handleReset=async e=>{
-    e.preventDefault();setError("");setLoading(true);
-    const {error:err}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
-    if(err)setError(err.message); else setResetSent(true);
-    setLoading(false);
+  const doReset=async e=>{
+    e.preventDefault();setErr("");setBusy(true);
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+    if(error)setErr(error.message);else setSent(true);
+    setBusy(false);
   };
-
-  return (
-    <div className="login-wrap">
+  return(
+    <div className="login-root">
+      <div className="login-ring" style={{width:500,height:500,top:"50%",left:"50%",transform:"translate(-50%,-50%)"}}/>
+      <div className="login-ring" style={{width:750,height:750,top:"50%",left:"50%",transform:"translate(-50%,-50%)",animationDelay:".8s",opacity:.4}}/>
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-mark">🔬</div>
-          <div><div className="login-logo-text">MediSync <span>Ortho</span></div><div style={{fontSize:11,color:"var(--text-muted)",letterSpacing:.5,textTransform:"uppercase"}}>Medico-Legal Engine</div></div>
+          <div className="login-mark">🔬</div>
+          <div>
+            <div className="login-appname">MediSync <em>Ortho</em></div>
+            <div className="login-apptag">Medico-Legal Engine</div>
+          </div>
         </div>
-        {!resetMode ? (<>
-          <div className="login-title">Welcome back</div>
+        {!reset?(<>
+          <div className="login-heading">Welcome back</div>
           <div className="login-sub">Sign in to access your reports</div>
-          {error&&<div className="login-error">⚠ {error}</div>}
-          <form onSubmit={handleLogin}>
+          {err&&<div className="login-err">⚠ {err}</div>}
+          <form onSubmit={doLogin}>
             <div className="field"><label>Email Address</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="doctor@practice.co.za" required autoComplete="email"/></div>
-            <div className="field"><label>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password"/></div>
-            <div style={{textAlign:"right",marginTop:-12,marginBottom:16}}>
-              <span style={{fontSize:13,color:"var(--teal)",cursor:"pointer"}} onClick={()=>{setResetMode(true);setError("");}}>Forgot password?</span>
-            </div>
-            <button className="btn btn-primary" style={{width:"100%",justifyContent:"center"}} type="submit" disabled={loading}>
-              {loading?<><span className="spin"/>Signing in...</>:"Sign In →"}
+            <div className="field"><label>Password</label><input type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" required autoComplete="current-password"/></div>
+            <div className="login-forgot" onClick={()=>{setReset(true);setErr("");}}>Forgot password?</div>
+            <button className="btn btn-p" style={{width:"100%",justifyContent:"center",marginTop:6,padding:"12px"}} type="submit" disabled={busy}>
+              {busy?<><span className="spin"/> Signing in...</>:"Sign In →"}
             </button>
           </form>
-          <div style={{marginTop:20,padding:14,background:"#f8fafc",borderRadius:8,border:"1px solid var(--border)"}}>
-            <div style={{fontSize:12,fontWeight:600,color:"var(--text-muted)",marginBottom:4}}>NEW STAFF MEMBER?</div>
-            <div style={{fontSize:13,color:"var(--text-secondary)",lineHeight:1.5}}>Ask your administrator to invite you via <strong>Supabase → Authentication → Users → Invite user</strong>.</div>
+          <div className="login-invite-hint">
+            <div className="login-invite-label">New Staff Member?</div>
+            <p>Ask your administrator to invite you via <strong>Supabase → Authentication → Users → Invite user</strong>.</p>
           </div>
-        </>) : (<>
-          <div className="login-title">Reset Password</div>
-          <div className="login-sub">Enter your email to receive a reset link</div>
-          {error&&<div className="login-error">⚠ {error}</div>}
-          {resetSent&&<div className="login-success">✓ Reset link sent — check your email inbox</div>}
-          {!resetSent&&<form onSubmit={handleReset}>
+        </>):(<>
+          <div className="login-heading">Reset Password</div>
+          <div className="login-sub">We'll send a reset link to your email</div>
+          {err&&<div className="login-err">⚠ {err}</div>}
+          {sent&&<div className="login-ok">✓ Reset link sent — check your inbox</div>}
+          {!sent&&<form onSubmit={doReset}>
             <div className="field"><label>Email Address</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="doctor@practice.co.za" required/></div>
-            <button className="btn btn-primary" style={{width:"100%",justifyContent:"center"}} type="submit" disabled={loading}>{loading?<><span className="spin"/>Sending...</>:"Send Reset Link"}</button>
+            <button className="btn btn-p" style={{width:"100%",justifyContent:"center",padding:"12px"}} type="submit" disabled={busy}>{busy?<><span className="spin"/> Sending...</>:"Send Reset Link"}</button>
           </form>}
-          <div style={{textAlign:"center",marginTop:16}}><button className="btn btn-ghost" onClick={()=>{setResetMode(false);setResetSent(false);setError("");}}>← Back to Sign In</button></div>
+          <div style={{textAlign:"center",marginTop:16}}>
+            <button className="btn btn-g" onClick={()=>{setReset(false);setSent(false);setErr("");}}>← Back to Sign In</button>
+          </div>
         </>)}
       </div>
     </div>
   );
 }
 
-// ── MAIN APP ──────────────────────────────────────────────────────────
+// ── ACCOUNT MODAL ─────────────────────────────────────────────────────
+function AccountModal({session,reports,apiKey,onSaveKey,onClose,onSignOut}){
+  const [tab,setTab]=useState("account"); // account | apikey
+  const [tmpKey,setTmpKey]=useState(apiKey);
+  const [pwMode,setPwMode]=useState(false);
+  const [newPw,setNewPw]=useState("");
+  const [pwMsg,setPwMsg]=useState("");
+  const [pwBusy,setPwBusy]=useState(false);
+  const initials=(session?.user?.email||"??").slice(0,2).toUpperCase();
+  const joined=session?.user?.created_at?new Date(session.user.created_at).toLocaleDateString("en-ZA",{day:"2-digit",month:"long",year:"numeric"}):"—";
+  const changePw=async()=>{
+    if(!newPw||newPw.length<6){setPwMsg("Password must be at least 6 characters.");return;}
+    setPwBusy(true);
+    const {error}=await supabase.auth.updateUser({password:newPw});
+    setPwMsg(error?`Error: ${error.message}`:"✓ Password updated successfully.");
+    setPwBusy(false);setNewPw("");
+  };
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-head">
+          <div className="modal-title">Account & Settings</div>
+          <button className="tb-icon" onClick={onClose}>✕</button>
+        </div>
+        {/* Tab bar */}
+        <div style={{display:"flex",gap:4,padding:"12px 24px 0",borderBottom:"1px solid var(--glass-b)"}}>
+          {[["account","👤 Account"],["apikey","✨ AI Key"]].map(([k,lbl])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{
+              padding:"7px 14px",borderRadius:"7px 7px 0 0",border:"none",cursor:"pointer",
+              fontSize:12,fontWeight:600,transition:"all .12s",
+              background:tab===k?"var(--raised)":"transparent",
+              color:tab===k?"var(--teal)":"var(--t3)",
+              borderBottom:tab===k?"1px solid var(--raised)":"none",
+              marginBottom:tab===k?"-1px":0,
+            }}>{lbl}</button>
+          ))}
+        </div>
+        <div className="modal-body">
+          {tab==="account"&&(<>
+            {/* Hero */}
+            <div className="acc-hero">
+              <div className="acc-hero-av">{initials}</div>
+              <div>
+                <div className="acc-hero-email">{session?.user?.email}</div>
+                <div className="acc-hero-meta">Account created {joined}</div>
+              </div>
+            </div>
+            {/* Stats */}
+            <div className="acc-section">Activity</div>
+            <div className="acc-stat"><span className="acc-stat-k">Total Reports</span><span className="acc-stat-v">{reports.length}</span></div>
+            <div className="acc-stat"><span className="acc-stat-k">Reports in Progress</span><span className="acc-stat-v">{reports.filter(r=>{const f=[r.patientName,r.ch1,r.ch7,r.ch10];return f.some(x=>x&&x.trim())&&!f.every(x=>x&&x.trim());}).length}</span></div>
+            {/* Change password */}
+            <div className="acc-section">Security</div>
+            {!pwMode?(
+              <button className="btn btn-s btn-sm" onClick={()=>setPwMode(true)}>🔐 Change Password</button>
+            ):(
+              <div style={{background:"var(--raised)",border:"1px solid var(--line)",borderRadius:9,padding:14}}>
+                <div className="field" style={{marginBottom:10}}><label>New Password</label><input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="Min. 6 characters"/></div>
+                {pwMsg&&<div style={{fontSize:12,color:pwMsg.startsWith("✓")?"var(--green)":"var(--red)",marginBottom:8}}>{pwMsg}</div>}
+                <div style={{display:"flex",gap:8}}>
+                  <button className="btn btn-p btn-sm" onClick={changePw} disabled={pwBusy}>{pwBusy?<span className="spin"/>:"Update"}</button>
+                  <button className="btn btn-g btn-sm" onClick={()=>{setPwMode(false);setPwMsg("");setNewPw("");}}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </>)}
+          {tab==="apikey"&&(<>
+            <div style={{fontSize:13,color:"var(--t3)",marginBottom:16,lineHeight:1.6}}>
+              Enable AI-powered grammar correction and formatting assistance for all text fields. Your key is stored only in your browser — never on any server.
+            </div>
+            <div className="acc-section">Current Key</div>
+            <div className="api-row" style={{marginBottom:16}}>
+              <div className="api-val">{apiKey?apiKey.replace(/(.{12}).+(.{4})/,"$1••••••••••••$2"):"No key set"}</div>
+              <span className={`api-badge ${apiKey?"on":"off"}`}>{apiKey?"Active":"Inactive"}</span>
+            </div>
+            <div className="field"><label>Anthropic API Key</label><input type="password" value={tmpKey} onChange={e=>setTmpKey(e.target.value)} placeholder="sk-ant-..." style={{fontFamily:"monospace",letterSpacing:".5px"}}/><div className="fhint">Get yours at <strong style={{color:"var(--teal-dim)"}}>console.anthropic.com</strong></div></div>
+            <div style={{display:"flex",gap:8,marginTop:4}}>
+              <button className="btn btn-p btn-sm" onClick={()=>onSaveKey(tmpKey)}>Save Key</button>
+              {apiKey&&<button className="btn btn-d btn-sm" onClick={()=>{setTmpKey("");onSaveKey("");}}>Remove Key</button>}
+            </div>
+          </>)}
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-d" onClick={onSignOut}>⏻ Sign Out</button>
+          <button className="btn btn-s" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── APP ───────────────────────────────────────────────────────────────
 function App(){
+  const [session,setSession]=useState(undefined);
   const [reports,setReports]=useState([]);
   const [activeId,setActiveId]=useState(null);
   const [chapter,setChapter]=useState(0);
-  const [view,setView]=useState("list");
+  const [view,setView]=useState("list");  // list | editor | preview
   const [sbOpen,setSbOpen]=useState(true);
   const [toast,setToast]=useState(null);
-  const [saving,setSaving]=useState(false);
-  const [session,setSession]=useState(undefined);
-  const [loadingReports,setLoadingReports]=useState(false);
-  const [saveState,setSaveState]=useState('saved');
-  const saveTimerRef=useRef(null);
-  const [apiKey,setApiKey]=useState(()=>localStorage.getItem("ms_apikey_v2")||"");
-  const [showApiModal,setShowApiModal]=useState(false);
+  const [saveState,setSaveState]=useState("saved");
+  const [apiKey,setApiKey]=useState(()=>localStorage.getItem("ms_apikey")||"");
+  const [showAccount,setShowAccount]=useState(false);
+  const [accOpen,setAccOpen]=useState(false);  // sidebar dropdown
   const [query,setQuery]=useState("");
+  const [loadingRpts,setLoadingRpts]=useState(false);
+  const saveTimer=useRef(null);
 
-  const activeReport=reports.find(r=>(r._id||r._localId)===activeId);
-
-
-  // ── AUTH
+  // ── AUTH ──
   useEffect(()=>{
     supabase.auth.getSession().then(({data:{session}})=>setSession(session));
-    const {data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>setSession(session));
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_,s)=>setSession(s));
     return()=>subscription.unsubscribe();
   },[]);
 
-  // ── LOAD REPORTS
+  // ── LOAD REPORTS ──
   useEffect(()=>{
-    if(!session)return;
-    setLoadingReports(true);
+    if(!session){setReports([]);return;}
+    setLoadingRpts(true);
     supabase.from("reports").select("*").order("updated_at",{ascending:false})
       .then(({data,error})=>{
-        if(!error&&data)setReports(data.map(row=>({...row.data,_id:row.id,_updated:row.updated_at})));
-        setLoadingReports(false);
+        if(!error&&data)setReports(data.map(row=>({...row.data,_id:row.id,_ts:row.updated_at})));
+        setLoadingRpts(false);
       });
   },[session]);
 
-  const signOut=async()=>{await supabase.auth.signOut();setReports([]);setActiveId(null);setView("list");};
+  const toast2=msg=>{setToast(msg);setTimeout(()=>setToast(null),2600);};
+  const signOut=async()=>{await supabase.auth.signOut();setReports([]);setActiveId(null);setView("list");setAccOpen(false);setShowAccount(false);};
+  const saveApiKey=key=>{localStorage.setItem("ms_apikey",key);setApiKey(key);toast2(key?"✓ AI key saved":"AI key removed");};
 
-  const saveToDb=useCallback(async(reportData,dbId)=>{
+  // ── CLOUD SAVE ──
+  const saveToDB=useCallback(async(data,dbId)=>{
     if(!session)return;
     setSaveState("saving");
-    const payload={user_id:session.user.id,data:{...reportData},updated_at:new Date().toISOString()};
+    const payload={user_id:session.user.id,data:{...data},updated_at:new Date().toISOString()};
     const {error}=dbId
-      ? await supabase.from("reports").update(payload).eq("id",dbId)
-      : await supabase.from("reports").insert(payload);
+      ?await supabase.from("reports").update(payload).eq("id",dbId)
+      :await supabase.from("reports").insert(payload);
     setSaveState(error?"error":"saved");
-    if(error)console.error("Save error:",error);
   },[session]);
 
-
-  // Cloud save is handled per-update via saveToDb
-
-  const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
-  const updateReport=useCallback(updater=>{
+  // ── UPDATE REPORT ──
+  const updateReport=useCallback(fn=>{
     setReports(prev=>prev.map(r=>{
-      if((r._id||r._localId)!==activeId)return r;
-      const updated={...updater(r),updated:new Date().toISOString()};
-      if(saveTimerRef.current)clearTimeout(saveTimerRef.current);
-      saveTimerRef.current=setTimeout(()=>saveToDb(updated,updated._id),1500);
+      if((r._id||r._lid)!==activeId)return r;
+      const updated={...fn(r),updated:new Date().toISOString()};
+      clearTimeout(saveTimer.current);
+      saveTimer.current=setTimeout(()=>saveToDB(updated,updated._id),1400);
       return updated;
     }));
-  },[activeId,saveToDb]);
+  },[activeId,saveToDB]);
+
+  // ── CREATE ──
   const createReport=async()=>{
-    const localId="local_"+Date.now();
-    const r={...newReport(),_localId:localId};
+    const lid="l"+Date.now();
+    const r={...newReport(),_lid:lid};
     setReports(p=>[r,...p]);
-    setActiveId(localId);setChapter(0);setView("editor");
+    setActiveId(lid);setChapter(0);setView("editor");
     setSaveState("saving");
     const {data,error}=await supabase.from("reports").insert({user_id:session.user.id,data:r,updated_at:new Date().toISOString()}).select().single();
     if(!error&&data){
-      setReports(prev=>prev.map(rr=>rr._localId===localId?{...rr,_id:data.id}:rr));
+      setReports(p=>p.map(x=>x._lid===lid?{...x,_id:data.id}:x));
       setActiveId(data.id);
     }
     setSaveState(error?"error":"saved");
   };
-  const deleteReport=async(id)=>{
-    if(!confirm("Delete this report? This cannot be undone."))return;
-    const rpt=reports.find(r=>(r._id||r._localId)===id);
-    if(rpt?._id)await supabase.from("reports").delete().eq("id",rpt._id);
-    setReports(p=>p.filter(r=>(r._id||r._localId)!==id));
-    if(activeId===id){setActiveId(null);setView("list");}
-    showToast("Report deleted");
-  };
-  const openReport=r=>{setActiveId(r._id||r._localId);setChapter(0);setView("editor");};
-  const saveApiKey=key=>{localStorage.setItem("ms_apikey_v2",key);setApiKey(key);setShowApiModal(false);showToast(key?"API key saved ✓":"API key cleared");};
 
-  const calcProgress=r=>{
-    const fields=[r.patientName,r.doi,r.ch1,r.ch2occ,Object.values(r.ch3prompts||{}).join(""),r.ch5,r.ch6general,r.ch7,r.ch8ortho,r.ch10];
-    return Math.round((fields.filter(f=>f&&String(f).trim().length>0).length/fields.length)*100);
+  // ── DELETE ──
+  const deleteReport=async id=>{
+    if(!confirm("Delete this report permanently?"))return;
+    const rpt=reports.find(r=>(r._id||r._lid)===id);
+    if(rpt?._id)await supabase.from("reports").delete().eq("id",rpt._id);
+    setReports(p=>p.filter(r=>(r._id||r._lid)!==id));
+    if(activeId===id){setActiveId(null);setView("list");}
+    toast2("Report deleted");
+  };
+
+  const openReport=r=>{setActiveId(r._id||r._lid);setChapter(0);setView("editor");};
+  const activeReport=reports.find(r=>(r._id||r._lid)===activeId);
+
+  const calcProg=r=>{
+    const ff=[r.patientName,r.doi,r.ch1,r.ch2occ,Object.values(r.ch3prompts||{}).join(""),r.ch5,r.ch6general,r.ch7,r.ch8ortho,r.ch10];
+    return Math.round(ff.filter(f=>f&&String(f).trim()).length/ff.length*100);
+  };
+  const chDone=id=>{
+    if(!activeReport)return false;
+    const r=activeReport;
+    return!!{0:r.patientName,1:r.ch1,2:r.ch2occ,3:Object.keys(r.ch3prompts||{}).length>0,4:(r.ch4injuries||[]).length>0,5:r.ch5,6:r.ch6general,7:r.ch7,8:r.ch8ortho,9:r.ch9occ,10:r.ch10}[id];
   };
 
   const filtered=reports.filter(r=>{
     if(!query)return true;
     const q=query.toLowerCase();
-    return(r.patientName||"").toLowerCase().includes(q)||(r.ourRef||"").toLowerCase().includes(q)||(r.doi||"").includes(q);
+    return(r.patientName||"").toLowerCase().includes(q)||(r.ourRef||"").toLowerCase().includes(q);
   });
 
-  const userInitials=session?.user?.email?.slice(0,2).toUpperCase()||"??";
-
-  // Loading state
-  if(session===undefined) return (
-    <div className="loading-full">
-      <div className="spin" style={{width:32,height:32,borderWidth:3}}/>
-      <div style={{fontSize:14,color:"var(--text-muted)"}}>Loading MediSync Ortho...</div>
-    </div>
-  );
-
-  // Not logged in
-  if(!session) return <LoginScreen/>;
-
+  const initials=(session?.user?.email||"??").slice(0,2).toUpperCase();
   const props={r:activeReport,setR:updateReport,apiKey};
-  const chapterComponents=[<Ch0 {...props}/>,<Ch1 {...props}/>,<Ch2 {...props}/>,<Ch3 {...props}/>,<Ch4 {...props}/>,<Ch5 {...props}/>,<Ch6 {...props}/>,<Ch7 {...props}/>,<Ch8 {...props}/>,<Ch9 {...props}/>,<Ch10 {...props}/>];
+  const chapters=[<Ch0 {...props}/>,<Ch1 {...props}/>,<Ch2 {...props}/>,<Ch3 {...props}/>,<Ch4 {...props}/>,<Ch5 {...props}/>,<Ch6 {...props}/>,<Ch7 {...props}/>,<Ch8 {...props}/>,<Ch9 {...props}/>,<Ch10 {...props}/>];
 
-  const chapterDone=id=>{
-    if(!activeReport)return false;
-    const r=activeReport;
-    const checks={0:r.patientName,1:r.ch1,2:r.ch2occ,3:Object.keys(r.ch3prompts||{}).length>0,4:(r.ch4injuries||[]).length>0,5:r.ch5,6:r.ch6general,7:r.ch7,8:r.ch8ortho,9:r.ch9occ,10:r.ch10};
-    return !!checks[id];
-  };
-
-  // API MODAL
-  const [tmpKey,setTmpKey]=useState("");
-  useEffect(()=>{if(showApiModal)setTmpKey(apiKey);},[showApiModal]);
-
-  if(showApiModal) return (
-    <div className="modal-overlay" onClick={()=>setShowApiModal(false)}>
-      <div className="modal" onClick={e=>e.stopPropagation()}>
-        <div className="modal-title">🔑 Anthropic API Key</div>
-        <div className="modal-desc">Enable AI-powered grammar correction and content enhancement. Your key is stored locally in your browser only.</div>
-        <div className="field">
-          <label>API Key</label>
-          <input type="password" value={tmpKey} onChange={e=>setTmpKey(e.target.value)} placeholder="sk-ant-..." style={{fontFamily:"monospace",letterSpacing:.5}}/>
-          <div className="field-hint">Get your key from <strong>console.anthropic.com</strong></div>
-        </div>
-        <div style={{display:"flex",gap:10,marginTop:4}}>
-          <button className="btn btn-primary" onClick={()=>saveApiKey(tmpKey)}>Save Key</button>
-          <button className="btn btn-secondary" onClick={()=>setShowApiModal(false)}>Cancel</button>
-          {apiKey&&<button className="btn btn-danger" onClick={()=>saveApiKey("")}>Clear</button>}
-        </div>
-      </div>
+  // ── LOADING ──
+  if(session===undefined)return(
+    <div className="loading-full">
+      <div className="spin"/>
+      <div style={{fontSize:13,color:"var(--t3)",letterSpacing:".5px"}}>Loading MediSync Ortho...</div>
     </div>
   );
+  if(!session)return<LoginScreen/>;
 
-  // PREVIEW
-  if(view==="preview"&&activeReport) return (
+  // ── PREVIEW ──
+  if(view==="preview"&&activeReport)return(
     <div className="app">
       <Preview r={activeReport} onBack={()=>setView("editor")}/>
       {toast&&<div className="toast">{toast}</div>}
     </div>
   );
 
-  // LIST VIEW
-  if(view==="list") return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar-logo">
-          <div className="logo-mark">🔬</div>
-          <div>
-            <div className="logo-text">MediSync <span>Ortho</span></div>
-            <div className="logo-sub">Medico-Legal Engine</div>
-          </div>
-        </div>
-        <div className="topbar-spacer"/>
-        {session&&<div style={{fontSize:13,color:"var(--text-muted)"}}>{session.user.email}</div>}
-        <button className="btn btn-secondary btn-sm" onClick={()=>setShowApiModal(true)}>
-          {apiKey?<><span style={{color:"var(--green)"}}>✓</span> AI Enabled</>:"Set AI Key"}
-        </button>
-        <button className="btn btn-primary" onClick={createReport}>+ New Report</button>
-      </header>
-      <div style={{flex:1,overflow:"hidden",overflowY:"auto",padding:"32px",maxWidth:800,margin:"0 auto",width:"100%"}}>
-        {loadingReports?(<div style={{textAlign:'center',padding:60}}><div className='spin' style={{width:32,height:32,borderWidth:3}}/><div style={{marginTop:16,color:'var(--text-muted)'}}>Loading your reports...</div></div>):(<>
-        {reports.length>0&&(
-          <div className="search-wrap">
-            <span className="search-icon">🔍</span>
-            <input className="search-box" placeholder="Search by patient name, reference number, or date..." value={query} onChange={e=>setQuery(e.target.value)}/>
-          </div>
-        )}
-        {filtered.length===0&&reports.length===0&&(
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <div className="empty-title">No Reports Yet</div>
-            <div className="empty-desc">Create your first medico-legal orthopaedic report. The guided workflow makes it easy to capture all required sections.</div>
-            <button className="btn btn-primary btn-lg" onClick={createReport}>+ Create First Report</button>
-          </div>
-        )}
-        {filtered.length===0&&reports.length>0&&(
-          <div className="empty-state">
-            <div className="empty-icon">🔍</div>
-            <div className="empty-title">No Results</div>
-            <div className="empty-desc">No reports match your search. Try a different name or reference number.</div>
-          </div>
-        )}
-        {filtered.map(rpt=>{
-          const prog=calcProgress(rpt);
-          return (
-            <div key={rpt._id||rpt._localId} className="report-card" onClick={()=>openReport(rpt)}>
-              <div className="report-icon">📄</div>
-              <div className="report-meta">
-                <div className="report-name">{rpt.patientName||"Untitled Report"}</div>
-                <div className="report-info">
-                  {rpt.ourRef&&<span style={{marginRight:12}}>Ref: {rpt.ourRef}</span>}
-                  {rpt.doi&&<span style={{marginRight:12}}>DOI: {rpt.doi}</span>}
-                  <span>Updated: {new Date(rpt.updated||rpt.created).toLocaleDateString("en-ZA")}</span>
-                </div>
-                <div className="report-progress">
-                  <div className="report-progress-bar"><div className="report-progress-fill" style={{width:`${prog}%`}}/></div>
-                  <div className="report-progress-label">{prog}%</div>
-                </div>
-              </div>
-              <button className="btn btn-danger btn-sm" onClick={e=>{e.stopPropagation();deleteReport(rpt._id||rpt._localId);}}>🗑 Delete</button>
-            </div>
-          );
-        })}
+  // ── TOPBAR (shared) ──
+  const Topbar=({inEditor})=>(
+    <header className="topbar">
+      {inEditor&&<button className="hamburger" onClick={()=>setSbOpen(p=>!p)}><span/><span/><span/></button>}
+      <div className="t-logo">
+        <div className="t-logo-mark">🔬</div>
+        <div><div className="t-logo-text">MediSync <em>Ortho</em></div><div className="t-logo-sub">Medico-Legal</div></div>
       </div>
-      </>)}
-      {toast&&<div className='toast'>{toast}</div>}
+      {inEditor&&<div className="t-sep"/>}
+      <div className="t-space"/>
+      {inEditor&&(
+        <div className={`status-pill ${saveState}`}>
+          <div className={`status-dot${saveState==="saving"?" blink":""}`}/>
+          {saveState==="saving"?"Saving…":saveState==="error"?"Save error":"Saved"}
+        </div>
+      )}
+      {inEditor&&<button className="tb-btn tb-ghost" onClick={()=>{setView("list");setActiveId(null);}}>← Reports</button>}
+      {inEditor&&<button className="tb-btn tb-primary" onClick={()=>setView("preview")}>👁 Preview</button>}
+      {!inEditor&&<button className="tb-btn tb-primary" onClick={createReport}>+ New Report</button>}
+      <button className="tb-icon" onClick={()=>setShowAccount(true)} title="Account & Settings" style={{background:"linear-gradient(135deg,rgba(157,126,255,.15),rgba(0,229,216,.1))",border:"1px solid rgba(157,126,255,.25)"}}>
+        <span style={{fontFamily:"'Syne',sans-serif",fontSize:11,fontWeight:800,color:"var(--t1)"}}>{initials}</span>
+      </button>
+    </header>
+  );
+
+  // ── LIST VIEW ──
+  if(view==="list")return(
+    <div className="app">
+      <Topbar/>
+      <div className="list-page">
+        <div className="list-head">
+          <div className="list-head-title">Your <em>Reports</em></div>
+          <div className="list-head-sub">{reports.length} report{reports.length!==1?"s":""} · all saved to the cloud</div>
+        </div>
+        {reports.length>0&&(
+          <div className="search-row">
+            <span className="search-ico">🔍</span>
+            <input className="searchbox" placeholder="Search by patient name or reference..." value={query} onChange={e=>setQuery(e.target.value)}/>
+          </div>
+        )}
+        <div className="rpt-list">
+          {loadingRpts&&<div style={{textAlign:"center",padding:60}}><div className="spin" style={{width:32,height:32,borderWidth:3}}/><div style={{marginTop:16,color:"var(--t3)",fontSize:13}}>Loading reports...</div></div>}
+          {!loadingRpts&&filtered.length===0&&reports.length===0&&(
+            <div className="empty">
+              <div className="empty-ico">📋</div>
+              <div className="empty-t">No Reports Yet</div>
+              <div className="empty-s">Create your first medico-legal orthopaedic report. Everything saves automatically to the cloud.</div>
+              <button className="btn btn-p btn-lg" onClick={createReport}>+ Create First Report</button>
+            </div>
+          )}
+          {!loadingRpts&&filtered.length===0&&reports.length>0&&(
+            <div className="empty"><div className="empty-ico">🔍</div><div className="empty-t">No Results</div><div className="empty-s">No reports match your search.</div></div>
+          )}
+          {!loadingRpts&&filtered.map(rpt=>{
+            const rid=rpt._id||rpt._lid;
+            const prog=calcProg(rpt);
+            return(
+              <div key={rid} className="rpt-card" onClick={()=>openReport(rpt)}>
+                <div className="rpt-ico">📄</div>
+                <div className="rpt-info">
+                  <div className="rpt-name">{rpt.patientName||"Untitled Report"}</div>
+                  <div className="rpt-meta">
+                    {rpt.ourRef&&<span style={{marginRight:12}}>Ref: {rpt.ourRef}</span>}
+                    {rpt.doi&&<span style={{marginRight:12}}>DOI: {rpt.doi}</span>}
+                    <span>Updated: {new Date(rpt._ts||rpt.updated||rpt.created).toLocaleDateString("en-ZA")}</span>
+                  </div>
+                  <div className="rpt-prog">
+                    <div className="rpt-track"><div className="rpt-fill" style={{width:`${prog}%`}}/></div>
+                    <div className="rpt-pct">{prog}%</div>
+                  </div>
+                </div>
+                <button className="btn btn-d btn-sm" onClick={e=>{e.stopPropagation();deleteReport(rid);}}>🗑</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {showAccount&&<AccountModal session={session} reports={reports} apiKey={apiKey} onSaveKey={saveApiKey} onClose={()=>setShowAccount(false)} onSignOut={signOut}/>}
+      {toast&&<div className="toast">{toast}</div>}
     </div>
   );
 
-  // EDITOR VIEW
-  return (
+  // ── EDITOR ──
+  return(
     <div className="app">
-      <header className="topbar">
-        <button className="menu-toggle" onClick={()=>setSbOpen(p=>!p)} title="Toggle sidebar">
-          <span/><span/><span/>
-        </button>
-        <div className="topbar-logo">
-          <div className="logo-mark">🔬</div>
-          <div>
-            <div className="logo-text">MediSync <span>Ortho</span></div>
-          </div>
-        </div>
-        <div className="topbar-spacer"/>
-        <div className="save-indicator">
-          <div className={`save-dot${saveState==="saving"?" saving":saveState==="error"?" error":""}`}/>
-          {saveState==="saving"?"Saving to cloud…":saveState==="error"?"⚠ Save failed":"✓ Saved to cloud"}
-        </div>
-        <button className="btn btn-secondary btn-sm" onClick={()=>{setView("list");setActiveId(null);}}>← All Reports</button>
-        {session&&<div style={{fontSize:13,color:"var(--text-muted)"}}>{session.user.email}</div>}
-        <button className="btn btn-secondary btn-sm" onClick={()=>setShowApiModal(true)}>
-          {apiKey?<><span style={{color:"var(--green)"}}>✓</span> AI</>:"Set AI Key"}
-        </button>
-        <button className="btn btn-primary btn-sm" onClick={()=>setView("preview")}>👁 Preview Report</button>
-      </header>
-
+      <Topbar inEditor/>
       <div className="body-wrap">
-        <nav className={`sidebar${sbOpen?"":" collapsed"}`}>
-          <div className="sidebar-header">
-            <div className="sidebar-report-name">{activeReport?.patientName||"New Report"}</div>
-            <div className="sidebar-report-meta">
-              {activeReport?.ourRef||"No reference set"}
-            </div>
-            {activeReport&&(
-              <>
-                <div className="sidebar-progress-bar">
-                  <div className="sidebar-progress-fill" style={{width:`${calcProgress(activeReport)}%`}}/>
-                </div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,.3)",marginTop:4}}>{calcProgress(activeReport)}% complete</div>
-              </>
-            )}
+        {/* SIDEBAR */}
+        <nav className={`sidebar${sbOpen?"":" closed"}`}>
+          <div className="sb-rpt">
+            <div className="sb-rpt-name">{activeReport?.patientName||"New Report"}</div>
+            <div className="sb-rpt-meta">{activeReport?.ourRef||"No reference set"}</div>
+            {activeReport&&<div className="sb-prog">
+              <div className="sb-prog-track"><div className="sb-prog-fill" style={{width:`${calcProg(activeReport)}%`}}/></div>
+              <div className="sb-prog-pct">{calcProg(activeReport)}% COMPLETE</div>
+            </div>}
           </div>
-          <div className="sidebar-nav">
-            <div className="sidebar-section-label">Chapters</div>
+          <div className="sb-nav">
+            <div className="sb-nav-label">Chapters</div>
             {CHAPTERS.map(ch=>(
               <button key={ch.id} className={`nav-item${chapter===ch.id?" active":""}`} onClick={()=>setChapter(ch.id)}>
                 <span className="nav-num">{ch.id}</span>
                 <span style={{flex:1}}>{ch.short}</span>
-                {chapterDone(ch.id)&&<span className="nav-done">✓</span>}
+                {chDone(ch.id)&&<span className="nav-tick">✓</span>}
               </button>
             ))}
           </div>
-          <div className="sidebar-user">
-            <div className="user-avatar">{userInitials}</div>
-            <div className="user-info">
-              <div className="user-email">{session?.user?.email}</div>
-              <div className="user-role">Orthopaedic Surgeon</div>
-            </div>
-            <button className="btn btn-ghost btn-sm" style={{padding:"4px 8px",color:"rgba(255,255,255,.3)"}} onClick={signOut} title="Sign out">⏻</button>
+          {/* ACCOUNT PANEL */}
+          <div className="sb-account">
+            {accOpen&&(
+              <div className="acc-dropdown">
+                <button className="acc-item" onClick={()=>{setShowAccount(true);setAccOpen(false);}}>
+                  <div className="acc-item-ico">👤</div> My Account
+                </button>
+                <button className="acc-item" onClick={()=>{setShowAccount(true);setAccOpen(false);}}>
+                  <div className="acc-item-ico">✨</div> {apiKey?"AI Key Active":"Set AI Key"}
+                </button>
+                <button className="acc-item" onClick={()=>{setShowAccount(true);setAccOpen(false);}}>
+                  <div className="acc-item-ico">🔐</div> Change Password
+                </button>
+                <button className="acc-item red" onClick={signOut}>
+                  <div className="acc-item-ico">⏻</div> Sign Out
+                </button>
+              </div>
+            )}
+            <button className="sb-acc-btn" onClick={()=>setAccOpen(p=>!p)}>
+              <div className="acc-avatar">{initials}</div>
+              <div className="acc-info">
+                <div className="acc-email">{session?.user?.email}</div>
+                <div className="acc-role">Orthopaedic Surgeon</div>
+              </div>
+              <div className={`acc-chevron${accOpen?" open":""}`}>▲</div>
+            </button>
           </div>
         </nav>
 
+        {/* MAIN */}
         <main className="main">
-          <div className="chapter-header">
-            <div className="chapter-header-left">
-              <div className="chapter-badge">{CHAPTERS[chapter].icon}</div>
+          <div className="ch-bar">
+            <div className="ch-left">
+              <div className="ch-badge">{CHAPTERS[chapter].icon}</div>
               <div>
-                <div className="chapter-title">{CHAPTERS[chapter].title}</div>
-                <div className="chapter-subtitle">Chapter {chapter} of 10</div>
+                <div className="ch-title">{CHAPTERS[chapter].title}</div>
+                <div className="ch-sub">Chapter {chapter} of 10</div>
               </div>
             </div>
-            <div className="chapter-nav">
-              {chapter>0&&<button className="btn btn-secondary btn-sm" onClick={()=>setChapter(p=>p-1)}>← Previous</button>}
-              {chapter<10&&<button className="btn btn-primary btn-sm" onClick={()=>setChapter(p=>p+1)}>Next →</button>}
+            <div className="ch-nav">
+              {chapter>0&&<button className="btn btn-s btn-sm" onClick={()=>setChapter(p=>p-1)}>← Prev</button>}
+              {chapter<10&&<button className="btn btn-p btn-sm" onClick={()=>setChapter(p=>p+1)}>Next →</button>}
             </div>
           </div>
-          <div className="content-area">
-            {activeReport?chapterComponents[chapter]:(
-              <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <div className="empty-title">No Report Selected</div>
-                <div className="empty-desc">Go back and select a report to edit.</div>
-                <button className="btn btn-primary" onClick={()=>setView("list")}>← All Reports</button>
+          <div className="content">
+            {activeReport?chapters[chapter]:(
+              <div className="empty">
+                <div className="empty-ico">📋</div>
+                <div className="empty-t">No Report Open</div>
+                <button className="btn btn-p" onClick={()=>setView("list")}>← All Reports</button>
               </div>
             )}
           </div>
         </main>
       </div>
 
+      {showAccount&&<AccountModal session={session} reports={reports} apiKey={apiKey} onSaveKey={saveApiKey} onClose={()=>setShowAccount(false)} onSignOut={signOut}/>}
       {toast&&<div className="toast">{toast}</div>}
     </div>
   );
 }
 
-const root=ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App/>);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
